@@ -1,0 +1,59 @@
+name: Reasoning Distiller Package Installer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/rd_install.py'
+      - 'packaging/build_release_package.py'
+      - 'packaging/validate_install_package_contract.py'
+      - 'packaging/package-build.json'
+      - 'schemas/install-package-manifest.schema.json'
+      - 'schemas/installation-record.schema.json'
+      - 'schemas/project-package.schema.json'
+      - 'tests/test_installer_p3.py'
+      - 'docs/packaging/P3_DETERMINISTIC_INSTALLER.md'
+      - '.github/workflows/package-installer.yml'
+      - 'admission/**'
+      - 'agents/**'
+      - 'backends/**'
+      - 'protocols/**'
+      - 'schemas/**'
+      - 'validators/**'
+  pull_request:
+    paths:
+      - 'packaging/rd_install.py'
+      - 'packaging/build_release_package.py'
+      - 'packaging/validate_install_package_contract.py'
+      - 'packaging/package-build.json'
+      - 'schemas/install-package-manifest.schema.json'
+      - 'schemas/installation-record.schema.json'
+      - 'schemas/project-package.schema.json'
+      - 'tests/test_installer_p3.py'
+      - 'docs/packaging/P3_DETERMINISTIC_INSTALLER.md'
+      - '.github/workflows/package-installer.yml'
+      - 'admission/**'
+      - 'agents/**'
+      - 'backends/**'
+      - 'protocols/**'
+      - 'schemas/**'
+      - 'validators/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install schema validator
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+      - name: Verify installer contract
+        run: test "$(python packaging/rd_install.py --version)" = "reasoning-distiller-installer/1"
+      - name: Run P3 installer pressure suite
+        run: python -m unittest -v tests/test_installer_p3.py
