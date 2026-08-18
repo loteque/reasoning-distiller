@@ -1,0 +1,187 @@
+name: Reasoning Distiller Greenfield Consumer Trial
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/greenfield-consumer-trial.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_VERSION: '0.2.0'
+  RELEASE_TAG: 'v0.2.0'
+  RELEASE_SOURCE_SHA: 'c7daed110e58627d0ab2566298cc433615ee4452'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:75736b1b8522f568cf172058ea97b8216501d4faaf2d4fa32ff7056181c42add'
+  EXPECTED_TRANSPORT_SHA256: 'd5273f9181e286c592db21e636c67b8dfb3f3a3dc39608cf34e6f66557a477e1'
+
+jobs:
+  greenfield:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Capture operator-visible public docs
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/operator-docs
+          cp README.md /tmp/operator-docs/README.md
+          cp INSTALLING.md /tmp/operator-docs/INSTALLING.md
+          cp docs/operations/PRODUCTION_INVOCATION_CONTRACT.md /tmp/operator-docs/PRODUCTION_INVOCATION_CONTRACT.md
+
+      - name: Create true greenfield repository
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/greenfield
+          cd /tmp/greenfield
+          git init -q
+          git config user.email greenfield@example.invalid
+          git config user.name 'Greenfield Trial'
+          printf '%s\n' '# Greenfield Reasoning Distiller Trial' > README.md
+          printf '%s\n' '.DS_Store' > .gitignore
+          git add README.md .gitignore
+          git commit -q -m 'initial empty project'
+          test "$(find . -maxdepth 1 -mindepth 1 ! -name .git | wc -l)" -eq 2
+          test ! -e .reasoning-distiller
+          git rev-parse HEAD > /tmp/greenfield-initial-sha
+          find . -maxdepth 2 -type f -not -path './.git/*' -print | sort > /tmp/initial-tree.txt
+
+      - name: Retrieve exact accepted release read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rd-release
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir /tmp/rd-release
+          cd /tmp/rd-release
+          test -f "reasoning-distiller-${RELEASE_VERSION}.tar.gz"
+          test -f "reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          test -f "reasoning-distiller-${RELEASE_VERSION}.sha256"
+          test -f rd_install.py
+          test -f validate_install_package_contract.py
+          test -f install-package-manifest.schema.json
+          test -f installation-record.schema.json
+          test "$(sha256sum "reasoning-distiller-${RELEASE_VERSION}.tar.gz" | awk '{print $1}')" = "$EXPECTED_TRANSPORT_SHA256"
+          test "$(awk '{print $1}' "reasoning-distiller-${RELEASE_VERSION}.sha256")" = "$EXPECTED_TRANSPORT_SHA256"
+
+      - name: Arrange only documented installer bootstrap
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rd-bootstrap/packaging /tmp/rd-bootstrap/schemas
+          cp /tmp/rd-release/rd_install.py /tmp/rd-bootstrap/packaging/
+          cp /tmp/rd-release/validate_install_package_contract.py /tmp/rd-bootstrap/packaging/
+          cp /tmp/rd-release/install-package-manifest.schema.json /tmp/rd-bootstrap/schemas/
+          cp /tmp/rd-release/installation-record.schema.json /tmp/rd-bootstrap/schemas/
+          python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Install into greenfield repository from public procedure
+        run: |
+          set -euo pipefail
+          python /tmp/rd-bootstrap/packaging/rd_install.py \
+            --package "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
+            --manifest "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json" \
+            --transport-sha256 "$EXPECTED_TRANSPORT_SHA256" \
+            --target /tmp/greenfield \
+            --source-repository loteque/reasoning-distiller \
+            --source-locator "$RELEASE_TAG" \
+            --runner-id "greenfield-${GITHUB_RUN_ID}" \
+            > /tmp/install-result.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads(Path('/tmp/install-result.json').read_text())
+          assert r['status']=='PASS'
+          assert r['version']==os.environ['RELEASE_VERSION']
+          assert r['content_identity']==os.environ['EXPECTED_CONTENT_IDENTITY']
+          i=json.loads(Path('/tmp/greenfield/.reasoning-distiller/.installation/INSTALLATION.json').read_text())
+          assert i['source_commit']==os.environ['RELEASE_SOURCE_SHA']
+          assert i['transport_sha256']==os.environ['EXPECTED_TRANSPORT_SHA256']
+          PY
+
+      - name: Attempt documented transition from install to first invocation
+        run: |
+          set -euo pipefail
+          # Do not invent project scaffolding. The public invocation contract itself
+          # declares bootstrap a non-goal while requiring project-owned evidence,
+          # source registry, raw-output path, and submission path.
+          grep -q 'does not define project bootstrap' /tmp/operator-docs/PRODUCTION_INVOCATION_CONTRACT.md
+          grep -q 'source_registry' /tmp/operator-docs/PRODUCTION_INVOCATION_CONTRACT.md
+          grep -q 'raw_candidate_path' /tmp/operator-docs/PRODUCTION_INVOCATION_CONTRACT.md
+          grep -q 'submission_path' /tmp/operator-docs/PRODUCTION_INVOCATION_CONTRACT.md
+          test ! -e /tmp/greenfield/project-knowledge
+          test ! -e /tmp/greenfield/invocation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          finding={
+            'contract':'reasoning-distiller-consumer-trial-finding/1',
+            'trial':'greenfield-consumer',
+            'finding_id':'GFCT-001',
+            'status':'BLOCKING',
+            'stage':'post-install-bootstrap',
+            'summary':'Public installation succeeds, but no public bootstrap procedure defines the minimum project-owned state needed to construct the first rd-distill invocation.',
+            'required_missing_boundary':'project-bootstrap-contract',
+            'required_inputs_named_by_invocation_contract':['evidence','source_registry','output.raw_candidate_path','output.submission_path'],
+            'measured_action':'STOP_WITHOUT_INVENTING_SCAFFOLDING'
+          }
+          Path('/tmp/bootstrap-finding.json').write_text(json.dumps(finding,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Verify greenfield ownership state at stop
+        run: |
+          set -euo pipefail
+          cd /tmp/greenfield
+          git status --porcelain > /tmp/final-status.txt
+          grep -q '^?? .reasoning-distiller/' /tmp/final-status.txt
+          test "$(grep -vc '^?? .reasoning-distiller/' /tmp/final-status.txt || true)" -eq 0
+          test ! -e project-knowledge
+          test ! -e .rd-install-transaction.json
+          test ! -e .rd-install-backup
+          find . -maxdepth 3 -type f -not -path './.git/*' -print | sort > /tmp/final-tree.txt
+
+      - name: Emit measured trial disposition
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          result={
+            'contract':'reasoning-distiller-greenfield-consumer-trial-result/1',
+            'status':'STOPPED_PRODUCT_FINDING',
+            'pass':False,
+            'release_version':os.environ['RELEASE_VERSION'],
+            'release_tag':os.environ['RELEASE_TAG'],
+            'release_source_commit':os.environ['RELEASE_SOURCE_SHA'],
+            'content_identity':os.environ['EXPECTED_CONTENT_IDENTITY'],
+            'transport_sha256':os.environ['EXPECTED_TRANSPORT_SHA256'],
+            'installation':'PASS',
+            'bootstrap':'UNDEFINED',
+            'first_blocking_finding':'GFCT-001',
+            'invocation_attempted':False,
+            'reason':'Trial specification requires stopping rather than inventing undocumented bootstrap scaffolding.'
+          }
+          Path('/tmp/trial-result.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Upload durable run evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenfield-consumer-trial-${{ github.run_id }}
+          include-hidden-files: true
+          path: |
+            /tmp/greenfield-initial-sha
+            /tmp/initial-tree.txt
+            /tmp/final-tree.txt
+            /tmp/final-status.txt
+            /tmp/install-result.json
+            /tmp/bootstrap-finding.json
+            /tmp/trial-result.json
+            /tmp/operator-docs/README.md
+            /tmp/operator-docs/INSTALLING.md
+            /tmp/operator-docs/PRODUCTION_INVOCATION_CONTRACT.md
+            /tmp/greenfield/.reasoning-distiller/.installation/INSTALLATION.json
+            /tmp/greenfield/.reasoning-distiller/.installation/MANIFEST.json
