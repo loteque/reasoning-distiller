@@ -1,0 +1,16 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "claim",
+      "statement": "First cyclic proposition.",
+      "premise": ["r2"]
+    },
+    {
+      "temp_id": "r2",
+      "kind": "claim",
+      "statement": "Second cyclic proposition.",
+      "premise": ["r1"]
+    }
+  ]
+}
