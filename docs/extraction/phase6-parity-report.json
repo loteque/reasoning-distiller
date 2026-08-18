@@ -1,0 +1,79 @@
+{
+  "authority_invariant": {
+    "distiller": "candidate producer only",
+    "executor": "deterministic execution only; no semantic reconciliation",
+    "steward": "project-scoped semantic reconciliation and admission authority"
+  },
+  "checks": {
+    "framework_isolation": "PASS",
+    "frozen_reference_blob_integrity": "PASS",
+    "frozen_steward_transaction_proof": "PASS",
+    "guarded_update_pressure_cases": {
+      "count": 7,
+      "status": "PASS"
+    },
+    "pems2_contract": "PASS",
+    "phase1_raw_candidates": {
+      "count": 15,
+      "selection": "phase1_closeout_batch",
+      "status": "PASS_UNCHANGED"
+    },
+    "phase3_shadow_candidates": {
+      "count": 5,
+      "status": "PASS_UNCHANGED"
+    },
+    "project_package_contract": "PASS",
+    "rgp_fixture_behavior": "PASS",
+    "uncertainty_import": "PASS"
+  },
+  "contract": "reasoning-distiller-extraction-parity-report/1",
+  "evidence_files": {
+    "admission-v2-pressure.txt": {
+      "bytes": 87,
+      "sha256": "c47d1333268196b7df9d96550e46b148281d416f00e0930cd3976c41864baf55"
+    },
+    "candidate-validation.txt": {
+      "bytes": 2058,
+      "sha256": "b3205a64218792a17307fdf576cd9f83a3c666686be5a8f6f35b0d57cd9a0bf2"
+    },
+    "corpus-integrity.txt": {
+      "bytes": 1468,
+      "sha256": "a9de5db6bb1c5b250da4c31330120d13075ca51b80a7552486c2107ec56caa10"
+    },
+    "framework-isolation.txt": {
+      "bytes": 55,
+      "sha256": "935839552b4d3df62d6a15937161d651381b06c0da8b8da0f6e077d8b869b907"
+    },
+    "pems2-contract.txt": {
+      "bytes": 376,
+      "sha256": "517bfa443770c429a0a5a24d4be1afc324b0c27b76c6adf1f0a62aaf5133f1b1"
+    },
+    "project-package.txt": {
+      "bytes": 39,
+      "sha256": "98953a12c839ea58cbf70be0c813a0c828c74d686d4617423c71a4927688bffd"
+    },
+    "rgp-fixtures.txt": {
+      "bytes": 346,
+      "sha256": "194d01258b85fa8d3f03c67e698a82bc5d4f2e547413346de64f0f100190e798"
+    },
+    "rgp-validator-version.txt": {
+      "bytes": 16,
+      "sha256": "932d2073ce9f7b2999867e860cb852a692246de21541383d0f528022b64d1492"
+    },
+    "steward-proof.txt": {
+      "bytes": 46,
+      "sha256": "99fd0222772afc27f1712c247b160a8593a180f60feaa5b0a957183a0112d017"
+    },
+    "uncertainty-import.txt": {
+      "bytes": 78,
+      "sha256": "39fbc892709c0b51301dc30002199f37fe5008e2f72953ba371b58ae5d2b4dff"
+    }
+  },
+  "rgp_contract": "rgp/1",
+  "semantic_change_authorized": false,
+  "source_commit": "1c25bf7cc858218941476097a3a5ac5ba204f270",
+  "source_repository": "loteque/gdscript-voxel-engine",
+  "standalone_repository": "loteque/reasoning-distiller",
+  "status": "PASS",
+  "tested_commit": "74682c6639b526f2a5dc43783e30cbf92667a897"
+}
