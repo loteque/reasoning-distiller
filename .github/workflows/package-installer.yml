@@ -12,7 +12,9 @@ on:
       - 'schemas/installation-record.schema.json'
       - 'schemas/project-package.schema.json'
       - 'tests/test_installer_p3.py'
+      - 'tests/test_installer_p4.py'
       - 'docs/packaging/P3_DETERMINISTIC_INSTALLER.md'
+      - 'docs/packaging/P4_JOURNALED_RECOVERY.md'
       - '.github/workflows/package-installer.yml'
       - 'admission/**'
       - 'agents/**'
@@ -30,7 +32,9 @@ on:
       - 'schemas/installation-record.schema.json'
       - 'schemas/project-package.schema.json'
       - 'tests/test_installer_p3.py'
+      - 'tests/test_installer_p4.py'
       - 'docs/packaging/P3_DETERMINISTIC_INSTALLER.md'
+      - 'docs/packaging/P4_JOURNALED_RECOVERY.md'
       - '.github/workflows/package-installer.yml'
       - 'admission/**'
       - 'agents/**'
@@ -57,3 +61,5 @@ jobs:
         run: test "$(python packaging/rd_install.py --version)" = "reasoning-distiller-installer/1"
       - name: Run P3 installer pressure suite
         run: python -m unittest -v tests/test_installer_p3.py
+      - name: Run P4 journaled recovery pressure suite
+        run: python -m unittest -v tests/test_installer_p4.py
