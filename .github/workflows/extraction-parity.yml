@@ -45,23 +45,29 @@ jobs:
           sys.path.insert(0, str(Path('validators').resolve()))
           from validate_distillation import validate
 
-          phase1=[]
-          for path in sorted(Path('evaluation/corpus/voxel-engine/phase1/independent').rglob('*.json')):
-              try:
-                  doc=json.loads(path.read_text(encoding='utf-8'))
-              except json.JSONDecodeError:
-                  continue
-              if isinstance(doc, dict) and isinstance(doc.get('records'), list):
-                  phase1.append(path)
-          phase3=sorted(Path('evaluation/corpus/voxel-engine/phase3/shadow').rglob('candidate.rgp.json'))
-          assert len(phase1) == 15, f'expected 15 Phase-1 raw candidates, found {len(phase1)}'
+          root = Path('evaluation/corpus/voxel-engine/phase1/independent')
+          closeout = json.loads((root / 'closeout.json').read_text(encoding='utf-8'))
+          batch = closeout['batch']
+          phase1 = []
+          for directory in batch:
+              for path in sorted((root / directory).rglob('*.json')):
+                  try:
+                      doc = json.loads(path.read_text(encoding='utf-8'))
+                  except json.JSONDecodeError:
+                      continue
+                  if isinstance(doc, dict) and isinstance(doc.get('records'), list):
+                      phase1.append(path)
+          phase3 = sorted(Path('evaluation/corpus/voxel-engine/phase3/shadow').rglob('candidate.rgp.json'))
+          expected_phase1 = len(closeout['runs'])
+          assert expected_phase1 == 15, f'closeout expected 15 Phase-1 runs, found {expected_phase1}'
+          assert len(phase1) == expected_phase1, f'expected {expected_phase1} closeout Phase-1 raw candidates, found {len(phase1)}'
           assert len(phase3) == 5, f'expected 5 Phase-3 shadow candidates, found {len(phase3)}'
           for path in phase1 + phase3:
-              errors=validate(json.loads(path.read_text(encoding='utf-8')))
+              errors = validate(json.loads(path.read_text(encoding='utf-8')))
               if errors:
                   raise SystemExit(f'{path}: {errors}')
               print(f'PASS {path}')
-          print(json.dumps({'phase1_candidates':15,'phase3_candidates':5,'passed':True}, sort_keys=True))
+          print(json.dumps({'phase1_candidates':len(phase1),'phase3_candidates':len(phase3),'passed':True}, sort_keys=True))
           PY
       - name: Verify frozen Steward transaction and proof fixture
         run: |
