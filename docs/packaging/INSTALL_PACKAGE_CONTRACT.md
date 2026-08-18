@@ -3,10 +3,13 @@
 Status: **Normative P1 contract**
 Contract: `reasoning-distiller-install-package/1`
 Governing plan: `docs/proposals/install-package/FINAL_PLAN.md`
+Installer contract: `reasoning-distiller-installer/1`
 
 ## Boundary
 
 A release package contains only generic Reasoning Distiller framework material. It is retrieved read-only by an agent already authorized in a consuming project and installed into a project-local managed root.
+
+The canonical V1 installer is the deterministic, network-independent Python 3 CLI `rd_install.py`, executed by a runner that already has access to the target workspace. Retrieval is outside the installer. See `docs/packaging/INSTALLER_RUNNER_CONTRACT.md`.
 
 The installer and installed runtime require no network access and no working reference to the source repository.
 
@@ -23,10 +26,13 @@ Project knowledge, project integration wrappers, role activation, authority, can
 V1 release transport consists of:
 
 ```text
+rd_install.py
 reasoning-distiller-<version>.tar.gz
 reasoning-distiller-<version>.manifest.json
 reasoning-distiller-<version>.sha256
 ```
+
+`rd_install.py` is the canonical installer executable for `reasoning-distiller-installer/1`. It may be published alongside the transport artifacts or included in an agent-accessible release surface, but installer execution itself consumes only local inputs.
 
 The archive format is transport. Package semantic identity is the manifest content identity.
 
@@ -83,6 +89,8 @@ Rules:
 
 `transport_sha256` is not part of the identity payload because compressed transport bytes may differ without changing installed content. It is verified separately.
 
+Installer code and its own release identity are likewise not implicit inputs to package content identity. The installation record explicitly states the installer contract/entrypoint used.
+
 ## Compatibility
 
 V1 manifest compatibility contains explicit contract selectors:
@@ -99,6 +107,14 @@ V1 manifest compatibility contains explicit contract selectors:
 
 Additional backend keys may be added without granting authority or selecting a backend for a project. Compatibility declares what the package can work with; project configuration selects what is active.
 
+## Deterministic installer execution
+
+`rd_install.py` is executed by an already-authorized runner. For equivalent declared inputs and equivalent target pre-state, it must produce the same managed framework tree and deterministic validation result, or the same classified failure condition.
+
+Inputs that may affect installed framework state must be explicit. The installer must not choose package versions, query mutable branch state, perform update discovery, use the current time to select content, or fetch missing files remotely.
+
+Non-semantic event metadata such as `installed_at`, runner kind, and invocation ID may vary between executions but must not affect installed framework bytes or package content identity.
+
 ## Installed metadata
 
 After a successful install, the managed tree contains:
@@ -110,7 +126,7 @@ After a successful install, the managed tree contains:
 
 `MANIFEST.json` is the exact verified release manifest.
 
-`INSTALLATION.json` conforms to `schemas/installation-record.schema.json` and records the installation event, including release version, content identity, transport digest, source commit, target managed root, and contract versions. Source repository/locator fields are optional provenance and update-discovery metadata only.
+`INSTALLATION.json` conforms to `schemas/installation-record.schema.json` and records the installation event, including release version, content identity, transport digest, source commit, target managed root, installer contract/entrypoint, and contract versions. Source repository/locator fields are optional provenance and update-discovery metadata only. Runner/event metadata is operational and does not participate in package content identity.
 
 ## Managed-tree rule
 
@@ -135,12 +151,13 @@ Repository URLs and source locators are allowed only in metadata, documentation,
 A conforming P1 implementation must prove:
 
 - manifest and installation examples pass their schemas;
+- installation metadata identifies `reasoning-distiller-installer/1` and `rd_install.py`;
 - invalid paths/modes/digests fail;
 - duplicate and case-fold-colliding paths fail;
 - files outside declared managed roots fail;
 - content identity is independent of file declaration order and managed-root order;
 - changing path, mode, digest, version, source commit, compatibility, or managed roots changes content identity;
-- changing transport digest alone does not change content identity;
+- changing transport digest, installation timestamp, or runner metadata does not change package content identity;
 - same release version with a different content identity is treated as an identity collision by later release/install gates.
 
 P1 defines contracts only. It does not authorize RGP semantic changes, project canonical migration, or project Steward authority changes.
