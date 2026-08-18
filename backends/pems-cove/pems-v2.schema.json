@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/loteque/gdscript-voxel-engine/blob/project-chat-handoff/docs/handoff/pems/v2/pems-v2.schema.json",
+  "$id": "https://github.com/loteque/reasoning-distiller/blob/main/backends/pems-cove/pems-v2.schema.json",
   "title": "Project Engineering Memory Schema (PEMS) v2",
   "description": "Normative structural schema for normalized expanded pems/2 project engineering memory. PEMS/2 preserves the closed PEMS/1 project-domain vocabulary, adds generic propositions, typed provenance, and closed reasoning relations. Graph integrity, identity admission, snapshot exportability, provenance semantics, deterministic normalization, and retention are semantic validation responsibilities outside JSON Schema.",
   "type": "object",
