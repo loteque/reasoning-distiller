@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+# P4 proof branch marker; intentionally not merged.
+
 import importlib.util
 import json
 import tempfile
@@ -127,7 +129,7 @@ class InstallerP4Tests(unittest.TestCase):
         live = self.project / ".reasoning-distiller"
         backup = self.project / installer.BACKUP_NAME
         live.rename(self.project / ".discarded-new")
-        backup.rename(live)  # restoration completed, process dies before journal removal
+        backup.rename(live)
         recovery = installer.recover_interrupted_transaction(self.project)
         self.assertEqual(recovery["status"], "RESTORED_PREVIOUS")
         self.assertEqual(self.live_manifest()["version"], "0.1.0")
