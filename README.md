@@ -10,6 +10,10 @@ Authority boundary: the Distiller produces candidates; the project Steward owns 
 
 See [`INSTALLING.md`](INSTALLING.md) for human installation instructions and the minimal safe agent installation procedure.
 
+## Production invocation
+
+The stable installed Distiller operation is `rd-distill`. Its inputs, outputs, failure semantics, filesystem boundary, and authority boundary are defined by [`docs/operations/PRODUCTION_INVOCATION_CONTRACT.md`](docs/operations/PRODUCTION_INVOCATION_CONTRACT.md) (`reasoning-distiller-invocation/1`).
+
 ## Governance methods
 
 Consequential architecture, protocol, governance, extraction, installation, and production-design proposals may use the durable three-stage review method defined in [`docs/governance/PROPOSAL_REVIEW_METHOD.md`](docs/governance/PROPOSAL_REVIEW_METHOD.md): RPG Engineer proposal → independent Engineer review/synthesis → Project Engineering Steward reconciliation/final plan.
