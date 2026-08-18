@@ -1,25 +1,29 @@
 {
+  "bootstrap_contract": "reasoning-distiller-project-bootstrap/1",
+  "bootstrap_result_contract": "reasoning-distiller-project-bootstrap-result/1",
   "consumer_write_credential_required": false,
   "contains_production_invocation": true,
-  "content_identity": "sha256:75736b1b8522f568cf172058ea97b8216501d4faaf2d4fa32ff7056181c42add",
+  "contains_project_bootstrap": true,
+  "content_identity": "sha256:f5effb355ad8021e07b1053a125b44f13114579601496ed6014fc600f8e32db8",
   "contract": "reasoning-distiller-release-status/1",
   "invocation_contract": "reasoning-distiller-invocation/1",
   "invocation_result_contract": "reasoning-distiller-invocation-result/1",
+  "project_contract": "reasoning-distiller-project/1",
   "release_assets": [
-    "reasoning-distiller-0.2.0.tar.gz",
-    "reasoning-distiller-0.2.0.manifest.json",
-    "reasoning-distiller-0.2.0.sha256",
+    "reasoning-distiller-0.3.0.tar.gz",
+    "reasoning-distiller-0.3.0.manifest.json",
+    "reasoning-distiller-0.3.0.sha256",
     "rd_install.py",
     "validate_install_package_contract.py",
     "install-package-manifest.schema.json",
     "installation-record.schema.json"
   ],
-  "release_tag": "v0.2.0",
-  "release_version": "0.2.0",
+  "release_tag": "v0.3.0",
+  "release_version": "0.3.0",
   "runtime_repository_dependency": false,
   "semantic_authority_changed": false,
-  "source_commit": "c7daed110e58627d0ab2566298cc433615ee4452",
+  "source_commit": "146f828efd258c5d964414f0118a64f2f77ed300",
   "status": "PASS",
-  "transport_sha256": "d5273f9181e286c592db21e636c67b8dfb3f3a3dc39608cf34e6f66557a477e1",
-  "workflow_run": "32112502808"
+  "transport_sha256": "2cac56f03b692b5443813c61be7ca37c0ea6ee1fd2649ac0b93f9ffe919cca0e",
+  "workflow_run": "32194616352"
 }
