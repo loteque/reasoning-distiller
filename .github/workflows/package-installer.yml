@@ -57,3 +57,4 @@ jobs:
         run: test "$(python packaging/rd_install.py --version)" = "reasoning-distiller-installer/1"
       - name: Run P3 installer pressure suite
         run: python -m unittest -v tests/test_installer_p3.py
+      # PR proof trigger; not merged.
