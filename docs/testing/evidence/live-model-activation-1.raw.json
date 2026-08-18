@@ -1,0 +1,14 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "observation",
+      "statement": "The greenfield live model activation reached explicit evidence preparation.",
+      "provenance": {
+        "primary": [
+          "src:greenfield:live"
+        ]
+      }
+    }
+  ]
+}
