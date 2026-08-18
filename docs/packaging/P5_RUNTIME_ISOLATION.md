@@ -40,3 +40,5 @@ P5 passes only when:
 4. the installed runtime audit reports zero violations.
 
 Passing P5 authorizes P6 consumer migration to replace the voxel-engine transitional cross-repository runtime checkout with a project-local package installation.
+
+<!-- temporary P5 proof trigger; do not merge -->
