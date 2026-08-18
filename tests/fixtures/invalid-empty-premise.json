@@ -1,0 +1,10 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "claim",
+      "statement": "A proposition with an empty premise set.",
+      "premise": []
+    }
+  ]
+}
