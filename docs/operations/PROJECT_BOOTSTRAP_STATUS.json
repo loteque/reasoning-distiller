@@ -1,0 +1,16 @@
+{
+  "contract": "reasoning-distiller-project-bootstrap-status/1",
+  "status": "PASS",
+  "implementation_commit": "7b9b12e7d57317111c017b4b144d83ed1d5e5736",
+  "bootstrap_contract": "reasoning-distiller-project-bootstrap/1",
+  "bootstrap_result_contract": "reasoning-distiller-project-bootstrap-result/1",
+  "project_contract": "reasoning-distiller-project/1",
+  "reference_implementation": "runtime/rd_bootstrap.py",
+  "workflow": ".github/workflows/project-bootstrap.yml",
+  "workflow_run": 32184602312,
+  "workflow_job": 95865234247,
+  "conformance_suite": "tests/test_project_bootstrap.py",
+  "observed_conclusion": "success",
+  "authority_changed": false,
+  "canonical_state_created": false
+}
