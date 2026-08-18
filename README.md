@@ -10,6 +10,10 @@ Authority boundary: the Distiller produces candidates; the project Steward owns 
 
 See [`INSTALLING.md`](INSTALLING.md) for human installation instructions and the minimal safe agent installation procedure.
 
+## Project bootstrap
+
+The deterministic `rd-bootstrap` primitive initializes the minimum project-owned structure required for first use. Its contract and the future `rd_init` orchestration boundary are defined by [`docs/operations/PROJECT_BOOTSTRAP_CONTRACT.md`](docs/operations/PROJECT_BOOTSTRAP_CONTRACT.md).
+
 ## Production invocation
 
 The stable installed Distiller operation is `rd-distill`. Its inputs, outputs, failure semantics, filesystem boundary, and authority boundary are defined by [`docs/operations/PRODUCTION_INVOCATION_CONTRACT.md`](docs/operations/PRODUCTION_INVOCATION_CONTRACT.md) (`reasoning-distiller-invocation/1`).
