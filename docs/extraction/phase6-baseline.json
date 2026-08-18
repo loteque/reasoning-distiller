@@ -1,0 +1,16 @@
+{
+  "contract": "reasoning-distiller-phase6-baseline/1",
+  "status": "ACCEPTED_PARITY_BASELINE",
+  "source_repository": "loteque/gdscript-voxel-engine",
+  "source_commit": "1c25bf7cc858218941476097a3a5ac5ba204f270",
+  "framework_repository": "loteque/reasoning-distiller",
+  "framework_tested_commit": "3a9904ede987a6941ae01fdb50bd062da30e445b",
+  "parity_evidence_commit": "fb7290622d6a9d929a059f111cdd60cd50496fcf",
+  "parity_report": "docs/extraction/phase6-parity-report.json",
+  "rgp_contract": "rgp/1",
+  "semantic_change_authorized": false,
+  "authority_invariant": "Distiller proposes; project Steward reconciles and authorizes; deterministic executor proves/applies the exact authorized transaction.",
+  "phase6_0_h": "PASS",
+  "phase6_1_unblocked": true,
+  "consumer_pin": "fb7290622d6a9d929a059f111cdd60cd50496fcf"
+}
