@@ -1,0 +1,24 @@
+{
+  "clean_install_proof": "gdscript-voxel-engine P6",
+  "consumer_write_credential_required": false,
+  "content_identity": "sha256:a487149caaaf41af70fdf2af6e52b7955a6c3fe14046321649357d21ba7241b4",
+  "contract": "reasoning-distiller-p8-release-status/1",
+  "release_assets": [
+    "reasoning-distiller-0.1.1.tar.gz",
+    "reasoning-distiller-0.1.1.manifest.json",
+    "reasoning-distiller-0.1.1.sha256",
+    "rd_install.py",
+    "validate_install_package_contract.py",
+    "install-package-manifest.schema.json",
+    "installation-record.schema.json"
+  ],
+  "release_tag": "v0.1.1",
+  "release_version": "0.1.1",
+  "runtime_repository_dependency": false,
+  "semantic_authority_changed": false,
+  "source_commit": "1da88edc000bbd6db78affe8e604ca499f516d55",
+  "status": "PASS",
+  "transport_sha256": "773ab0c9a5946f69ec568aabd9a255569f9511227142baadde077f826aa6cd8a",
+  "update_proof": "gdscript-voxel-engine P7",
+  "workflow_run": "32108634877"
+}
