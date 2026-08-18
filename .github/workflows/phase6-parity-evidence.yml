@@ -47,17 +47,23 @@ jobs:
           sys.path.insert(0, str(Path('validators').resolve()))
           from validate_distillation import validate
 
+          root = Path('evaluation/corpus/voxel-engine/phase1/independent')
+          closeout = json.loads((root / 'closeout.json').read_text(encoding='utf-8'))
           phase1 = []
-          for path in sorted(Path('evaluation/corpus/voxel-engine/phase1/independent').rglob('*.json')):
-              try:
-                  doc=json.loads(path.read_text(encoding='utf-8'))
-              except json.JSONDecodeError:
-                  continue
-              if isinstance(doc, dict) and isinstance(doc.get('records'), list):
-                  phase1.append(path)
+          for directory in closeout['batch']:
+              for path in sorted((root / directory).rglob('*.json')):
+                  try:
+                      doc = json.loads(path.read_text(encoding='utf-8'))
+                  except json.JSONDecodeError:
+                      continue
+                  if isinstance(doc, dict) and isinstance(doc.get('records'), list):
+                      phase1.append(path)
           phase3 = sorted(Path('evaluation/corpus/voxel-engine/phase3/shadow').rglob('candidate.rgp.json'))
-          if len(phase1) != 15:
-              raise SystemExit(f'expected 15 Phase-1 raw candidates, found {len(phase1)}')
+          expected_phase1 = len(closeout['runs'])
+          if expected_phase1 != 15:
+              raise SystemExit(f'closeout expected 15 Phase-1 runs, found {expected_phase1}')
+          if len(phase1) != expected_phase1:
+              raise SystemExit(f'expected {expected_phase1} closeout Phase-1 raw candidates, found {len(phase1)}')
           if len(phase3) != 5:
               raise SystemExit(f'expected 5 Phase-3 shadow candidates, found {len(phase3)}')
           failures=[]
@@ -69,6 +75,26 @@ jobs:
               for path, errors in failures: print('FAIL', path, errors)
               raise SystemExit(1)
           print(json.dumps({'phase1_candidates':len(phase1),'phase3_candidates':len(phase3),'passed':True}, sort_keys=True))
+          PY
+          python - <<'PY' | tee .parity/steward-proof.txt
+          import json
+          from pathlib import Path
+          tx=Path('evaluation/corpus/voxel-engine/admission/transactions/RGP-20260817T073100-0700-007.steward-016-v2.json')
+          proof=Path('evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/admission-proof.json')
+          t=json.loads(tx.read_text(encoding='utf-8'))
+          p=json.loads(proof.read_text(encoding='utf-8'))
+          assert t['contract'] == 'rgp-pems2-admission-transaction/2'
+          assert p['contract'] == t['contract']
+          assert p['base']['sha256'] == t['expected_base_sha256']
+          assert p['proofs']['base_exact_match'] is True
+          assert p['proofs']['record_update_before_states_exact'] is True
+          assert p['proofs']['record_identity_preserved'] is True
+          assert p['proofs']['record_kind_preserved'] is True
+          assert p['proofs']['canonical_written'] is False
+          assert p['transaction']['new_record_count'] == len(t['new_records']) == 4
+          assert p['transaction']['reuse_record_count'] == len(t['reuse_record_ids']) == 5
+          assert p['transaction']['record_update_count'] == len(t['record_updates']) == 1
+          print('PASS frozen Steward transaction/proof fixture')
           PY
 
       - name: Persist parity report
@@ -97,14 +123,15 @@ jobs:
               },
               'checks':{
                   'rgp_fixture_behavior':'PASS',
-                  'phase1_raw_candidates':{'count':15,'status':'PASS_UNCHANGED'},
+                  'phase1_raw_candidates':{'count':15,'selection':'phase1_closeout_batch','status':'PASS_UNCHANGED'},
                   'phase3_shadow_candidates':{'count':5,'status':'PASS_UNCHANGED'},
                   'pems2_contract':'PASS',
                   'uncertainty_import':'PASS',
                   'guarded_update_pressure_cases':{'count':7,'status':'PASS'},
                   'project_package_contract':'PASS',
                   'framework_isolation':'PASS',
-                  'frozen_reference_blob_integrity':'PASS'
+                  'frozen_reference_blob_integrity':'PASS',
+                  'frozen_steward_transaction_proof':'PASS'
               },
               'evidence_files':files
           }
