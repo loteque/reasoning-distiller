@@ -12,11 +12,13 @@ on:
       - 'tests/test_runtime_isolation_p5.py'
       - 'tests/test_installer_p3.py'
       - 'tests/test_installer_p4.py'
+      - 'tests/test_production_invocation.py'
       - 'docs/packaging/P5_RUNTIME_ISOLATION.md'
       - 'admission/**'
       - 'agents/**'
       - 'backends/**'
       - 'protocols/**'
+      - 'runtime/**'
       - 'schemas/**'
       - 'validators/**'
       - '.github/workflows/runtime-isolation.yml'
@@ -30,11 +32,13 @@ on:
       - 'tests/test_runtime_isolation_p5.py'
       - 'tests/test_installer_p3.py'
       - 'tests/test_installer_p4.py'
+      - 'tests/test_production_invocation.py'
       - 'docs/packaging/P5_RUNTIME_ISOLATION.md'
       - 'admission/**'
       - 'agents/**'
       - 'backends/**'
       - 'protocols/**'
+      - 'runtime/**'
       - 'schemas/**'
       - 'validators/**'
       - '.github/workflows/runtime-isolation.yml'
@@ -59,3 +63,5 @@ jobs:
         run: python -m unittest -v tests/test_installer_p3.py
       - name: Retain P4 recovery proof
         run: python -m unittest -v tests/test_installer_p4.py
+      - name: Prove production invocation local-only behavior
+        run: python -m unittest -v tests/test_production_invocation.py
