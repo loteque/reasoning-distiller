@@ -1,0 +1,9 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "observation",
+      "statement": "Deserialization measured slower than resource read time."
+    }
+  ]
+}
