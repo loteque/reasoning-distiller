@@ -1,0 +1,117 @@
+name: Phase 6.0 Parity Evidence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/phase6-parity-evidence.yml'
+      - 'docs/extraction/run-parity-request.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: phase6-parity-evidence
+  cancel-in-progress: false
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1 PyYAML==6.0.2
+
+      - name: Run parity suite and capture evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .parity
+          python tests/run_fixture_tests.py | tee .parity/rgp-fixtures.txt
+          python tests/check_project_package.py | tee .parity/project-package.txt
+          python tests/check_framework_isolation.py | tee .parity/framework-isolation.txt
+          python tests/check_corpus_integrity.py | tee .parity/corpus-integrity.txt
+          python validators/rgp_validator.py --version | tee .parity/rgp-validator-version.txt
+          python backends/pems-cove/validate_pems2_contract.py | tee .parity/pems2-contract.txt
+          python backends/pems-cove/validate_rgp_uncertainty_import.py | tee .parity/uncertainty-import.txt
+          python admission/test_admission_transaction_v2.py | tee .parity/admission-v2-pressure.txt
+          python - <<'PY' | tee .parity/candidate-validation.txt
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('validators').resolve()))
+          from validate_distillation import validate
+
+          phase1 = []
+          for path in sorted(Path('evaluation/corpus/voxel-engine/phase1/independent').rglob('*.json')):
+              try:
+                  doc=json.loads(path.read_text(encoding='utf-8'))
+              except json.JSONDecodeError:
+                  continue
+              if isinstance(doc, dict) and isinstance(doc.get('records'), list):
+                  phase1.append(path)
+          phase3 = sorted(Path('evaluation/corpus/voxel-engine/phase3/shadow').rglob('candidate.rgp.json'))
+          if len(phase1) != 15:
+              raise SystemExit(f'expected 15 Phase-1 raw candidates, found {len(phase1)}')
+          if len(phase3) != 5:
+              raise SystemExit(f'expected 5 Phase-3 shadow candidates, found {len(phase3)}')
+          failures=[]
+          for path in phase1 + phase3:
+              errors=validate(json.loads(path.read_text(encoding='utf-8')))
+              if errors: failures.append((str(path), errors))
+              else: print(f'PASS {path}')
+          if failures:
+              for path, errors in failures: print('FAIL', path, errors)
+              raise SystemExit(1)
+          print(json.dumps({'phase1_candidates':len(phase1),'phase3_candidates':len(phase3),'passed':True}, sort_keys=True))
+          PY
+
+      - name: Persist parity report
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          files={}
+          for p in sorted(Path('.parity').glob('*.txt')):
+              b=p.read_bytes(); files[p.name]={'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b)}
+          report={
+              'contract':'reasoning-distiller-extraction-parity-report/1',
+              'status':'PASS',
+              'source_repository':'loteque/gdscript-voxel-engine',
+              'source_commit':'1c25bf7cc858218941476097a3a5ac5ba204f270',
+              'standalone_repository':'loteque/reasoning-distiller',
+              'tested_commit':os.environ['GITHUB_SHA'],
+              'rgp_contract':'rgp/1',
+              'semantic_change_authorized':False,
+              'authority_invariant':{
+                  'distiller':'candidate producer only',
+                  'steward':'project-scoped semantic reconciliation and admission authority',
+                  'executor':'deterministic execution only; no semantic reconciliation'
+              },
+              'checks':{
+                  'rgp_fixture_behavior':'PASS',
+                  'phase1_raw_candidates':{'count':15,'status':'PASS_UNCHANGED'},
+                  'phase3_shadow_candidates':{'count':5,'status':'PASS_UNCHANGED'},
+                  'pems2_contract':'PASS',
+                  'uncertainty_import':'PASS',
+                  'guarded_update_pressure_cases':{'count':7,'status':'PASS'},
+                  'project_package_contract':'PASS',
+                  'framework_isolation':'PASS',
+                  'frozen_reference_blob_integrity':'PASS'
+              },
+              'evidence_files':files
+          }
+          Path('docs/extraction/phase6-parity-report.json').write_text(json.dumps(report, indent=2, sort_keys=True)+'\n', encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/extraction/phase6-parity-report.json
+          git commit -m 'Record Phase 6.0 extraction parity PASS'
+          git push origin HEAD:main
