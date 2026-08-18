@@ -1,0 +1,86 @@
+name: Phase 6.0 Reference Proof Copy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/phase6-reference-proof-copy.yml'
+      - 'docs/extraction/run-reference-proof-copy.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: phase6-reference-proof-copy
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout standalone
+        uses: actions/checkout@v4
+        with:
+          path: target
+          fetch-depth: 1
+      - name: Checkout frozen source
+        uses: actions/checkout@v4
+        with:
+          repository: loteque/gdscript-voxel-engine
+          ref: 1c25bf7cc858218941476097a3a5ac5ba204f270
+          path: source
+          fetch-depth: 1
+      - name: Verify source and copy exact artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C source rev-parse HEAD)" = "1c25bf7cc858218941476097a3a5ac5ba204f270"
+          cd target
+          mkdir -p backends/pems-cove evaluation/corpus/voxel-engine/admission/transactions evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2
+          cp ../source/docs/handoff/rgp/admission/materialize_pems2.py backends/pems-cove/
+          cp ../source/docs/handoff/rgp/admission/materialize_cove.py backends/pems-cove/
+          cp ../source/docs/handoff/rgp/admission/transactions/RGP-20260817T073100-0700-007.steward-016-v2.json evaluation/corpus/voxel-engine/admission/transactions/
+          cp ../source/docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/admission-proof.json evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/
+          cp ../source/docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/candidate.pems2.jcs.json evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/
+          cp ../source/docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/candidate.cove.json evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/
+          cp ../source/docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/transaction.txt evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/
+          cp ../source/docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/validation.txt evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/
+      - name: Verify copied blob identities and write manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          source=Path('../source')
+          pairs={
+            'backends/pems-cove/materialize_pems2.py':'docs/handoff/rgp/admission/materialize_pems2.py',
+            'backends/pems-cove/materialize_cove.py':'docs/handoff/rgp/admission/materialize_cove.py',
+            'evaluation/corpus/voxel-engine/admission/transactions/RGP-20260817T073100-0700-007.steward-016-v2.json':'docs/handoff/rgp/admission/transactions/RGP-20260817T073100-0700-007.steward-016-v2.json',
+            'evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/admission-proof.json':'docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/admission-proof.json',
+            'evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/candidate.pems2.jcs.json':'docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/candidate.pems2.jcs.json',
+            'evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/candidate.cove.json':'docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/candidate.cove.json',
+            'evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/transaction.txt':'docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/transaction.txt',
+            'evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/validation.txt':'docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/validation.txt'
+          }
+          out=[]
+          for dst,src in pairs.items():
+              sb=subprocess.check_output(['git','-C',str(source),'rev-parse',f'HEAD:{src}'],text=True).strip()
+              db=subprocess.check_output(['git','hash-object',dst],text=True).strip()
+              if sb != db: raise SystemExit(f'blob mismatch {src} -> {dst}: {sb} != {db}')
+              out.append({'source_path':src,'source_blob_sha':sb,'destination':dst,'destination_blob_sha':db})
+          Path('docs/extraction/reference-proof-copy-manifest.json').write_text(json.dumps({'contract':'reasoning-distiller-reference-proof-copy/1','source_commit':'1c25bf7cc858218941476097a3a5ac5ba204f270','artifacts':out},indent=2,sort_keys=True)+'\n',encoding='utf-8')
+          PY
+      - name: Commit exact copied artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backends/pems-cove/materialize_pems2.py backends/pems-cove/materialize_cove.py evaluation/corpus/voxel-engine/admission docs/extraction/reference-proof-copy-manifest.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Add frozen backend materializers and reference proof fixture'
+          git push origin HEAD:main
