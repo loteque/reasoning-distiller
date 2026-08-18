@@ -9,6 +9,7 @@ on:
       - 'schemas/installation-record.schema.json'
       - 'packaging/**'
       - 'tests/test_install_package_contract.py'
+      - 'tests/test_installer_runner_contract.py'
       - '.github/workflows/package-contract.yml'
   pull_request:
     paths:
@@ -17,6 +18,7 @@ on:
       - 'schemas/installation-record.schema.json'
       - 'packaging/**'
       - 'tests/test_install_package_contract.py'
+      - 'tests/test_installer_runner_contract.py'
       - '.github/workflows/package-contract.yml'
   workflow_dispatch:
 
@@ -38,5 +40,7 @@ jobs:
           python packaging/validate_install_package_contract.py \
             --manifest packaging/examples/manifest.example.json \
             --installation packaging/examples/installation.example.json
-      - name: Run P1 contract tests
+      - name: Run P1 package contract tests
         run: python -m unittest -v tests/test_install_package_contract.py
+      - name: Run deterministic installer runner contract tests
+        run: python -m unittest -v tests/test_installer_runner_contract.py
