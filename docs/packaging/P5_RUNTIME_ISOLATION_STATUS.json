@@ -1,0 +1,16 @@
+{
+  "contract": "reasoning-distiller-runtime-isolation-status/1",
+  "gate": "P5",
+  "status": "VALIDATION_PENDING",
+  "implemented_at_commit": "5e6fd2d490b5cae173217ff7f961ec0058c54135",
+  "proofs": [
+    "runtime isolation audit",
+    "network-blocked installed RGP validation",
+    "network-blocked installed PEMS/2 backend validation",
+    "network-blocked guarded admission pressure suite",
+    "runtime survival after retrieval artifacts are removed",
+    "P3 deterministic installer regression",
+    "P4 recovery regression",
+    "Extraction Parity regression"
+  ]
+}
