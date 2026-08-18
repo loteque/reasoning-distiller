@@ -1,0 +1,23 @@
+{
+  "contract": "reasoning-distiller-production-invocation-status/1",
+  "status": "PASS",
+  "invocation_contract": "reasoning-distiller-invocation/1",
+  "result_contract": "reasoning-distiller-invocation-result/1",
+  "activation_contract": "reasoning-distiller-activation-bundle/1",
+  "validated_base_commit": "bd18121be55e61c62028bf56a5e41b8cca95fec7",
+  "reference_adapter": "runtime/rd_distill.py",
+  "request_schema": "schemas/invocation-request.schema.json",
+  "result_schema": "schemas/invocation-result.schema.json",
+  "conformance_suite": "tests/test_production_invocation.py",
+  "workflow_runs": {
+    "production_invocation": 32112098351,
+    "runtime_isolation": 32112098365,
+    "package_builder": 32112098370,
+    "extraction_parity": 32112098360
+  },
+  "conformance_cases": 10,
+  "raw_candidate_preservation": true,
+  "generic_repository_runtime_dependency": false,
+  "canonical_mutation_authority": false,
+  "semantic_reconciliation_authority": false
+}
