@@ -1,0 +1,20 @@
+{
+  "contract": "reasoning-distiller-installation/1",
+  "package_contract": "reasoning-distiller-install-package/1",
+  "version": "0.1.0",
+  "source_commit": "0123456789abcdef0123456789abcdef01234567",
+  "content_identity": "sha256:ae71428aded96bc7f67cc7757766aff0a7e4fd9d85767e1e4ad8993a62a80b06",
+  "transport_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "managed_root": ".reasoning-distiller",
+  "installed_at": "2026-08-18T03:24:00Z",
+  "compatibility": {
+    "project_knowledge_package": ["project-knowledge-package/1"],
+    "rgp": ["rgp/1"],
+    "backends": {
+      "pems-cove": ["pems/2", "cove/1"]
+    }
+  },
+  "source_repository": "loteque/reasoning-distiller",
+  "source_locator": "commit:0123456789abcdef0123456789abcdef01234567",
+  "update_locator": "release:0.1.0"
+}
