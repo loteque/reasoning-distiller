@@ -1,0 +1,43 @@
+name: Reasoning Distiller P7 Update Package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p7-update-package.yml'
+      - 'docs/packaging/P7_UPDATE_PROOF.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+      - name: Build deterministic 0.1.1 update package
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          rm -rf /tmp/rd-p7
+          python packaging/build_release_package.py --version 0.1.1 --source-commit "$SHA" --output-dir /tmp/rd-p7
+          python packaging/validate_install_package_contract.py --manifest /tmp/rd-p7/reasoning-distiller-0.1.1.manifest.json
+          cp packaging/rd_install.py packaging/validate_install_package_contract.py /tmp/rd-p7/
+          mkdir -p dist/p7
+          cp /tmp/rd-p7/* dist/p7/
+      - name: Publish immutable candidate branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B p7-package-candidate
+          git add -f dist/p7
+          git commit -m 'Publish Reasoning Distiller 0.1.1 P7 package candidate'
+          git push --force origin HEAD:p7-package-candidate
