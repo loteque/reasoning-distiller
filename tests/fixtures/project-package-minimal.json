@@ -1,0 +1,26 @@
+{
+  "contract": "project-knowledge-package/1",
+  "project": {
+    "id": "example-project",
+    "name": "Example Project"
+  },
+  "framework": {
+    "compatible_contracts": ["rgp/1"]
+  },
+  "canonical_backend": {
+    "type": "pems-cove/1",
+    "config": "canonical/backend.json"
+  },
+  "locations": {
+    "sources": "sources",
+    "rules": "rules",
+    "roles": "roles",
+    "authority": "authority",
+    "evidence": "evidence",
+    "canonical": "canonical",
+    "transactions": "transactions",
+    "dispositions": "dispositions",
+    "adapters": "adapters",
+    "policy": "policy"
+  }
+}
