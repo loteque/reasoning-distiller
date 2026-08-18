@@ -1,0 +1,26 @@
+{
+  "contract": "reasoning-distiller-copied-artifacts/1",
+  "source": {
+    "repository": "loteque/gdscript-voxel-engine",
+    "branch": "project-chat-handoff",
+    "commit": "1c25bf7cc858218941476097a3a5ac5ba204f270"
+  },
+  "artifacts": [
+    {"destination":"agents/distiller/DIRECTIVE.md","source_path":"docs/distiller/DIRECTIVE.md","source_blob_sha":"d578841d64da93f0883686eda80f00fde53d5f66","classification":"framework","bytes_must_match_during_parity":true},
+    {"destination":"schemas/rgp-output.schema.json","source_path":"docs/distiller/validation/schema.json","source_blob_sha":"f59067dc152f29bec911941562831266fbabed2b","classification":"framework","bytes_must_match_during_parity":true},
+    {"destination":"validators/validate_distillation.py","source_path":"docs/distiller/validation/validate_distillation.py","source_blob_sha":"a9bcc452a561c37fff818f92b1527d1c534878b6","classification":"framework","bytes_must_match_during_parity":true},
+    {"destination":"validators/rgp_validator.py","source_path":"docs/handoff/rgp/validator/rgp_validator.py","source_blob_sha":"5675c652b6ad894fe3e1388a4290d2965b2540a0","classification":"framework","bytes_must_match_during_parity":true},
+    {"destination":"evaluation/corpus/voxel-engine/phase0/PHASE0_BASELINE.md","source_path":"docs/distiller/evaluation/PHASE0_BASELINE.md","source_blob_sha":"f8a130bef35b818197320bb7bde93dac051d71f5","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"evaluation/corpus/voxel-engine/phase0/phase1-inputs.json","source_path":"docs/distiller/evaluation/phase1-inputs.json","source_blob_sha":"7b343786418923648ebc3aa2b6a78bda8b993bf7","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"evaluation/corpus/voxel-engine/phase0/expected.yaml","source_path":"docs/distiller/evaluation/expected.yaml","source_blob_sha":"3436454b60e3235bf2305a5dc62e8849670a2661","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"evaluation/corpus/voxel-engine/phase0/SCORING.md","source_path":"docs/distiller/evaluation/SCORING.md","source_blob_sha":"017eaf8ab1fa8e4b9646616d924fc6a9aa7c2b05","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"tests/fixtures/invalid-empty-premise.json","source_path":"docs/distiller/validation/fixtures/invalid-empty-premise.json","source_blob_sha":"cf3c05d41b92ab4d33e29b8ece2ae357f67a85cf","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"tests/fixtures/invalid-empty-provenance.json","source_path":"docs/distiller/validation/fixtures/invalid-empty-provenance.json","source_blob_sha":"c2e4087cf395aee35da0be061f99089dcb35efd2","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"tests/fixtures/invalid-legacy-authority-field.json","source_path":"docs/distiller/validation/fixtures/invalid-legacy-authority-field.json","source_blob_sha":"3b51f2b6a99bfe37c465e41ec7e60f57d26ac776","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"tests/fixtures/invalid-legacy-validated-by-relation.json","source_path":"docs/distiller/validation/fixtures/invalid-legacy-validated-by-relation.json","source_blob_sha":"76c877e87efa89b983e455884ad19b85e002d3bb","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"tests/fixtures/invalid-missing-premise-reference.json","source_path":"docs/distiller/validation/fixtures/invalid-missing-premise-reference.json","source_blob_sha":"ecb83eab33c08066af013ef832046fe498e86bff","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"tests/fixtures/invalid-observation-without-primary-provenance.json","source_path":"docs/distiller/validation/fixtures/invalid-observation-without-primary-provenance.json","source_blob_sha":"ee4c0974c4304ef30bfc21c15bb06549f84769d1","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"tests/fixtures/invalid-premise-cycle.json","source_path":"docs/distiller/validation/fixtures/invalid-premise-cycle.json","source_blob_sha":"9ddb73199cd94cd040afb2bbafb7d3ff33ad5117","classification":"reference-corpus","bytes_must_match_during_parity":true},
+    {"destination":"tests/fixtures/valid-derived.json","source_path":"docs/distiller/validation/fixtures/valid-derived.json","source_blob_sha":"850b9490731c7c579b71355edbc63b35c33ab85e","classification":"reference-corpus","bytes_must_match_during_parity":true}
+  ]
+}
