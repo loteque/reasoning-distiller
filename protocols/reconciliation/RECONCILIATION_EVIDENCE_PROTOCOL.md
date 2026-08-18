@@ -2,31 +2,21 @@
 
 ## Status
 
-This is an additive companion to `SUBMISSION_PROTOCOL.md`. It does not mutate an existing immutable candidate submission or Steward disposition.
+This is an additive companion to the RGP Submission Protocol. It never mutates an existing immutable candidate submission or Steward disposition.
 
-It defines the evidence package required when a Steward must independently reconcile a candidate against canonical PEMS/2 without relying on producer assertions or mutable branch state.
+It defines the evidence package required when a project-authorized Steward must independently reconcile a candidate against a specific project canonical snapshot without relying on producer assertions or mutable branch state.
 
 ## Principle
 
-A candidate submission carries semantic RGP content. A reconciliation evidence bundle carries immutable evidence needed to evaluate that candidate against a specific canonical-memory snapshot.
+A candidate submission carries semantic RGP content. A reconciliation evidence bundle carries immutable evidence required to evaluate that candidate against a project knowledge snapshot.
 
 The bundle is evidence, not authority. It does not change candidate semantics and does not grant admission.
 
-## Repository Surface
+## Project surface
 
-Evidence bundles live under:
+The consuming Project Knowledge Package identifies the project-owned evidence location and canonical backend/configuration. This protocol does not hard-code repository, branch, path, or backend names.
 
-```text
-docs/handoff/rgp/evidence/
-```
-
-Recommended filename:
-
-```text
-<SUBMISSION_ID>.evidence.json
-```
-
-Once committed, an evidence bundle is immutable. Corrections or additional evidence require a new evidence artifact with a distinct `evidence_id` and an explicit reference to the earlier bundle.
+Once persisted, an evidence bundle is immutable. Corrections or additional evidence require a new `evidence_id` and an explicit reference to the earlier bundle.
 
 ## Envelope
 
@@ -36,17 +26,16 @@ Once committed, an evidence bundle is immutable. Corrections or additional evide
   "submission_id": "RGP-20260816T152100-0700-001",
   "created_at": "2026-08-16T17:00:00-07:00",
   "submission_snapshot": {
-    "repository": "loteque/gdscript-voxel-engine",
-    "commit": "<commit-containing-submission>",
-    "path": "docs/handoff/rgp/submissions/<submission>.json",
+    "repository": "owner/repository",
+    "commit": "<immutable-commit>",
+    "path": "<project-submission-path>",
     "blob_sha": "<git-blob-sha>"
   },
   "canonical_snapshot": {
-    "repository": "loteque/gdscript-voxel-engine",
-    "branch": "project-chat-handoff",
-    "commit": "<canonical-snapshot-commit>",
-    "pems_path": "docs/project-chat-handoff.json",
-    "cove_path": "docs/project-chat-handoff.cove.json"
+    "backend": "<backend-id>",
+    "repository": "owner/repository",
+    "commit": "<immutable-canonical-snapshot>",
+    "artifacts": ["<project-canonical-artifact>"]
   },
   "contracts": [],
   "provenance_resolution_inputs": [],
@@ -55,79 +44,78 @@ Once committed, an evidence bundle is immutable. Corrections or additional evide
 }
 ```
 
-## Required Evidence Classes
+Repository/commit/path fields illustrate one immutable locator strategy. A project may use another immutable locator accepted by its policy and backend contract.
+
+## Required evidence classes
 
 ### Submission snapshot
 
-Must identify the exact committed candidate bytes by repository, commit, path, and blob SHA. The Steward must be able to verify that the evidence bundle refers to the same immutable candidate package it is disposing.
+Identify the exact candidate bytes with an immutable locator. The Steward must be able to verify that the evidence refers to the same immutable candidate package being reconciled.
 
 ### Canonical snapshot
 
-Must identify the exact canonical PEMS/2/COVE commit against which reconciliation is requested. Branch names alone are insufficient because they are mutable.
+Identify the exact canonical state against which reconciliation is requested. Mutable names alone are insufficient.
 
-The Steward may choose a newer canonical snapshot at processing time, but if it does so the disposition must record that newer commit and reconciliation must be repeated against it.
+A Steward may choose a newer canonical snapshot at processing time, but reconciliation must then be repeated against that snapshot and the disposition must identify it.
 
 ### Contracts
 
-List every normative contract required to interpret the candidate and canonical state. Each contract reference must include an immutable commit plus path, or another immutable identifier accepted by project policy.
+List every normative contract required to interpret the candidate and project canonical state. Contract references must resolve to immutable versions accepted by project policy.
 
-At minimum for ordinary RGP-to-PEMS/2 admission this includes:
+Typical classes include:
 
-- RGP protocol/schema and validator contract;
+- RGP protocol/schema and validator;
 - RGP Submission Protocol;
-- Steward RGP admission extension;
-- PEMS/2 schema/semantic contract;
-- COVE contract and deterministic representation rules used for persistence.
+- project Steward admission policy;
+- Project Knowledge Package contract;
+- selected canonical-backend contracts and deterministic persistence rules.
+
+The protocol does not require PEMS/COVE or any other specific backend.
 
 ### Provenance resolution inputs
 
-For every external RGP provenance identifier, provide an immutable locator sufficient for the Steward to independently inspect the evidence and determine whether a canonical PEMS source/source-observation already represents it.
+For every external RGP provenance identifier, provide an immutable locator sufficient for the Steward to inspect the evidence and determine whether the project's canonical source model already represents it.
 
-The producer may provide candidate canonical matches as hints, but those hints are explicitly non-authoritative.
-
-Each entry should include:
+Producer-supplied candidate canonical matches are non-authoritative hints.
 
 ```json
 {
   "rgp_source_id": "opaque RGP provenance ID",
   "locator": {
-    "repository": "owner/repo",
+    "repository": "owner/repository",
     "commit": "immutable commit",
-    "path": "path/to/file"
+    "path": "path/to/evidence"
   },
   "candidate_canonical_source_ids": []
 }
 ```
 
-When the RGP provenance ID already is a canonical PEMS source/source-observation ID, record that fact and include the canonical snapshot containing it.
-
 ### Identity reconciliation inputs
 
 For each candidate record, provide deterministic search material without asserting the result:
 
-- `temp_id`;
+- candidate record ID;
 - proposition kind;
 - exact statement;
-- any known canonical IDs that appear semantically similar;
+- known canonical IDs that appear semantically similar, when available;
 - why those IDs were selected as search candidates.
 
-A candidate canonical ID is a hint. Only the Steward may establish reuse versus creation.
+Only a project-authorized Steward may establish reuse versus creation.
 
 ### Validation surfaces
 
-Identify immutable validator/schema artifacts and commands or deterministic procedures needed to validate:
+Identify immutable validator/schema artifacts and deterministic procedures needed to validate:
 
 - RGP graph structure;
 - submission/evidence envelopes;
-- PEMS/2 state;
-- COVE representation;
-- deterministic PEMS/COVE equivalence or round-trip behavior.
+- selected canonical backend state;
+- deterministic proof/round-trip behavior required by that backend.
 
-A claimed `passed` result is useful evidence but does not replace the Steward's ability to rerun or independently inspect the validation surface.
+A claimed pass is evidence but does not replace the Steward's ability to independently inspect or rerun the accepted validation surface.
 
-## Completeness Invariant
+## Completeness invariant
 
-An evidence bundle is admission-ready only when a fresh Steward activation can, from the bundle and referenced immutable artifacts alone:
+A reconciliation evidence bundle is admission-ready only when a fresh authorized Steward can, from the bundle and referenced immutable artifacts alone:
 
 1. acquire the exact candidate;
 2. acquire the exact canonical state being reconciled;
@@ -135,25 +123,19 @@ An evidence bundle is admission-ready only when a fresh Steward activation can, 
 4. inspect every required external provenance source;
 5. search/reconcile every candidate semantic identity;
 6. verify graph integrity;
-7. determine the canonical mutation required by an admitted disposition;
-8. validate the resulting PEMS/2/COVE representation.
+7. determine the canonical transaction required by an admitted disposition;
+8. validate the resulting canonical representation using the selected backend.
 
-If any of these requires trusting an unreferenced producer assertion or mutable branch head, the bundle is incomplete.
+If any step requires trusting an unreferenced producer assertion or mutable project state, the bundle is incomplete.
 
-## Relationship to Existing Immutable Artifacts
+## Immutable audit chain
 
-The original candidate submission is never edited to add reconciliation evidence.
-
-The original Steward disposition is never edited after provisional disposition.
-
-A later Steward reconsideration consumes the original submission plus one or more evidence bundles and creates a new disposition artifact with `supersedes_disposition` pointing to the prior disposition.
-
-This preserves the audit chain:
+The original candidate submission is never edited to add reconciliation evidence. A prior disposition is never edited after persistence. Reconsideration consumes the original artifacts plus new immutable evidence and creates a new disposition that explicitly supersedes the prior outcome.
 
 ```text
 candidate submission
       ↓
-initial provisional disposition
+initial disposition
       ↓
 additional immutable evidence
       ↓
@@ -161,17 +143,17 @@ new Steward reconciliation
       ↓
 superseding disposition
       ↓
-canonical mutation, if admitted
+canonical transaction, if admitted
 ```
 
-## Producer Boundary
+## Producer boundary
 
-The RGP Engineer may assemble immutable evidence and candidate reconciliation hints. It must not:
+An RGP producer or Engineer may assemble immutable evidence and candidate reconciliation hints. It must not:
 
-- claim that a hinted PEMS identity is authoritative;
-- create canonical source/source-observation identities;
-- mutate canonical PEMS/COVE;
-- overwrite a provisional Steward disposition;
-- describe an evidence bundle as admission.
+- claim that a hinted canonical identity is authoritative;
+- create or bind project canonical identities on the Steward's behalf;
+- mutate project canonical knowledge;
+- overwrite a prior Steward disposition;
+- describe evidence preparation as admission.
 
 The purpose of the evidence bundle is to make independent Steward judgment possible, not unnecessary.
