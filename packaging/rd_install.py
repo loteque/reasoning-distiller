@@ -12,7 +12,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.util
-import io
 import json
 import os
 import shutil
@@ -118,14 +117,9 @@ def read_previous_manifest(managed: Path) -> dict | None:
     return previous
 
 
-def declared_paths(manifest: dict) -> set[str]:
-    return {item["path"] for item in manifest["files"]}
-
-
 def scan_managed_payload(managed: Path, manifest: dict) -> set[str]:
-    roots = manifest["managed_roots"]
     found: set[str] = set()
-    for root in roots:
+    for root in manifest["managed_roots"]:
         base = managed / root
         if not base.exists():
             continue
@@ -166,9 +160,7 @@ def validate_project_compatibility(project_package: Path | None, manifest: dict)
         return None
     project = load_json(project_package)
     if project.get("contract") not in manifest["compatibility"]["project_knowledge_package"]:
-        raise ValueError(
-            f"project package contract {project.get('contract')!r} is not supported by release"
-        )
+        raise ValueError(f"project package contract {project.get('contract')!r} is not supported by release")
     compatible = project.get("framework", {}).get("compatible_contracts", [])
     required = {manifest["contract"], INSTALLER_CONTRACT}
     missing = sorted(required - set(compatible))
@@ -180,6 +172,13 @@ def validate_project_compatibility(project_package: Path | None, manifest: dict)
         if backend_type not in manifest["compatibility"]["backends"]:
             raise ValueError(f"canonical backend {backend_type!r} is not supported by release")
     return project
+
+
+def numeric_version(value: str) -> tuple[int, ...] | None:
+    parts = value.split(".")
+    if not parts or any(not part.isdigit() for part in parts):
+        return None
+    return tuple(int(part) for part in parts)
 
 
 def compare_release_identity(previous: dict | None, incoming: dict, allow_downgrade: bool) -> None:
@@ -194,13 +193,6 @@ def compare_release_identity(previous: dict | None, incoming: dict, allow_downgr
         new = numeric_version(incoming["version"])
         if old is not None and new is not None and new < old:
             raise ValueError("downgrade rejected; pass --allow-downgrade for an explicit downgrade")
-
-
-def numeric_version(value: str) -> tuple[int, ...] | None:
-    parts = value.split(".")
-    if not parts or any(not part.isdigit() for part in parts):
-        return None
-    return tuple(int(part) for part in parts)
 
 
 def write_stage(stage: Path, payload: dict[str, bytes], manifest: dict, installation: dict) -> None:
@@ -242,9 +234,11 @@ def make_installation_record(
     record = {
         "contract": "reasoning-distiller-installation/1",
         "package_contract": manifest["contract"],
-        "installer_contract": INSTALLER_CONTRACT,
-        "installer_entrypoint": "rd_install.py",
-        "runner": "python3",
+        "installer": {
+            "contract": INSTALLER_CONTRACT,
+            "entrypoint": "rd_install.py",
+            "runtime": "python3",
+        },
         "version": manifest["version"],
         "source_commit": manifest["source_commit"],
         "content_identity": manifest["content_identity"],
@@ -253,8 +247,9 @@ def make_installation_record(
         "installed_at": installed_at,
         "compatibility": manifest["compatibility"],
     }
+    if runner_id is not None:
+        record["runner"] = {"kind": "agent-runner", "invocation_id": runner_id}
     optional = {
-        "runner_id": runner_id,
         "source_repository": source_repository,
         "source_locator": source_locator,
         "update_locator": update_locator,
