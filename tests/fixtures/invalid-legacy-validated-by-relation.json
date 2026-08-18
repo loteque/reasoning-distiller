@@ -1,0 +1,24 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "observation",
+      "statement": "A validation result was observed.",
+      "provenance": {
+        "primary": ["src-1"]
+      }
+    },
+    {
+      "temp_id": "r2",
+      "kind": "claim",
+      "statement": "The feature satisfies the tested condition."
+    }
+  ],
+  "relations": [
+    {
+      "from": "r2",
+      "type": "validated_by",
+      "to": "r1"
+    }
+  ]
+}
