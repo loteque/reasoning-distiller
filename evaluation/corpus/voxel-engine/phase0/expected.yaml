@@ -1,0 +1,113 @@
+version: 2
+contract: rgp/1
+expectations:
+  field-authority:
+    must_preserve:
+      - kind: decision
+        statement_contains: PointFieldResource is the authoritative scalar-field abstraction
+      - kind: decision
+        statement_contains: consumers should not duplicate field indexing or state
+    acceptable_relations:
+      - supports
+      - depends_on
+    provenance_expectation:
+      - decisions must remain grounded in supplied project evidence or governed source chains
+      - implementation observations must not be promoted into normative authority by themselves
+    must_not_invent:
+      - mandatory generator-strategy architecture
+      - runtime streaming ownership on PointFieldResource
+      - hidden performance rationale
+
+  offline-runtime-split:
+    must_preserve:
+      - kind: decision
+        statement_contains: generation produces persisted chunk assets offline
+      - kind: decision
+        statement_contains: runtime streaming consumes precomputed assets and owns residency
+    acceptable_relations:
+      - supports
+      - depends_on
+    provenance_expectation:
+      - validation artifacts are provenance when they externally establish implementation behavior
+      - do not emit validated_by because it is not an rgp/1 relation
+    must_not_invent:
+      - permanent prohibition on any future runtime procedural generation
+      - LOD design not present in the evidence
+
+  validation-demo-contract:
+    must_preserve:
+      - kind: decision
+        statement_contains: substantial features require dedicated validation through the public runtime path
+      - kind: observation
+        statement_contains: chunk residency validation coverage and web exposure were initially incomplete
+    acceptable_relations:
+      - supports
+      - depends_on
+    provenance_expectation:
+      - normative standing for the requirement must trace to an owner_instruction or governed_artifact source when such source metadata is supplied
+      - implementation or validation evidence may support or ground observations but must not manufacture owner authority
+    must_not_invent:
+      - agent ownership of the project requirement
+      - feature-specific Pages categories when an existing Integration Preview category applies
+
+  resource-loading-investigation:
+    must_preserve:
+      - kind: observation
+        statement_contains: measured loading stages must remain scoped to supplied measurements
+      - kind: uncertainty
+        statement_contains: unmeasured platforms or builds remain unverified
+    acceptable_relations:
+      - supports
+      - contradicts
+      - depends_on
+    provenance_expectation:
+      - any non-derived measurement observation requires supplied primary provenance
+      - broader interpretation should be a claim only when supported by explicit premises or evidence
+    must_not_invent:
+      - numerical measurements not supplied with the evaluation input
+      - universal bottleneck claims
+      - causality beyond the measurement evidence
+
+  deployed-ui-failure:
+    must_preserve:
+      - kind: observation
+        statement_contains: CI and deployment were green
+      - kind: observation
+        statement_contains: RuntimeWorkloadExperimentUI was missing in the deployed phone view
+      - kind: uncertainty
+        statement_contains: cause of the missing UI was unresolved
+    acceptable_relations:
+      - contradicts
+      - supports
+      - depends_on
+    provenance_expectation:
+      - both non-derived observations require their supplied primary evidence
+      - the unresolved cause must not inherit certainty from either observation
+    must_not_invent:
+      - startup race as established cause
+      - Web platform bug as established cause
+      - export failure as established cause
+      - statement that the bug had been fixed
+
+global_structure_expectations:
+  - derived propositions use non-empty premise arrays rather than a validated_by relation
+  - premise references are constitutive derivation and are not duplicated as general relations
+  - supports is non-constitutive evidentiary strengthening
+  - depends_on expresses conditional validity or applicability rather than derivation
+  - source identifiers belong in provenance and never in premise
+  - optional empty arrays, empty objects, and null values are omitted
+
+global_failure_conditions:
+  - fabricated provenance
+  - hidden chain-of-thought reconstruction
+  - invented alternatives
+  - unsupported causality
+  - duplicate propositions with cosmetic wording changes
+  - agent interpretation promoted to owner or governed authority
+  - unresolved uncertainty silently converted into fact or assumption
+  - unsupported universal generalization
+  - premise cycles or self-reference
+  - derivation encoded as depends_on
+  - use of validated_by as an rgp/1 relation
+  - authority field embedded on a record
+  - routine activity retained without durable engineering value
