@@ -1,0 +1,28 @@
+{
+  "contract": "reasoning-distiller-package-build/1",
+  "managed_roots": [
+    "admission",
+    "agents",
+    "backends",
+    "protocols",
+    "schemas",
+    "validators"
+  ],
+  "compatibility": {
+    "project_knowledge_package": ["project-knowledge-package/1"],
+    "rgp": ["rgp/1"],
+    "backends": {
+      "pems-cove": ["pems/2", "cove/1"]
+    }
+  },
+  "excluded_top_level": [
+    ".github",
+    "docs",
+    "evaluation",
+    "project-knowledge",
+    "tests"
+  ],
+  "mode_policy": {
+    "default": "0644"
+  }
+}
