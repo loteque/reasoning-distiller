@@ -1,0 +1,190 @@
+name: Reasoning Distiller P8 Release Acceptance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p8-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reasoning-distiller-p8-release
+  cancel-in-progress: false
+
+env:
+  RELEASE_VERSION: '0.1.1'
+  RELEASE_TAG: 'v0.1.1'
+  SOURCE_SHA: '1da88edc000bbd6db78affe8e604ca499f516d55'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:a487149caaaf41af70fdf2af6e52b7955a6c3fe14046321649357d21ba7241b4'
+  EXPECTED_TRANSPORT_SHA256: '773ab0c9a5946f69ec568aabd9a255569f9511227142baadde077f826aa6cd8a'
+
+jobs:
+  accept-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evidence branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Capture exact evidence base
+        id: base
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact release source
+        uses: actions/checkout@v4
+        with:
+          repository: loteque/reasoning-distiller
+          ref: ${{ env.SOURCE_SHA }}
+          path: release-source
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install package-contract dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Rebuild accepted package from exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python release-source/packaging/build_release_package.py \
+            --version "$RELEASE_VERSION" \
+            --source-commit "$SOURCE_SHA" \
+            --repo-root release-source \
+            --output-dir /tmp/rd-p8
+          python release-source/packaging/validate_install_package_contract.py \
+            --manifest "/tmp/rd-p8/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+
+      - name: Verify accepted identities and bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          version=os.environ['RELEASE_VERSION']
+          expected_identity=os.environ['EXPECTED_CONTENT_IDENTITY']
+          expected_transport=os.environ['EXPECTED_TRANSPORT_SHA256']
+          manifest=json.loads(Path(f'/tmp/rd-p8/reasoning-distiller-{version}.manifest.json').read_text(encoding='utf-8'))
+          archive=Path(f'/tmp/rd-p8/reasoning-distiller-{version}.tar.gz')
+          transport=hashlib.sha256(archive.read_bytes()).hexdigest()
+          assert manifest['version']==version
+          assert manifest['source_commit']==os.environ['SOURCE_SHA']
+          assert manifest['content_identity']==expected_identity,(manifest['content_identity'],expected_identity)
+          assert transport==expected_transport,(transport,expected_transport)
+          detached=Path(f'/tmp/rd-p8/reasoning-distiller-{version}.sha256').read_text(encoding='utf-8').split()[0]
+          assert detached==expected_transport
+          print('PASS accepted release identities reproduced')
+          PY
+          mkdir -p /tmp/rd-p8/bootstrap/packaging /tmp/rd-p8/bootstrap/schemas
+          cp release-source/packaging/rd_install.py /tmp/rd-p8/bootstrap/packaging/rd_install.py
+          cp release-source/packaging/validate_install_package_contract.py /tmp/rd-p8/bootstrap/packaging/validate_install_package_contract.py
+          cp release-source/schemas/install-package-manifest.schema.json /tmp/rd-p8/bootstrap/schemas/install-package-manifest.schema.json
+          cp release-source/schemas/installation-record.schema.json /tmp/rd-p8/bootstrap/schemas/installation-record.schema.json
+          cp /tmp/rd-p8/bootstrap/packaging/rd_install.py /tmp/rd-p8/rd_install.py
+          cp /tmp/rd-p8/bootstrap/packaging/validate_install_package_contract.py /tmp/rd-p8/validate_install_package_contract.py
+          cp /tmp/rd-p8/bootstrap/schemas/install-package-manifest.schema.json /tmp/rd-p8/install-package-manifest.schema.json
+          cp /tmp/rd-p8/bootstrap/schemas/installation-record.schema.json /tmp/rd-p8/installation-record.schema.json
+
+      - name: Create or verify immutable release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$SOURCE_SHA"
+          existing="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+          if [ -n "$existing" ]; then
+            test "$existing" = "$SOURCE_SHA" || { echo "tag $RELEASE_TAG already points to $existing, expected $SOURCE_SHA" >&2; exit 1; }
+            echo "PASS existing tag $RELEASE_TAG -> $SOURCE_SHA"
+          else
+            git tag "$RELEASE_TAG" "$SOURCE_SHA"
+            git push origin "refs/tags/$RELEASE_TAG"
+            echo "PASS created tag $RELEASE_TAG -> $SOURCE_SHA"
+          fi
+
+      - name: Publish or verify GitHub release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          assets=(
+            "/tmp/rd-p8/reasoning-distiller-${RELEASE_VERSION}.tar.gz"
+            "/tmp/rd-p8/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+            "/tmp/rd-p8/reasoning-distiller-${RELEASE_VERSION}.sha256"
+            "/tmp/rd-p8/rd_install.py"
+            "/tmp/rd-p8/validate_install_package_contract.py"
+            "/tmp/rd-p8/install-package-manifest.schema.json"
+            "/tmp/rd-p8/installation-record.schema.json"
+          )
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release exists; verifying required asset names"
+            gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort > /tmp/actual-assets.txt
+            printf '%s\n' \
+              "install-package-manifest.schema.json" \
+              "installation-record.schema.json" \
+              "rd_install.py" \
+              "reasoning-distiller-${RELEASE_VERSION}.manifest.json" \
+              "reasoning-distiller-${RELEASE_VERSION}.sha256" \
+              "reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
+              "validate_install_package_contract.py" | sort > /tmp/expected-assets.txt
+            diff -u /tmp/expected-assets.txt /tmp/actual-assets.txt
+          else
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --title "Reasoning Distiller ${RELEASE_VERSION}" \
+              --notes "Accepted P8 deterministic package baseline. Source: ${SOURCE_SHA}. Content identity: ${EXPECTED_CONTENT_IDENTITY}. Transport SHA-256: ${EXPECTED_TRANSPORT_SHA256}."
+          fi
+          echo "PASS immutable release assets available"
+
+      - name: Persist P8 PASS evidence
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_url="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          status={
+            'contract':'reasoning-distiller-p8-release-status/1',
+            'status':'PASS',
+            'release_version':os.environ['RELEASE_VERSION'],
+            'release_tag':os.environ['RELEASE_TAG'],
+            'source_commit':os.environ['SOURCE_SHA'],
+            'content_identity':os.environ['EXPECTED_CONTENT_IDENTITY'],
+            'transport_sha256':os.environ['EXPECTED_TRANSPORT_SHA256'],
+            'release_assets':[
+              f"reasoning-distiller-{os.environ['RELEASE_VERSION']}.tar.gz",
+              f"reasoning-distiller-{os.environ['RELEASE_VERSION']}.manifest.json",
+              f"reasoning-distiller-{os.environ['RELEASE_VERSION']}.sha256",
+              'rd_install.py',
+              'validate_install_package_contract.py',
+              'install-package-manifest.schema.json',
+              'installation-record.schema.json'
+            ],
+            'clean_install_proof':'gdscript-voxel-engine P6',
+            'update_proof':'gdscript-voxel-engine P7',
+            'runtime_repository_dependency':False,
+            'consumer_write_credential_required':False,
+            'semantic_authority_changed':False,
+            'workflow_run':os.environ['GITHUB_RUN_ID']
+          }
+          Path('docs/packaging/P8_RELEASE_STATUS.json').write_text(json.dumps(status,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+          PY
+          git fetch origin main
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA" || { echo 'main moved before P8 evidence commit' >&2; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/packaging/P8_RELEASE_STATUS.json
+          git commit -m 'p8: record accepted Reasoning Distiller 0.1.1 release'
+          git push origin HEAD:main
