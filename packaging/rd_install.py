@@ -306,9 +306,11 @@ def install(
     )
 
     stage_parent = Path(tempfile.mkdtemp(prefix=".rd-stage-", dir=target))
-    stage = stage_parent / DEFAULT_MANAGED_ROOT
+    stage = stage_parent / "managed"
     backup = target / ".rd-install-backup"
     activated = False
+    backup_created = False
+    live_validated = False
     try:
         stage.mkdir()
         write_stage(stage, payload, manifest, installation)
@@ -318,20 +320,23 @@ def install(
             raise ValueError("stale .rd-install-backup exists; P4 recovery required before install")
         if managed.exists():
             managed.rename(backup)
+            backup_created = True
         stage.rename(managed)
         activated = True
         validate_installed_tree(managed, manifest)
-        if backup.exists():
-            shutil.rmtree(backup)
+        live_validated = True
     except Exception:
-        if activated and managed.exists():
+        if activated and not live_validated and managed.exists():
             shutil.rmtree(managed)
-        if backup.exists():
+        if backup_created and backup.exists() and not live_validated:
             backup.rename(managed)
         raise
     finally:
         if stage_parent.exists():
             shutil.rmtree(stage_parent, ignore_errors=True)
+
+    if backup_created and backup.exists():
+        shutil.rmtree(backup)
 
     return {
         "status": "PASS",
