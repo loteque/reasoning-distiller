@@ -1,0 +1,70 @@
+name: Reasoning Distiller Package Builder
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/package-build.json'
+      - 'packaging/build_release_package.py'
+      - 'packaging/validate_install_package_contract.py'
+      - 'docs/packaging/P2_DETERMINISTIC_BUILDER.md'
+      - 'schemas/install-package-manifest.schema.json'
+      - 'tests/test_package_builder.py'
+      - 'admission/**'
+      - 'agents/**'
+      - 'backends/**'
+      - 'protocols/**'
+      - 'schemas/**'
+      - 'validators/**'
+      - '.github/workflows/package-builder.yml'
+  pull_request:
+    paths:
+      - 'packaging/package-build.json'
+      - 'packaging/build_release_package.py'
+      - 'packaging/validate_install_package_contract.py'
+      - 'docs/packaging/P2_DETERMINISTIC_BUILDER.md'
+      - 'schemas/install-package-manifest.schema.json'
+      - 'tests/test_package_builder.py'
+      - 'admission/**'
+      - 'agents/**'
+      - 'backends/**'
+      - 'protocols/**'
+      - 'schemas/**'
+      - 'validators/**'
+      - '.github/workflows/package-builder.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-builder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install schema validator
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+      - name: Run P2 builder pressure tests
+        run: python -m unittest -v tests/test_package_builder.py
+      - name: Build twice from exact same inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          python packaging/build_release_package.py --version 0.2.0-p2-ci --source-commit "$SHA" --output-dir /tmp/rd-build-a
+          python packaging/build_release_package.py --version 0.2.0-p2-ci --source-commit "$SHA" --output-dir /tmp/rd-build-b
+          cmp /tmp/rd-build-a/reasoning-distiller-0.2.0-p2-ci.tar.gz /tmp/rd-build-b/reasoning-distiller-0.2.0-p2-ci.tar.gz
+          cmp /tmp/rd-build-a/reasoning-distiller-0.2.0-p2-ci.manifest.json /tmp/rd-build-b/reasoning-distiller-0.2.0-p2-ci.manifest.json
+          cmp /tmp/rd-build-a/reasoning-distiller-0.2.0-p2-ci.sha256 /tmp/rd-build-b/reasoning-distiller-0.2.0-p2-ci.sha256
+      - name: Validate generated package manifest
+        run: python packaging/validate_install_package_contract.py --manifest /tmp/rd-build-a/reasoning-distiller-0.2.0-p2-ci.manifest.json
+      - name: Audit package top-level roots
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -tzf /tmp/rd-build-a/reasoning-distiller-0.2.0-p2-ci.tar.gz | cut -d/ -f1 | sort -u > /tmp/package-roots.txt
+          printf '%s\n' admission agents backends protocols schemas validators > /tmp/expected-roots.txt
+          diff -u /tmp/expected-roots.txt /tmp/package-roots.txt
