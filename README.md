@@ -6,6 +6,10 @@ Phase 6.0 extraction parity is established for the frozen voxel-engine baseline.
 
 Authority boundary: the Distiller produces candidates; the project Steward owns semantic reconciliation and admission authority; deterministic execution applies only an already-authorized reconciliation plan.
 
+## Installation
+
+See [`INSTALLING.md`](INSTALLING.md) for human installation instructions and the minimal safe agent installation procedure.
+
 ## Governance methods
 
 Consequential architecture, protocol, governance, extraction, installation, and production-design proposals may use the durable three-stage review method defined in [`docs/governance/PROPOSAL_REVIEW_METHOD.md`](docs/governance/PROPOSAL_REVIEW_METHOD.md): RPG Engineer proposal → independent Engineer review/synthesis → Project Engineering Steward reconciliation/final plan.
