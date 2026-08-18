@@ -1,0 +1,1 @@
+Full extraction parity validation after restoring exact scoring fixture bytes.
