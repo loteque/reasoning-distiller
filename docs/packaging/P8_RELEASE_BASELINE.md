@@ -1,10 +1,10 @@
 # P8 — Accepted Release Baseline
 
-Status: **ACCEPTANCE CANDIDATE** until the P8 release workflow records PASS.
+Status: **PASS — accepted production package baseline**.
 
 This document closes the package-distribution implementation sequence defined by `docs/proposals/install-package/FINAL_PLAN.md`.
 
-## Accepted release candidate
+## Accepted release baseline
 
 | Property | Value |
 |---|---|
@@ -18,8 +18,9 @@ This document closes the package-distribution implementation sequence defined by
 | Project Knowledge Package compatibility | `project-knowledge-package/1` |
 | RGP compatibility | `rgp/1` |
 | PEMS/COVE compatibility | `pems/2`, `cove/1` |
+| P8 acceptance workflow | `32108634877` |
 
-The release is accepted only when `.github/workflows/p8-release.yml` independently rebuilds the package from the exact source commit, reproduces the declared identities, validates the package contract, creates or verifies the immutable `v0.1.1` tag, publishes the release assets, and writes `docs/packaging/P8_RELEASE_STATUS.json` with `status: PASS`.
+`.github/workflows/p8-release.yml` independently rebuilt the package from the exact source commit, reproduced the declared identities, validated the package contract, created or verified the immutable `v0.1.1` tag, published the release assets, and wrote `docs/packaging/P8_RELEASE_STATUS.json` with `status: PASS`.
 
 ## Distribution boundary
 
@@ -107,7 +108,7 @@ A release operator does not hand-edit package artifacts.
 7. Record source commit, release version, content identity, and transport digest as durable release evidence.
 8. Demonstrate clean install and one package update in a real consumer before declaring the distribution architecture production-ready.
 
-For `0.1.1`, steps 1–4 and the consumer install/update proofs were already established by P1–P7. The P8 workflow performs the final rebuild/tag/publish/status gate.
+For `0.1.1`, steps 1–4 and the consumer install/update proofs were established by P1–P7; P8 performed the final rebuild/tag/publish/status gate.
 
 ## Production invariants
 
@@ -122,4 +123,4 @@ For `0.1.1`, steps 1–4 and the consumer install/update proofs were already est
 
 ## P8 exit criterion
 
-P8 passes when the accepted `v0.1.1` release is retrievable as immutable assets, its source/content/transport identities are recorded and independently reproduced, agent/operator instructions are durable, and the existing P6/P7 consumer proofs demonstrate clean local installation and deterministic update without transferring project authority or modifying canonical project knowledge.
+**Satisfied.** The accepted `v0.1.1` release is retrievable as immutable assets, its source/content/transport identities are recorded and independently reproduced, agent/operator instructions are durable, and the P6/P7 consumer proofs demonstrate clean local installation and deterministic update without transferring project authority or modifying canonical project knowledge.
