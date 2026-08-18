@@ -1,0 +1,66 @@
+{
+  "contract": "distiller-phase1-eval-input/1",
+  "rgp_contract": "rgp/1",
+  "cases": {
+    "field-authority": {
+      "sources": [
+        {
+          "id": "eval:phase1:field-authority:governed-architecture",
+          "type": "governed_artifact",
+          "statement": "PointFieldResource owns authoritative scalar-field geometry, indexing, sampling, densities, validation, and freshness semantics. Consumers such as SurfaceNetsMesher consume that contract rather than duplicate field state or indexing. Runtime streaming responsibilities are not assigned to PointFieldResource."
+        }
+      ]
+    },
+    "offline-runtime-split": {
+      "sources": [
+        {
+          "id": "eval:phase1:offline-runtime-split:governed-architecture",
+          "type": "governed_artifact",
+          "statement": "Generation produces persisted chunk assets and a manifest offline. Runtime streaming consumes those precomputed assets and owns residency. PointFieldResource and SurfaceNetsMesher remain generation-side concerns."
+        }
+      ]
+    },
+    "validation-demo-contract": {
+      "sources": [
+        {
+          "id": "eval:phase1:validation-demo-contract:owner-rule",
+          "type": "owner_instruction",
+          "statement": "Substantial engine features require a dedicated validation scene using the public runtime path, headless validation where practical, and Integration Preview exposure when browser-suitable."
+        },
+        {
+          "id": "eval:phase1:validation-demo-contract:implementation-gap",
+          "type": "repository_evidence",
+          "statement": "Chunk residency validation coverage and web exposure were initially incomplete."
+        }
+      ]
+    },
+    "resource-loading-investigation": {
+      "sources": [
+        {
+          "id": "eval:phase1:resource-loading-investigation:investigation",
+          "type": "investigation_note",
+          "statement": "The resource-loading investigation measured only the supplied loading stages. No measurements were supplied for other platforms or builds. The evidence does not establish universal causality."
+        }
+      ]
+    },
+    "deployed-ui-failure": {
+      "sources": [
+        {
+          "id": "eval:phase1:deployed-ui-failure:workflow",
+          "type": "workflow_run",
+          "statement": "CI and deployment completed successfully for the deployed revision."
+        },
+        {
+          "id": "eval:phase1:deployed-ui-failure:phone",
+          "type": "manual_validation",
+          "statement": "On a phone, the deployed view showed the gray scene and global Hide UI button but RuntimeWorkloadExperimentUI was missing."
+        },
+        {
+          "id": "eval:phase1:deployed-ui-failure:investigation",
+          "type": "investigation_note",
+          "statement": "No fix had been committed and the cause of the missing RuntimeWorkloadExperimentUI remained unresolved."
+        }
+      ]
+    }
+  }
+}
