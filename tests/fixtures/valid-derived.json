@@ -1,0 +1,26 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "observation",
+      "statement": "Deployment completed successfully.",
+      "provenance": {
+        "primary": ["source:workflow:deploy-green"]
+      }
+    },
+    {
+      "temp_id": "r2",
+      "kind": "observation",
+      "statement": "Runtime UI was missing on the tested phone build.",
+      "provenance": {
+        "primary": ["source:manual:phone-ui-missing"]
+      }
+    },
+    {
+      "temp_id": "r3",
+      "kind": "claim",
+      "statement": "Deployment success does not establish runtime UI startup correctness.",
+      "premise": ["r1", "r2"]
+    }
+  ]
+}
