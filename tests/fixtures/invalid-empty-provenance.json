@@ -1,0 +1,10 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "observation",
+      "statement": "Observed state.",
+      "provenance": {}
+    }
+  ]
+}
