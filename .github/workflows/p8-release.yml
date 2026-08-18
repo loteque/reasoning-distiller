@@ -15,9 +15,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RELEASE_VERSION: '0.2.0'
-  RELEASE_TAG: 'v0.2.0'
-  SOURCE_SHA: 'c7daed110e58627d0ab2566298cc433615ee4452'
+  RELEASE_VERSION: '0.3.0'
+  RELEASE_TAG: 'v0.3.0'
+  SOURCE_SHA: '146f828efd258c5d964414f0118a64f2f77ed300'
 
 jobs:
   accept-release:
@@ -69,7 +69,7 @@ jobs:
           cmp "/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.manifest.json" "/tmp/rd-release-b/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
           cmp "/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.sha256" "/tmp/rd-release-b/reasoning-distiller-${RELEASE_VERSION}.sha256"
 
-      - name: Verify production invocation payload
+      - name: Verify production invocation and bootstrap payload
         shell: bash
         run: |
           set -euo pipefail
@@ -81,16 +81,17 @@ jobs:
           paths={item['path'] for item in manifest['files']}
           required={
             'runtime/rd_distill.py',
+            'runtime/rd_bootstrap.py',
             'schemas/invocation-request.schema.json',
             'schemas/invocation-result.schema.json',
             'agents/distiller/DIRECTIVE.md',
             'validators/rgp_validator.py'
           }
           missing=sorted(required-paths)
-          assert not missing, f'missing production invocation payload: {missing}'
+          assert not missing, f'missing required production payload: {missing}'
           assert manifest['version']==version
           assert manifest['source_commit']==os.environ['SOURCE_SHA']
-          print('PASS production invocation payload present')
+          print('PASS production invocation and bootstrap payload present')
           print('CONTENT_IDENTITY='+manifest['content_identity'])
           print('TRANSPORT_SHA256='+manifest['transport_sha256'])
           PY
@@ -156,7 +157,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --verify-tag \
               --title "Reasoning Distiller ${RELEASE_VERSION}" \
-              --notes "Accepted deterministic package release containing the production rd-distill invocation runtime. Source: ${SOURCE_SHA}. Content identity: ${content_identity}. Transport SHA-256: ${transport_sha}."
+              --notes "Accepted deterministic package release containing the production rd-distill invocation runtime and deterministic project bootstrap primitive. Source: ${SOURCE_SHA}. Content identity: ${content_identity}. Transport SHA-256: ${transport_sha}."
           fi
           echo "CONTENT_IDENTITY=$content_identity" >> "$GITHUB_ENV"
           echo "TRANSPORT_SHA256=$transport_sha" >> "$GITHUB_ENV"
@@ -180,8 +181,12 @@ jobs:
             'content_identity':os.environ['CONTENT_IDENTITY'],
             'transport_sha256':os.environ['TRANSPORT_SHA256'],
             'contains_production_invocation':True,
+            'contains_project_bootstrap':True,
             'invocation_contract':'reasoning-distiller-invocation/1',
             'invocation_result_contract':'reasoning-distiller-invocation-result/1',
+            'bootstrap_contract':'reasoning-distiller-project-bootstrap/1',
+            'bootstrap_result_contract':'reasoning-distiller-project-bootstrap-result/1',
+            'project_contract':'reasoning-distiller-project/1',
             'release_assets':[
               f"reasoning-distiller-{os.environ['RELEASE_VERSION']}.tar.gz",
               f"reasoning-distiller-{os.environ['RELEASE_VERSION']}.manifest.json",
