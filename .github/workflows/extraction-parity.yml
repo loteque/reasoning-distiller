@@ -31,3 +31,57 @@ jobs:
         run: python tests/check_corpus_integrity.py
       - name: Validator version
         run: python validators/rgp_validator.py --version
+      - name: PEMS/2 backend contract
+        run: python backends/pems-cove/validate_pems2_contract.py
+      - name: RGP uncertainty import compatibility
+        run: python backends/pems-cove/validate_rgp_uncertainty_import.py
+      - name: Guarded v2 admission pressure suite
+        run: python admission/test_admission_transaction_v2.py
+      - name: Validate preserved Phase 1 and Phase 3 candidates unchanged
+        run: |
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('validators').resolve()))
+          from validate_distillation import validate
+
+          phase1=[]
+          for path in sorted(Path('evaluation/corpus/voxel-engine/phase1/independent').rglob('*.json')):
+              try:
+                  doc=json.loads(path.read_text(encoding='utf-8'))
+              except json.JSONDecodeError:
+                  continue
+              if isinstance(doc, dict) and isinstance(doc.get('records'), list):
+                  phase1.append(path)
+          phase3=sorted(Path('evaluation/corpus/voxel-engine/phase3/shadow').rglob('candidate.rgp.json'))
+          assert len(phase1) == 15, f'expected 15 Phase-1 raw candidates, found {len(phase1)}'
+          assert len(phase3) == 5, f'expected 5 Phase-3 shadow candidates, found {len(phase3)}'
+          for path in phase1 + phase3:
+              errors=validate(json.loads(path.read_text(encoding='utf-8')))
+              if errors:
+                  raise SystemExit(f'{path}: {errors}')
+              print(f'PASS {path}')
+          print(json.dumps({'phase1_candidates':15,'phase3_candidates':5,'passed':True}, sort_keys=True))
+          PY
+      - name: Verify frozen Steward transaction and proof fixture
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          tx=Path('evaluation/corpus/voxel-engine/admission/transactions/RGP-20260817T073100-0700-007.steward-016-v2.json')
+          proof=Path('evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/admission-proof.json')
+          t=json.loads(tx.read_text(encoding='utf-8'))
+          p=json.loads(proof.read_text(encoding='utf-8'))
+          assert t['contract'] == 'rgp-pems2-admission-transaction/2'
+          assert p['contract'] == t['contract']
+          assert p['base']['sha256'] == t['expected_base_sha256']
+          assert p['proofs']['base_exact_match'] is True
+          assert p['proofs']['record_update_before_states_exact'] is True
+          assert p['proofs']['record_identity_preserved'] is True
+          assert p['proofs']['record_kind_preserved'] is True
+          assert p['proofs']['canonical_written'] is False
+          assert p['transaction']['new_record_count'] == len(t['new_records']) == 4
+          assert p['transaction']['reuse_record_count'] == len(t['reuse_record_ids']) == 5
+          assert p['transaction']['record_update_count'] == len(t['record_updates']) == 1
+          print('PASS frozen Steward transaction/proof fixture')
+          PY
