@@ -81,11 +81,11 @@ Artifact ID `9325780172` was uploaded by the successful run with digest `sha256:
 
 ## Finding SCIT-001 — installation documentation staleness
 
-Classification: **documentation defect; does not invalidate source-isolation PASS**.
+Classification: **resolved documentation defect; did not invalidate source-isolation PASS**.
 
-`INSTALLING.md` is structurally version-generic but its human worked example still names `v0.1.1` and its old digest. The measured harness intentionally did not repair this before execution. The accepted release tested here is `v0.2.0`.
+The measured run found that `INSTALLING.md` used a specific historical release and digest in its human worked example. The guide was subsequently changed to use `<version>`, `<TAG>`, and `<SHA256>` placeholders throughout so normal installation documentation does not need to change for each accepted release.
 
-Required follow-up: update installation documentation so the worked example cannot misleadingly pin an obsolete accepted release. Prefer deriving the example from a clearly labeled example/version placeholder or explicitly pointing users to the current accepted release metadata rather than requiring documentation edits for every release.
+Resolution commit: `9d75a7b8bfeb5ade0e2fd0c8009bb32fc134c559`.
 
 ## Final disposition
 
