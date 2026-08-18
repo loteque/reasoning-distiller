@@ -1,0 +1,10 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "decision",
+      "statement": "A decision using the removed authority field.",
+      "authority": "governed"
+    }
+  ]
+}
