@@ -1,0 +1,41 @@
+name: P6 Candidate Package Publisher
+
+on:
+  push:
+    branches: [p6-package-candidate]
+    paths:
+      - '.github/workflows/p6-publish-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: p6-package-candidate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install builder dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+      - name: Build deterministic package from accepted P5 source
+        run: |
+          rm -rf dist/p6
+          python packaging/build_release_package.py \
+            --version 0.1.0 \
+            --source-commit 8d81967b3f93e825172d961267818238fffc7d38 \
+            --output dist/p6
+          cp packaging/rd_install.py dist/p6/rd_install.py
+          cp packaging/validate_install_package_contract.py dist/p6/validate_install_package_contract.py
+      - name: Commit candidate distribution bytes
+        run: |
+          git config user.name 'reasoning-distiller-p6'
+          git config user.email 'reasoning-distiller-p6@users.noreply.github.com'
+          git add -f dist/p6
+          git diff --cached --quiet && exit 0
+          git commit -m 'p6: publish deterministic candidate package'
+          git push origin HEAD:p6-package-candidate
