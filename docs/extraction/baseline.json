@@ -1,0 +1,15 @@
+{
+  "contract": "reasoning-distiller-extraction-baseline/1",
+  "status": "frozen",
+  "source_repository": "loteque/gdscript-voxel-engine",
+  "source_branch": "project-chat-handoff",
+  "source_commit": "1c25bf7cc858218941476097a3a5ac5ba204f270",
+  "source_tree": "4437a8ed933692c41d3f4159f408efa335b9154f",
+  "governing_plan": {
+    "source_path": "docs/distiller/EXTRACTION_V2_FINAL_PLAN.md",
+    "source_blob_sha": "4c9c6fc5a0edffb8c1ce43c498052ed9abbf12fc"
+  },
+  "rgp_semantics_frozen": "rgp/1",
+  "semantic_change_authorized": false,
+  "authority_invariant": "Distiller proposes; project Steward reconciles and authorizes; deterministic executor proves/applies the exact authorized transaction."
+}
