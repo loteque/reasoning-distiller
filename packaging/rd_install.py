@@ -3,9 +3,8 @@
 
 The runner retrieves package artifacts. This program consumes only local files,
 installs only the declared managed root, fails closed on drift/incompatibility,
-and restores the previous installation when post-activation validation fails.
-
-P4 adds crash-journal recovery pressure beyond this P3 transactional baseline.
+and uses a durable project-local journal to recover interrupted activation or
+restoration before any later installation is allowed.
 """
 from __future__ import annotations
 
@@ -20,8 +19,11 @@ import tempfile
 from pathlib import Path
 
 INSTALLER_CONTRACT = "reasoning-distiller-installer/1"
+TRANSACTION_CONTRACT = "reasoning-distiller-install-transaction/1"
 DEFAULT_MANAGED_ROOT = ".reasoning-distiller"
 DEFAULT_INSTALLED_AT = "1970-01-01T00:00:00Z"
+JOURNAL_NAME = ".rd-install-transaction.json"
+BACKUP_NAME = ".rd-install-backup"
 
 HERE = Path(__file__).resolve().parent
 VALIDATOR_PATH = HERE / "validate_install_package_contract.py"
@@ -29,6 +31,10 @@ spec = importlib.util.spec_from_file_location("rd_package_contract", VALIDATOR_P
 rd = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(rd)
+
+
+class SimulatedInterruption(BaseException):
+    """Test-only hard interruption used to pressure P4 recovery paths."""
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -51,12 +57,17 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def atomic_write_json(path: Path, value: dict) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(canonical_json_bytes(value) + b"\n")
+    os.replace(tmp, path)
+
+
 def resolve_managed_root(target: Path, managed_root: str) -> Path:
     rd.validate_rel_path(managed_root, "managed_root")
     root = (target / managed_root).resolve()
-    target_resolved = target.resolve()
     try:
-        root.relative_to(target_resolved)
+        root.relative_to(target.resolve())
     except ValueError as exc:
         raise ValueError("managed root escapes target") from exc
     return root
@@ -143,12 +154,9 @@ def detect_drift(managed: Path, previous: dict | None) -> list[str]:
         full = managed / path
         if not full.is_file() or full.is_symlink():
             drift.append(f"missing-or-nonregular:{path}")
-            continue
-        if sha256_file(full) != item["sha256"]:
+        elif sha256_file(full) != item["sha256"]:
             drift.append(f"content:{path}")
-            continue
-        actual_mode = full.stat().st_mode & 0o777
-        if actual_mode != int(item["mode"], 8):
+        elif (full.stat().st_mode & 0o777) != int(item["mode"], 8):
             drift.append(f"mode:{path}")
     for extra in sorted(found - set(expected)):
         drift.append(f"unexpected:{extra}")
@@ -167,10 +175,8 @@ def validate_project_compatibility(project_package: Path | None, manifest: dict)
     if missing:
         raise ValueError(f"project framework compatibility missing contracts: {missing}")
     backend = project.get("canonical_backend")
-    if backend is not None:
-        backend_type = backend.get("type")
-        if backend_type not in manifest["compatibility"]["backends"]:
-            raise ValueError(f"canonical backend {backend_type!r} is not supported by release")
+    if backend is not None and backend.get("type") not in manifest["compatibility"]["backends"]:
+        raise ValueError(f"canonical backend {backend.get('type')!r} is not supported by release")
     return project
 
 
@@ -221,67 +227,114 @@ def validate_installed_tree(managed: Path, manifest: dict) -> None:
         raise ValueError("stored manifest differs from verified release manifest")
 
 
-def make_installation_record(
-    manifest: dict,
-    transport_sha256: str,
-    managed_root: str,
-    installed_at: str,
-    runner_id: str | None,
-    source_repository: str | None,
-    source_locator: str | None,
-    update_locator: str | None,
-) -> dict:
+def manifest_identity_at(managed: Path) -> str | None:
+    try:
+        manifest = read_previous_manifest(managed)
+    except Exception:
+        return None
+    return manifest["content_identity"] if manifest else None
+
+
+def journal_paths(target: Path) -> tuple[Path, Path]:
+    return target / JOURNAL_NAME, target / BACKUP_NAME
+
+
+def write_journal(path: Path, journal: dict, state: str) -> None:
+    updated = dict(journal)
+    updated["state"] = state
+    atomic_write_json(path, updated)
+    journal.clear()
+    journal.update(updated)
+
+
+def validate_journal(journal: dict, managed_root: str) -> None:
+    required = {"contract", "managed_root", "state", "previous_exists", "previous_content_identity", "incoming_content_identity"}
+    if set(journal) != required:
+        raise ValueError("invalid installer recovery journal fields")
+    if journal["contract"] != TRANSACTION_CONTRACT or journal["managed_root"] != managed_root:
+        raise ValueError("installer recovery journal contract/root mismatch")
+    if journal["state"] not in {"PREPARED", "BACKUP_PENDING", "ACTIVATE_PENDING", "VALIDATE_PENDING", "RESTORE_PENDING", "COMMITTED"}:
+        raise ValueError("invalid installer recovery journal state")
+    if not isinstance(journal["previous_exists"], bool):
+        raise ValueError("invalid installer recovery journal previous_exists")
+
+
+def recover_interrupted_transaction(target: Path, managed_root: str = DEFAULT_MANAGED_ROOT) -> dict:
+    """Recover any durable P4 journal before a new install may proceed."""
+    target = target.resolve()
+    managed = resolve_managed_root(target, managed_root)
+    journal_path, backup = journal_paths(target)
+    if not journal_path.exists():
+        if backup.exists():
+            raise ValueError("orphan installer backup exists without recovery journal")
+        return {"status": "CLEAN"}
+    if not journal_path.is_file() or journal_path.is_symlink():
+        raise ValueError("installer recovery journal is not a regular file")
+    journal = load_json(journal_path)
+    validate_journal(journal, managed_root)
+
+    if journal["state"] == "COMMITTED":
+        if manifest_identity_at(managed) != journal["incoming_content_identity"]:
+            raise ValueError("committed installer journal does not match live installation")
+        if backup.exists():
+            shutil.rmtree(backup)
+        journal_path.unlink()
+        return {"status": "COMMIT_FINALIZED"}
+
+    write_journal(journal_path, journal, "RESTORE_PENDING")
+    if journal["previous_exists"]:
+        previous_id = journal["previous_content_identity"]
+        if backup.exists():
+            if managed.exists():
+                shutil.rmtree(managed)
+            backup.rename(managed)
+        if not managed.exists() or manifest_identity_at(managed) != previous_id:
+            raise ValueError("cannot recover previous verified installation from journal")
+    else:
+        if managed.exists():
+            shutil.rmtree(managed)
+        if backup.exists():
+            shutil.rmtree(backup)
+
+    if backup.exists():
+        shutil.rmtree(backup)
+    journal_path.unlink()
+    return {"status": "RESTORED_PREVIOUS" if journal["previous_exists"] else "RESTORED_EMPTY"}
+
+
+def make_installation_record(manifest: dict, transport_sha256: str, managed_root: str, installed_at: str,
+                             runner_id: str | None, source_repository: str | None,
+                             source_locator: str | None, update_locator: str | None) -> dict:
     record = {
         "contract": "reasoning-distiller-installation/1",
         "package_contract": manifest["contract"],
-        "installer": {
-            "contract": INSTALLER_CONTRACT,
-            "entrypoint": "rd_install.py",
-            "runtime": "python3",
-        },
-        "version": manifest["version"],
-        "source_commit": manifest["source_commit"],
-        "content_identity": manifest["content_identity"],
-        "transport_sha256": transport_sha256,
-        "managed_root": managed_root,
-        "installed_at": installed_at,
-        "compatibility": manifest["compatibility"],
+        "installer": {"contract": INSTALLER_CONTRACT, "entrypoint": "rd_install.py", "runtime": "python3"},
+        "version": manifest["version"], "source_commit": manifest["source_commit"],
+        "content_identity": manifest["content_identity"], "transport_sha256": transport_sha256,
+        "managed_root": managed_root, "installed_at": installed_at, "compatibility": manifest["compatibility"],
     }
     if runner_id is not None:
         record["runner"] = {"kind": "agent-runner", "invocation_id": runner_id}
-    optional = {
-        "source_repository": source_repository,
-        "source_locator": source_locator,
-        "update_locator": update_locator,
-    }
-    record.update({key: value for key, value in optional.items() if value is not None})
+    for key, value in {"source_repository": source_repository, "source_locator": source_locator, "update_locator": update_locator}.items():
+        if value is not None:
+            record[key] = value
     rd.validate_schema(record, rd.INSTALL_SCHEMA)
     return record
 
 
-def install(
-    package: Path,
-    manifest_path: Path,
-    transport_sha256: str,
-    target: Path,
-    *,
-    managed_root: str = DEFAULT_MANAGED_ROOT,
-    project_package: Path | None = None,
-    allow_downgrade: bool = False,
-    installed_at: str = DEFAULT_INSTALLED_AT,
-    runner_id: str | None = None,
-    source_repository: str | None = None,
-    source_locator: str | None = None,
-    update_locator: str | None = None,
-) -> dict:
-    package = package.resolve()
-    manifest_path = manifest_path.resolve()
-    target = target.resolve()
+def install(package: Path, manifest_path: Path, transport_sha256: str, target: Path, *,
+            managed_root: str = DEFAULT_MANAGED_ROOT, project_package: Path | None = None,
+            allow_downgrade: bool = False, installed_at: str = DEFAULT_INSTALLED_AT,
+            runner_id: str | None = None, source_repository: str | None = None,
+            source_locator: str | None = None, update_locator: str | None = None,
+            _simulate_interrupt_after: str | None = None) -> dict:
+    package, manifest_path, target = package.resolve(), manifest_path.resolve(), target.resolve()
     if not package.is_file() or not manifest_path.is_file():
         raise ValueError("package and manifest must be existing local files")
     if not target.is_dir():
         raise ValueError("target must be an existing project directory")
 
+    recovery = recover_interrupted_transaction(target, managed_root)
     manifest = rd.validate_manifest(manifest_path)
     validate_transport(package, transport_sha256, manifest)
     payload = inspect_archive(package, manifest)
@@ -293,111 +346,105 @@ def install(
     if drift:
         raise ValueError("managed-file drift detected: " + ", ".join(drift))
     compare_release_identity(previous, manifest, allow_downgrade)
-
-    installation = make_installation_record(
-        manifest,
-        transport_sha256,
-        managed_root,
-        installed_at,
-        runner_id,
-        source_repository,
-        source_locator,
-        update_locator,
-    )
+    installation = make_installation_record(manifest, transport_sha256, managed_root, installed_at,
+                                            runner_id, source_repository, source_locator, update_locator)
 
     stage_parent = Path(tempfile.mkdtemp(prefix=".rd-stage-", dir=target))
     stage = stage_parent / "managed"
-    backup = target / ".rd-install-backup"
-    activated = False
-    backup_created = False
-    live_validated = False
+    journal_path, backup = journal_paths(target)
+    journal = {
+        "contract": TRANSACTION_CONTRACT,
+        "managed_root": managed_root,
+        "state": "PREPARED",
+        "previous_exists": previous is not None,
+        "previous_content_identity": previous["content_identity"] if previous else None,
+        "incoming_content_identity": manifest["content_identity"],
+    }
+    interrupted = False
     try:
         stage.mkdir()
         write_stage(stage, payload, manifest, installation)
         validate_installed_tree(stage, manifest)
+        if backup.exists() or journal_path.exists():
+            raise ValueError("installer transaction residue appeared during staging")
+        atomic_write_json(journal_path, journal)
+        if _simulate_interrupt_after == "prepared":
+            interrupted = True; raise SimulatedInterruption("prepared")
 
-        if backup.exists():
-            raise ValueError("stale .rd-install-backup exists; P4 recovery required before install")
+        write_journal(journal_path, journal, "BACKUP_PENDING")
         if managed.exists():
             managed.rename(backup)
-            backup_created = True
+        if _simulate_interrupt_after == "backup":
+            interrupted = True; raise SimulatedInterruption("backup")
+
+        write_journal(journal_path, journal, "ACTIVATE_PENDING")
         stage.rename(managed)
-        activated = True
-        validate_installed_tree(managed, manifest)
-        live_validated = True
-    except Exception:
-        if activated and not live_validated and managed.exists():
-            shutil.rmtree(managed)
-        if backup_created and backup.exists() and not live_validated:
-            backup.rename(managed)
-        raise
+        if _simulate_interrupt_after == "activation":
+            interrupted = True; raise SimulatedInterruption("activation")
+
+        write_journal(journal_path, journal, "VALIDATE_PENDING")
+        try:
+            validate_installed_tree(managed, manifest)
+        except Exception:
+            write_journal(journal_path, journal, "RESTORE_PENDING")
+            if managed.exists():
+                shutil.rmtree(managed)
+            if previous is not None and backup.exists():
+                backup.rename(managed)
+            raise
+
+        write_journal(journal_path, journal, "COMMITTED")
+        if _simulate_interrupt_after == "committed":
+            interrupted = True; raise SimulatedInterruption("committed")
+        if backup.exists():
+            shutil.rmtree(backup)
+        journal_path.unlink()
     finally:
         if stage_parent.exists():
             shutil.rmtree(stage_parent, ignore_errors=True)
-
-    if backup_created and backup.exists():
-        shutil.rmtree(backup)
+        # A simulated hard interruption deliberately leaves durable journal/backup/live
+        # state for the next invocation to recover. Ordinary exceptions are recovered
+        # immediately through the same idempotent P4 routine.
+        if not interrupted and journal_path.exists():
+            recover_interrupted_transaction(target, managed_root)
 
     return {
-        "status": "PASS",
-        "installer_contract": INSTALLER_CONTRACT,
-        "version": manifest["version"],
-        "content_identity": manifest["content_identity"],
-        "transport_sha256": transport_sha256,
-        "managed_root": managed_root,
+        "status": "PASS", "installer_contract": INSTALLER_CONTRACT,
+        "version": manifest["version"], "content_identity": manifest["content_identity"],
+        "transport_sha256": transport_sha256, "managed_root": managed_root,
         "previous_version": previous["version"] if previous else None,
+        "recovery_before_install": recovery["status"],
     }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Install a verified Reasoning Distiller package into a project workspace.")
-    parser.add_argument("--package", type=Path)
-    parser.add_argument("--manifest", type=Path)
-    parser.add_argument("--transport-sha256")
-    parser.add_argument("--target", type=Path)
-    parser.add_argument("--managed-root", default=DEFAULT_MANAGED_ROOT)
-    parser.add_argument("--project-package", type=Path)
-    parser.add_argument("--allow-downgrade", action="store_true")
-    parser.add_argument("--installed-at", default=DEFAULT_INSTALLED_AT)
-    parser.add_argument("--runner-id")
-    parser.add_argument("--source-repository")
-    parser.add_argument("--source-locator")
-    parser.add_argument("--update-locator")
+    parser.add_argument("--package", type=Path); parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--transport-sha256"); parser.add_argument("--target", type=Path)
+    parser.add_argument("--managed-root", default=DEFAULT_MANAGED_ROOT); parser.add_argument("--project-package", type=Path)
+    parser.add_argument("--allow-downgrade", action="store_true"); parser.add_argument("--installed-at", default=DEFAULT_INSTALLED_AT)
+    parser.add_argument("--runner-id"); parser.add_argument("--source-repository"); parser.add_argument("--source-locator"); parser.add_argument("--update-locator")
+    parser.add_argument("--recover-only", action="store_true", help="recover an interrupted local install and exit")
     parser.add_argument("--version", action="store_true", help="print installer contract and exit")
     return parser
 
 
 def main() -> int:
-    parser = build_parser()
-    args = parser.parse_args()
+    parser = build_parser(); args = parser.parse_args()
     if args.version:
-        print(INSTALLER_CONTRACT)
-        return 0
-    required = {
-        "--package": args.package,
-        "--manifest": args.manifest,
-        "--transport-sha256": args.transport_sha256,
-        "--target": args.target,
-    }
+        print(INSTALLER_CONTRACT); return 0
+    if args.recover_only:
+        if args.target is None: parser.error("--recover-only requires --target")
+        print(json.dumps(recover_interrupted_transaction(args.target, args.managed_root), sort_keys=True)); return 0
+    required = {"--package": args.package, "--manifest": args.manifest, "--transport-sha256": args.transport_sha256, "--target": args.target}
     missing = [name for name, value in required.items() if value is None]
-    if missing:
-        parser.error("missing required arguments: " + ", ".join(missing))
-    result = install(
-        args.package,
-        args.manifest,
-        args.transport_sha256,
-        args.target,
-        managed_root=args.managed_root,
-        project_package=args.project_package,
-        allow_downgrade=args.allow_downgrade,
-        installed_at=args.installed_at,
-        runner_id=args.runner_id,
-        source_repository=args.source_repository,
-        source_locator=args.source_locator,
-        update_locator=args.update_locator,
-    )
-    print(json.dumps(result, sort_keys=True))
-    return 0
+    if missing: parser.error("missing required arguments: " + ", ".join(missing))
+    result = install(args.package, args.manifest, args.transport_sha256, args.target,
+                     managed_root=args.managed_root, project_package=args.project_package,
+                     allow_downgrade=args.allow_downgrade, installed_at=args.installed_at,
+                     runner_id=args.runner_id, source_repository=args.source_repository,
+                     source_locator=args.source_locator, update_locator=args.update_locator)
+    print(json.dumps(result, sort_keys=True)); return 0
 
 
 if __name__ == "__main__":
