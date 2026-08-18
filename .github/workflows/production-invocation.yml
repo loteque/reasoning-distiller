@@ -1,0 +1,60 @@
+name: Reasoning Distiller Production Invocation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/**'
+      - 'schemas/invocation-request.schema.json'
+      - 'schemas/invocation-result.schema.json'
+      - 'tests/test_production_invocation.py'
+      - 'docs/operations/PRODUCTION_INVOCATION_CONTRACT.md'
+      - 'packaging/package-build.json'
+      - '.github/workflows/production-invocation.yml'
+  pull_request:
+    paths:
+      - 'runtime/**'
+      - 'schemas/invocation-request.schema.json'
+      - 'schemas/invocation-result.schema.json'
+      - 'tests/test_production_invocation.py'
+      - 'docs/operations/PRODUCTION_INVOCATION_CONTRACT.md'
+      - 'packaging/package-build.json'
+      - '.github/workflows/production-invocation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install schema validator
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+      - name: Validate invocation schemas
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          for name in ('invocation-request.schema.json','invocation-result.schema.json'):
+              schema=json.loads((Path('schemas')/name).read_text(encoding='utf-8'))
+              Draft202012Validator.check_schema(schema)
+              print('PASS schema', name)
+          PY
+      - name: Verify reference adapter identity
+        run: test "$(python runtime/rd_distill.py --version)" = "reasoning-distiller-invocation/1"
+      - name: Run production invocation conformance suite
+        run: python -m unittest -v tests/test_production_invocation.py
+      - name: Prove package includes runtime adapter and invocation schemas
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          python packaging/build_release_package.py --version 0.2.0-invocation-ci --source-commit "$SHA" --output-dir /tmp/rd-invocation
+          tar -tzf /tmp/rd-invocation/reasoning-distiller-0.2.0-invocation-ci.tar.gz | grep -Fx runtime/rd_distill.py
+          tar -tzf /tmp/rd-invocation/reasoning-distiller-0.2.0-invocation-ci.tar.gz | grep -Fx schemas/invocation-request.schema.json
+          tar -tzf /tmp/rd-invocation/reasoning-distiller-0.2.0-invocation-ci.tar.gz | grep -Fx schemas/invocation-result.schema.json
