@@ -1,0 +1,130 @@
+name: Frozen Extraction Copy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/frozen-extraction-copy.yml'
+      - 'docs/extraction/run-copy-request.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: frozen-extraction-copy
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout standalone repository
+        uses: actions/checkout@v4
+        with:
+          path: target
+          fetch-depth: 1
+
+      - name: Checkout frozen voxel-engine baseline
+        uses: actions/checkout@v4
+        with:
+          repository: loteque/gdscript-voxel-engine
+          ref: 1c25bf7cc858218941476097a3a5ac5ba204f270
+          path: source
+          fetch-depth: 1
+
+      - name: Verify frozen source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C source rev-parse HEAD)" = "1c25bf7cc858218941476097a3a5ac5ba204f270"
+
+      - name: Copy exact framework/backend artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          mkdir -p admission backends/pems-cove evaluation/fixtures/pems2
+          cp ../source/docs/handoff/rgp/admission/apply_admission_transaction.py admission/
+          cp ../source/docs/handoff/rgp/admission/apply_admission_transaction_v2.py admission/
+          cp ../source/docs/handoff/rgp/admission/test_admission_transaction_v2.py admission/
+          cp ../source/docs/handoff/pems/v2/pems-v2.schema.json backends/pems-cove/
+          cp ../source/docs/handoff/pems/v2/validate_pems2_contract.py backends/pems-cove/
+          cp ../source/docs/handoff/pems/v2/ADMISSION_FIXTURES.json backends/pems-cove/
+          cp ../source/docs/handoff/pems/v2/RGP_COMPATIBILITY_FIXTURES.json backends/pems-cove/
+          cp ../source/docs/handoff/pems/v2/RGP_UNCERTAINTY_IMPORT_FIXTURES.json backends/pems-cove/
+          cp ../source/docs/handoff/pems/v2/validate_rgp_uncertainty_import.py backends/pems-cove/
+
+      - name: Copy exact voxel-engine reference corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          mkdir -p evaluation/corpus/voxel-engine/phase1 evaluation/corpus/voxel-engine/phase3
+          rm -rf evaluation/corpus/voxel-engine/phase1/independent
+          cp -a ../source/docs/distiller/evaluation/phase1/independent evaluation/corpus/voxel-engine/phase1/
+          rm -rf evaluation/corpus/voxel-engine/phase3/shadow
+          cp -a ../source/docs/distiller/evaluation/phase3/shadow evaluation/corpus/voxel-engine/phase3/
+
+      - name: Generate exact-copy provenance manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+
+          root = Path('.')
+          source = Path('../source')
+          fixed = {
+            'admission/apply_admission_transaction.py':'docs/handoff/rgp/admission/apply_admission_transaction.py',
+            'admission/apply_admission_transaction_v2.py':'docs/handoff/rgp/admission/apply_admission_transaction_v2.py',
+            'admission/test_admission_transaction_v2.py':'docs/handoff/rgp/admission/test_admission_transaction_v2.py',
+            'backends/pems-cove/pems-v2.schema.json':'docs/handoff/pems/v2/pems-v2.schema.json',
+            'backends/pems-cove/validate_pems2_contract.py':'docs/handoff/pems/v2/validate_pems2_contract.py',
+            'backends/pems-cove/ADMISSION_FIXTURES.json':'docs/handoff/pems/v2/ADMISSION_FIXTURES.json',
+            'backends/pems-cove/RGP_COMPATIBILITY_FIXTURES.json':'docs/handoff/pems/v2/RGP_COMPATIBILITY_FIXTURES.json',
+            'backends/pems-cove/RGP_UNCERTAINTY_IMPORT_FIXTURES.json':'docs/handoff/pems/v2/RGP_UNCERTAINTY_IMPORT_FIXTURES.json',
+            'backends/pems-cove/validate_rgp_uncertainty_import.py':'docs/handoff/pems/v2/validate_rgp_uncertainty_import.py',
+          }
+          pairs = list(fixed.items())
+          for src_root, dst_root in [
+            ('docs/distiller/evaluation/phase1/independent','evaluation/corpus/voxel-engine/phase1/independent'),
+            ('docs/distiller/evaluation/phase3/shadow','evaluation/corpus/voxel-engine/phase3/shadow'),
+          ]:
+            for p in sorted((source/src_root).rglob('*')):
+              if p.is_file():
+                rel = p.relative_to(source/src_root)
+                pairs.append(((Path(dst_root)/rel).as_posix(), (Path(src_root)/rel).as_posix()))
+
+          artifacts=[]
+          for dst, src in pairs:
+            src_blob=subprocess.check_output(['git','-C',str(source),'rev-parse',f'HEAD:{src}'], text=True).strip()
+            dst_blob=subprocess.check_output(['git','hash-object',dst], text=True).strip()
+            if src_blob != dst_blob:
+              raise SystemExit(f'byte mismatch {src} -> {dst}: {src_blob} != {dst_blob}')
+            artifacts.append({'classification':'framework' if dst.startswith(('admission/','backends/')) else 'reference-corpus',
+                              'source_path':src,'source_blob_sha':src_blob,'destination':dst,'destination_blob_sha':dst_blob})
+          out={'contract':'reasoning-distiller-exact-copy-manifest/1',
+               'source_repository':'loteque/gdscript-voxel-engine',
+               'source_commit':'1c25bf7cc858218941476097a3a5ac5ba204f270',
+               'artifacts':artifacts}
+          Path('docs/extraction/exact-copy-manifest.json').write_text(json.dumps(out, indent=2, sort_keys=True)+'\n', encoding='utf-8')
+          print(f'verified {len(artifacts)} exact copies')
+          PY
+
+      - name: Commit extracted bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add admission backends evaluation/corpus/voxel-engine/phase1/independent evaluation/corpus/voxel-engine/phase3/shadow docs/extraction/exact-copy-manifest.json
+          if git diff --cached --quiet; then
+            echo 'No extraction changes required.'
+            exit 0
+          fi
+          git commit -m 'Extract frozen framework backend and reference corpus'
+          git push origin HEAD:main
