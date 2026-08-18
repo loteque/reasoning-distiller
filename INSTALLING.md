@@ -4,7 +4,7 @@ Reasoning Distiller is installed **into a project repository**. The installed fr
 
 The installer is a local, deterministic Python program. It does not fetch anything from the network and it does not choose a version. First retrieve an exact accepted release, then run the installer against those local files.
 
-## Human installation
+## Installation
 
 ### Requirements
 
@@ -91,7 +91,7 @@ Updating uses the same procedure with a newer **accepted, exact release**. Do no
 
 Downgrades are rejected by default. Use `--allow-downgrade` only for an intentional, reviewed downgrade.
 
-## Agent installation
+## Agent
 
 ```text
 Install Reasoning Distiller into <PROJECT_ROOT>.
