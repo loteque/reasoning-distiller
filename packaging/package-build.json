@@ -5,6 +5,7 @@
     "agents",
     "backends",
     "protocols",
+    "runtime",
     "schemas",
     "validators"
   ],
