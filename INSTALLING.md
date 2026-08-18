@@ -28,8 +28,6 @@ install-package-manifest.schema.json
 installation-record.schema.json
 ```
 
-For the accepted `v0.1.1` baseline, `<version>` is `0.1.1`.
-
 ### 2. Arrange the installer files
 
 The installer expects its validator beside it and the schemas one directory above it:
@@ -51,11 +49,7 @@ The installer expects its validator beside it and the schemas one directory abov
 
 Open `reasoning-distiller-<version>.sha256`. Its first value is the expected SHA-256 digest of the `.tar.gz` package. Verify the archive with the SHA-256 tool available on the local system before installing it.
 
-For accepted release `v0.1.1`, the expected archive SHA-256 is:
-
-```text
-773ab0c9a5946f69ec568aabd9a255569f9511227142baadde077f826aa6cd8a
-```
+Use that verified digest as `<SHA256>` in the installer command below.
 
 ### 4. Run the installer
 
@@ -63,13 +57,15 @@ Set the target to the root directory of the project repository. Then run:
 
 ```bash
 python /tmp/rd/packaging/rd_install.py \
-  --package /tmp/rd/reasoning-distiller-0.1.1.tar.gz \
-  --manifest /tmp/rd/reasoning-distiller-0.1.1.manifest.json \
-  --transport-sha256 773ab0c9a5946f69ec568aabd9a255569f9511227142baadde077f826aa6cd8a \
+  --package /tmp/rd/reasoning-distiller-<version>.tar.gz \
+  --manifest /tmp/rd/reasoning-distiller-<version>.manifest.json \
+  --transport-sha256 <SHA256> \
   --target /path/to/project \
   --source-repository loteque/reasoning-distiller \
-  --source-locator v0.1.1
+  --source-locator <TAG>
 ```
+
+`<TAG>` is the exact accepted release tag corresponding to `<version>`.
 
 If the project has a compatible Project Knowledge Package materialized as JSON, add `--project-package /path/to/project-package.json` to perform compatibility preflight before installation.
 
