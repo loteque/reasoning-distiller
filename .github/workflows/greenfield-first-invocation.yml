@@ -1,0 +1,281 @@
+name: Reasoning Distiller Greenfield First Invocation Trial
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/greenfield-first-invocation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_VERSION: '0.3.0'
+  RELEASE_TAG: 'v0.3.0'
+  RELEASE_SOURCE_SHA: '146f828efd258c5d964414f0118a64f2f77ed300'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:f5effb355ad8021e07b1053a125b44f13114579601496ed6014fc600f8e32db8'
+  EXPECTED_TRANSPORT_SHA256: '2cac56f03b692b5443813c61be7ca37c0ea6ee1fd2649ac0b93f9ffe919cca0e'
+
+jobs:
+  first-invocation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create true greenfield repository
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/greenfield
+          cd /tmp/greenfield
+          git init -q
+          git config user.email greenfield@example.invalid
+          git config user.name 'Greenfield First Invocation Trial'
+          printf '%s\n' '# Greenfield First Invocation Trial' > README.md
+          printf '%s\n' '.DS_Store' > .gitignore
+          git add README.md .gitignore
+          git commit -q -m 'initial empty project'
+          test ! -e .reasoning-distiller
+          test ! -e project-knowledge
+          git rev-parse HEAD > /tmp/greenfield-initial-sha
+
+      - name: Retrieve exact accepted release read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rd-release
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir /tmp/rd-release
+          cd /tmp/rd-release
+          test "$(sha256sum "reasoning-distiller-${RELEASE_VERSION}.tar.gz" | awk '{print $1}')" = "$EXPECTED_TRANSPORT_SHA256"
+          test "$(awk '{print $1}' "reasoning-distiller-${RELEASE_VERSION}.sha256")" = "$EXPECTED_TRANSPORT_SHA256"
+
+      - name: Arrange released installer bootstrap assets
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rd-installer/packaging /tmp/rd-installer/schemas
+          cp /tmp/rd-release/rd_install.py /tmp/rd-installer/packaging/
+          cp /tmp/rd-release/validate_install_package_contract.py /tmp/rd-installer/packaging/
+          cp /tmp/rd-release/install-package-manifest.schema.json /tmp/rd-installer/schemas/
+          cp /tmp/rd-release/installation-record.schema.json /tmp/rd-installer/schemas/
+          python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Install accepted release
+        run: |
+          set -euo pipefail
+          python /tmp/rd-installer/packaging/rd_install.py \
+            --package "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
+            --manifest "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json" \
+            --transport-sha256 "$EXPECTED_TRANSPORT_SHA256" \
+            --target /tmp/greenfield \
+            --source-repository loteque/reasoning-distiller \
+            --source-locator "$RELEASE_TAG" \
+            --runner-id "greenfield-first-invocation-${GITHUB_RUN_ID}" \
+            > /tmp/install-result.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads(Path('/tmp/install-result.json').read_text())
+          assert r['status']=='PASS'
+          assert r['version']==os.environ['RELEASE_VERSION']
+          assert r['content_identity']==os.environ['EXPECTED_CONTENT_IDENTITY']
+          i=json.loads(Path('/tmp/greenfield/.reasoning-distiller/.installation/INSTALLATION.json').read_text())
+          assert i['source_commit']==os.environ['RELEASE_SOURCE_SHA']
+          assert i['transport_sha256']==os.environ['EXPECTED_TRANSPORT_SHA256']
+          PY
+
+      - name: Bootstrap project-owned state
+        run: |
+          set -euo pipefail
+          python /tmp/greenfield/.reasoning-distiller/runtime/rd_bootstrap.py --target /tmp/greenfield > /tmp/bootstrap-result.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('/tmp/bootstrap-result.json').read_text())
+          assert r['status']=='PASS'
+          assert r['outcome']=='CREATED'
+          PY
+
+      - name: Add explicit evidence and construct invocation request
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'The greenfield first invocation reached explicit evidence preparation.' > /tmp/greenfield/project-knowledge/evidence/first.txt
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path('/tmp/greenfield')
+          evidence=root/'project-knowledge/evidence/first.txt'
+          digest='sha256:'+hashlib.sha256(evidence.read_bytes()).hexdigest()
+          request={
+            'contract':'reasoning-distiller-invocation/1',
+            'invocation_id':'greenfield-first-invocation-1',
+            'created_at':'2026-08-18T15:56:00-07:00',
+            'project_root':'.',
+            'evidence':[{
+              'source_id':'src:greenfield:first',
+              'type':'repository_file',
+              'locator':'project-knowledge/evidence/first.txt',
+              'digest':digest
+            }],
+            'source_registry':[{
+              'source_id':'src:greenfield:first',
+              'type':'repository_file',
+              'locator':'project-knowledge/evidence/first.txt',
+              'digest':digest
+            }],
+            'source_context':{'summary':'greenfield first invocation mechanics trial','refs':['trial:greenfield-first-invocation']},
+            'output':{
+              'raw_candidate_path':'project-knowledge/invocations/first.raw.json',
+              'submission_path':'project-knowledge/submissions/first.json'
+            }
+          }
+          (root/'project-knowledge/invocations/first.request.json').write_text(json.dumps(request,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Prepare activation bundle using installed runtime only
+        run: |
+          set -euo pipefail
+          cd /tmp/greenfield
+          python .reasoning-distiller/runtime/rd_distill.py prepare \
+            --request project-knowledge/invocations/first.request.json \
+            --bundle-out /tmp/activation.json > /tmp/prepare-result.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          b=json.loads(Path('/tmp/activation.json').read_text())
+          assert b['contract']=='reasoning-distiller-activation-bundle/1'
+          assert len(b['evidence'])==1
+          assert b['evidence'][0]['source_id']=='src:greenfield:first'
+          assert b['evidence'][0]['content']=='The greenfield first invocation reached explicit evidence preparation.\n'
+          assert len(b['source_registry'])==1
+          PY
+
+      - name: Represent provider boundary with fixed raw candidate
+        run: |
+          cat > /tmp/model-output.json <<'JSON'
+          {
+            "records": [
+              {
+                "temp_id": "r1",
+                "kind": "observation",
+                "statement": "The greenfield first invocation reached explicit evidence preparation.",
+                "provenance": {
+                  "primary": ["src:greenfield:first"]
+                }
+              }
+            ]
+          }
+          JSON
+          sha256sum /tmp/model-output.json | awk '{print $1}' > /tmp/model-output.sha256
+
+      - name: Finalize and persist immutable candidate submission
+        run: |
+          set -euo pipefail
+          cd /tmp/greenfield
+          python .reasoning-distiller/runtime/rd_distill.py finalize \
+            --request project-knowledge/invocations/first.request.json \
+            --raw-candidate /tmp/model-output.json > /tmp/finalize-result.json
+          python - <<'PY'
+          import hashlib, importlib.util, json
+          from pathlib import Path
+          root=Path('/tmp/greenfield')
+          result=json.loads(Path('/tmp/finalize-result.json').read_text())
+          assert result['status']=='PASS'
+          raw=root/result['raw_candidate_path']
+          submission=root/result['submission_path']
+          assert hashlib.sha256(raw.read_bytes()).hexdigest()==Path('/tmp/model-output.sha256').read_text().strip()
+          envelope=json.loads(submission.read_text())
+          assert envelope['status']=='candidate'
+          assert envelope['producer']['role']=='reasoning-distiller'
+          assert envelope['candidate_graph']['records'][0]['provenance']['primary']==['src:greenfield:first']
+          validator=root/'.reasoning-distiller/validators/rgp_validator.py'
+          spec=importlib.util.spec_from_file_location('rgp_validator_trial',validator)
+          mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+          assert mod.validate(envelope)==[]
+          PY
+
+      - name: Verify exact replay idempotence
+        run: |
+          set -euo pipefail
+          cd /tmp/greenfield
+          cp project-knowledge/invocations/first.raw.json /tmp/raw-before
+          cp project-knowledge/submissions/first.json /tmp/submission-before
+          python .reasoning-distiller/runtime/rd_distill.py finalize \
+            --request project-knowledge/invocations/first.request.json \
+            --raw-candidate /tmp/model-output.json > /tmp/finalize-result-replay.json
+          cmp /tmp/raw-before project-knowledge/invocations/first.raw.json
+          cmp /tmp/submission-before project-knowledge/submissions/first.json
+
+      - name: Verify authority and canonical boundary
+        run: |
+          set -euo pipefail
+          cd /tmp/greenfield
+          test ! -e project-knowledge/PEMS
+          test ! -e project-knowledge/COVE
+          test ! -e project-knowledge/canonical
+          test ! -e project-knowledge/authority
+          test ! -e project-knowledge/reconciliation
+          test ! -e project-knowledge/admission
+          test ! -e .rd-install-transaction.json
+          test ! -e .rd-install-backup
+          find . -maxdepth 5 -type f -not -path './.git/*' -print | sort > /tmp/final-tree.txt
+          git status --porcelain > /tmp/final-status.txt
+
+      - name: Emit measured trial disposition
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          result={
+            'contract':'reasoning-distiller-greenfield-first-invocation-trial-result/1',
+            'status':'PASS',
+            'pass':True,
+            'release_version':os.environ['RELEASE_VERSION'],
+            'release_tag':os.environ['RELEASE_TAG'],
+            'release_source_commit':os.environ['RELEASE_SOURCE_SHA'],
+            'content_identity':os.environ['EXPECTED_CONTENT_IDENTITY'],
+            'transport_sha256':os.environ['EXPECTED_TRANSPORT_SHA256'],
+            'installation':'PASS',
+            'bootstrap':'PASS',
+            'evidence':'PASS',
+            'invocation_request':'PASS',
+            'prepare':'PASS',
+            'raw_preservation':'PASS',
+            'rgp_validation':'PASS',
+            'immutable_submission':'PASS',
+            'replay_idempotence':'PASS',
+            'authority_boundary':'PASS',
+            'model_transport':'FIXED_FIXTURE_NOT_LIVE_PROVIDER',
+            'next_boundary':'live model activation or Steward handoff/reconciliation'
+          }
+          Path('/tmp/trial-result.json').write_text(json.dumps(result,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Upload durable run evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenfield-first-invocation-${{ github.run_id }}
+          include-hidden-files: true
+          path: |
+            /tmp/greenfield-initial-sha
+            /tmp/install-result.json
+            /tmp/bootstrap-result.json
+            /tmp/prepare-result.json
+            /tmp/activation.json
+            /tmp/model-output.json
+            /tmp/model-output.sha256
+            /tmp/finalize-result.json
+            /tmp/finalize-result-replay.json
+            /tmp/trial-result.json
+            /tmp/final-tree.txt
+            /tmp/final-status.txt
+            /tmp/greenfield/project-knowledge/project.json
+            /tmp/greenfield/project-knowledge/evidence/first.txt
+            /tmp/greenfield/project-knowledge/invocations/first.request.json
+            /tmp/greenfield/project-knowledge/invocations/first.raw.json
+            /tmp/greenfield/project-knowledge/submissions/first.json
+            /tmp/greenfield/.reasoning-distiller/.installation/INSTALLATION.json
+            /tmp/greenfield/.reasoning-distiller/.installation/MANIFEST.json
