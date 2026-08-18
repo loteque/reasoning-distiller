@@ -1,0 +1,73 @@
+name: Phase 6.0 Framework Decouple
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/phase6-decouple.yml'
+      - 'docs/extraction/run-decouple-request.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: phase6-decouple
+  cancel-in-progress: false
+
+jobs:
+  decouple:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Replace provenance-only backend schema locator
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('backends/pems-cove/pems-v2.schema.json')
+          obj=json.loads(p.read_text(encoding='utf-8'))
+          old=obj.get('$id')
+          expected='https://github.com/loteque/gdscript-voxel-engine/blob/project-chat-handoff/docs/handoff/pems/v2/pems-v2.schema.json'
+          if old not in (expected, 'https://github.com/loteque/reasoning-distiller/blob/main/backends/pems-cove/pems-v2.schema.json'):
+              raise SystemExit(f'unexpected PEMS schema $id: {old}')
+          obj['$id']='https://github.com/loteque/reasoning-distiller/blob/main/backends/pems-cove/pems-v2.schema.json'
+          p.write_text(json.dumps(obj, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')
+          PY
+
+      - name: Reject hidden consuming-project coupling
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          roots=['agents','protocols','schemas','validators','admission','backends','orchestration']
+          forbidden=['loteque/gdscript-voxel-engine','project-chat-handoff','docs/project-chat-handoff']
+          failures=[]
+          for root in roots:
+              r=Path(root)
+              if not r.exists(): continue
+              for p in r.rglob('*'):
+                  if not p.is_file(): continue
+                  try: text=p.read_text(encoding='utf-8')
+                  except UnicodeDecodeError: continue
+                  for token in forbidden:
+                      if token in text:
+                          failures.append(f'{p}: {token}')
+          if failures:
+              raise SystemExit('remaining consuming-project coupling:\n'+'\n'.join(failures))
+          print('PASS no consuming-project paths in framework')
+          PY
+
+      - name: Commit decoupled framework locator
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backends/pems-cove/pems-v2.schema.json
+          if git diff --cached --quiet; then
+            echo 'No decoupling changes required.'
+            exit 0
+          fi
+          git commit -m 'Decouple PEMS backend schema locator from voxel project'
+          git push origin HEAD:main
