@@ -7,6 +7,7 @@
   "required": [
     "contract",
     "package_contract",
+    "installer",
     "version",
     "source_commit",
     "content_identity",
@@ -18,6 +19,16 @@
   "properties": {
     "contract": {"const": "reasoning-distiller-installation/1"},
     "package_contract": {"const": "reasoning-distiller-install-package/1"},
+    "installer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "entrypoint", "runtime"],
+      "properties": {
+        "contract": {"const": "reasoning-distiller-installer/1"},
+        "entrypoint": {"const": "rd_install.py"},
+        "runtime": {"const": "python3"}
+      }
+    },
     "version": {"type": "string", "minLength": 1},
     "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "content_identity": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
@@ -35,6 +46,14 @@
           "type": "object",
           "additionalProperties": {"$ref": "#/$defs/nonEmptyStringArray"}
         }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "invocation_id": {"type": "string", "minLength": 1}
       }
     },
     "source_repository": {"type": "string", "minLength": 1},
