@@ -40,6 +40,8 @@ jobs:
           python packaging/validate_install_package_contract.py \
             --manifest packaging/examples/manifest.example.json \
             --installation packaging/examples/installation.example.json
+      - name: Verify canonical installer entrypoint
+        run: test "$(python packaging/rd_install.py --version)" = "reasoning-distiller-installer/1"
       - name: Run P1 package contract tests
         run: python -m unittest -v tests/test_install_package_contract.py
       - name: Run deterministic installer runner contract tests
