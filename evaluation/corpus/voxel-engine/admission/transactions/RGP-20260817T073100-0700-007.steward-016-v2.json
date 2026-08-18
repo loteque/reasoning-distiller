@@ -1,0 +1,101 @@
+{
+  "contract": "rgp-pems2-admission-transaction/2",
+  "expected_base_sha256": "86288d731731c2cb0e01e1f17fd59b6506b9e79a6078921e3da630a50fea09cd",
+  "reuse_record_ids": [
+    "pems:source:acc8077cfbdc4d2daf3a",
+    "pems:source_observation:2dc69352f16d6b19d15f",
+    "pems:proposition:2f835b519a295141a201",
+    "pems:decision:e7b384909352ef0ee65c",
+    "pems:unresolved_item:fe7a5220140a5fd6527c"
+  ],
+  "record_updates": [
+    {
+      "record_id": "pems:decision:e7b384909352ef0ee65c",
+      "expected_before_sha256": "80430d0e86b3d71b089b3200e934553e5b507ba2d0760e644a735f46c7e3e2b6",
+      "replacement": {
+        "id": "pems:decision:e7b384909352ef0ee65c",
+        "kind": "decision",
+        "lifecycle": "current",
+        "provenance": {
+          "primary": [
+            "pems:source_observation:2dc69352f16d6b19d15f",
+            "pems:source_observation:6a3f71b094c983716e36"
+          ],
+          "corroborating": [
+            "pems:source_observation:c1f2072d646556c7ef46"
+          ],
+          "untyped": [
+            "pems:source_observation:8c186a6ca2398e0cfe5e"
+          ]
+        },
+        "data": {
+          "summary": "Resource loading was elevated ahead of LOD.",
+          "decision_state": "accepted",
+          "rationale": null
+        }
+      }
+    }
+  ],
+  "new_records": [
+    {
+      "id": "pems:source:347cc1f8dc37dba9a3a1",
+      "kind": "source",
+      "lifecycle": "current",
+      "data": {
+        "source_kind": "repository_pull_request",
+        "authority": "repository_state",
+        "identity_locator": {
+          "repository": "loteque/gdscript-voxel-engine",
+          "uri": "https://github.com/loteque/gdscript-voxel-engine/pull/49"
+        }
+      }
+    },
+    {
+      "id": "pems:source_observation:c1f2072d646556c7ef46",
+      "kind": "source_observation",
+      "lifecycle": "current",
+      "data": {
+        "source_id": "pems:source:347cc1f8dc37dba9a3a1",
+        "evidence_state": "immutable_snapshot",
+        "observed_at": "2026-08-17T07:31:00-07:00",
+        "evidence_locator": {
+          "repository": "loteque/gdscript-voxel-engine",
+          "commit": "7b0620e26bc3f43335313d04c533ca3957f90daa",
+          "uri": "https://github.com/loteque/gdscript-voxel-engine/pull/49"
+        },
+        "captured_fingerprint": "github:pull/49@merge:7b0620e26bc3f43335313d04c533ca3957f90daa"
+      }
+    },
+    {
+      "id": "pems:proposition:65f78e7f4109a723ebd1",
+      "kind": "proposition",
+      "lifecycle": "current",
+      "provenance": {
+        "primary": [
+          "pems:source_observation:2dc69352f16d6b19d15f"
+        ]
+      },
+      "data": {
+        "statement": "The accepted mobile-Web baseline measured approximately 2.2 seconds average chunk load latency with four concurrent loads.",
+        "proposition_kind": "observation",
+        "epistemic_role": "asserted"
+      }
+    },
+    {
+      "id": "pems:proposition:46842a30062ed52d579c",
+      "kind": "proposition",
+      "lifecycle": "current",
+      "provenance": {
+        "primary": [
+          "pems:source_observation:2dc69352f16d6b19d15f"
+        ]
+      },
+      "data": {
+        "statement": "The accepted run recorded zero failed loads, zero pending cancellations, peak residency of 36 chunks, and approximately 0.39 MiB estimated resident mesh memory.",
+        "proposition_kind": "observation",
+        "epistemic_role": "asserted"
+      }
+    }
+  ],
+  "new_relations": []
+}
