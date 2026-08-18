@@ -1,0 +1,33 @@
+name: Extraction Parity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1 PyYAML==6.0.2
+      - name: RGP fixture parity
+        run: python tests/run_fixture_tests.py
+      - name: Project Knowledge Package contract
+        run: python tests/check_project_package.py
+      - name: Framework isolation and authority boundary
+        run: python tests/check_framework_isolation.py
+      - name: Frozen source blob integrity
+        run: python tests/check_corpus_integrity.py
+      - name: Validator version
+        run: python validators/rgp_validator.py --version
