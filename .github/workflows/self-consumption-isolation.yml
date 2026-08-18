@@ -1,0 +1,235 @@
+name: Reasoning Distiller Self-Consumption Isolation Trial
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/self-consumption-isolation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_VERSION: '0.2.0'
+  RELEASE_TAG: 'v0.2.0'
+  RELEASE_SOURCE_SHA: 'c7daed110e58627d0ab2566298cc433615ee4452'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:75736b1b8522f568cf172058ea97b8216501d4faaf2d4fa32ff7056181c42add'
+  EXPECTED_TRANSPORT_SHA256: 'd5273f9181e286c592db21e636c67b8dfb3f3a3dc39608cf34e6f66557a477e1'
+
+jobs:
+  self-consumption:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Record clean initial state
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          test ! -e .reasoning-distiller
+          git rev-parse HEAD > /tmp/trial-base-sha
+
+      - name: Retrieve exact accepted release read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rd-release
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir /tmp/rd-release
+          cd /tmp/rd-release
+          test -f "reasoning-distiller-${RELEASE_VERSION}.tar.gz"
+          test -f "reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          test -f "reasoning-distiller-${RELEASE_VERSION}.sha256"
+          test -f rd_install.py
+          test -f validate_install_package_contract.py
+          test -f install-package-manifest.schema.json
+          test -f installation-record.schema.json
+          test "$(sha256sum "reasoning-distiller-${RELEASE_VERSION}.tar.gz" | awk '{print $1}')" = "$EXPECTED_TRANSPORT_SHA256"
+          test "$(awk '{print $1}' "reasoning-distiller-${RELEASE_VERSION}.sha256")" = "$EXPECTED_TRANSPORT_SHA256"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          m=json.loads(Path(f"reasoning-distiller-{os.environ['RELEASE_VERSION']}.manifest.json").read_text())
+          assert m['version']==os.environ['RELEASE_VERSION']
+          assert m['source_commit']==os.environ['RELEASE_SOURCE_SHA']
+          assert m['content_identity']==os.environ['EXPECTED_CONTENT_IDENTITY']
+          assert m['transport_sha256']==os.environ['EXPECTED_TRANSPORT_SHA256']
+          PY
+
+      - name: Arrange public installer assets
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rd-bootstrap/packaging /tmp/rd-bootstrap/schemas
+          cp /tmp/rd-release/rd_install.py /tmp/rd-bootstrap/packaging/
+          cp /tmp/rd-release/validate_install_package_contract.py /tmp/rd-bootstrap/packaging/
+          cp /tmp/rd-release/install-package-manifest.schema.json /tmp/rd-bootstrap/schemas/
+          cp /tmp/rd-release/installation-record.schema.json /tmp/rd-bootstrap/schemas/
+          python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Self-install accepted release
+        run: |
+          set -euo pipefail
+          python /tmp/rd-bootstrap/packaging/rd_install.py \
+            --package "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
+            --manifest "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json" \
+            --transport-sha256 "$EXPECTED_TRANSPORT_SHA256" \
+            --target . \
+            --source-repository loteque/reasoning-distiller \
+            --source-locator "$RELEASE_TAG" \
+            --runner-id "self-consumption-${GITHUB_RUN_ID}" \
+            > /tmp/install-result.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads(Path('/tmp/install-result.json').read_text())
+          assert r['status']=='PASS'
+          assert r['version']==os.environ['RELEASE_VERSION']
+          assert r['content_identity']==os.environ['EXPECTED_CONTENT_IDENTITY']
+          assert r['transport_sha256']==os.environ['EXPECTED_TRANSPORT_SHA256']
+          i=json.loads(Path('.reasoning-distiller/.installation/INSTALLATION.json').read_text())
+          assert i['version']==os.environ['RELEASE_VERSION']
+          assert i['source_commit']==os.environ['RELEASE_SOURCE_SHA']
+          assert i['content_identity']==os.environ['EXPECTED_CONTENT_IDENTITY']
+          PY
+
+      - name: Create minimal project-owned fixed evidence and request
+        run: |
+          set -euo pipefail
+          mkdir -p .self-consumption-trial
+          printf '%s\n' 'The accepted release selected for this self-consumption trial is Reasoning Distiller 0.2.0.' > .self-consumption-trial/evidence.txt
+          DIGEST="sha256:$(sha256sum .self-consumption-trial/evidence.txt | awk '{print $1}')"
+          python - "$DIGEST" <<'PY'
+          import json, sys
+          from pathlib import Path
+          digest=sys.argv[1]
+          source={"source_id":"self-trial-evidence","type":"repository_file","locator":".self-consumption-trial/evidence.txt","digest":digest}
+          request={
+            "contract":"reasoning-distiller-invocation/1",
+            "invocation_id":"self-consumption-isolation-v020",
+            "created_at":"2026-08-18T00:00:00Z",
+            "project_root":".",
+            "evidence":[source],
+            "source_registry":[source],
+            "source_context":{"summary":"Self-consumption isolation trial","refs":[]},
+            "output":{
+              "raw_candidate_path":".self-consumption-trial/invocation.raw.json",
+              "submission_path":".self-consumption-trial/submission.json"
+            }
+          }
+          Path('.self-consumption-trial/invocation.json').write_text(json.dumps(request,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Prepare through installed rd-distill
+        run: |
+          set -euo pipefail
+          python .reasoning-distiller/runtime/rd_distill.py prepare \
+            --request .self-consumption-trial/invocation.json \
+            --bundle-out .self-consumption-trial/activation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          b=json.loads(Path('.self-consumption-trial/activation.json').read_text())
+          assert b['contract']=='reasoning-distiller-activation-bundle/1'
+          assert b['directive']['path']=='.reasoning-distiller/agents/distiller/DIRECTIVE.md'
+          assert len(b['evidence'])==1
+          PY
+
+      - name: Controlled provider-boundary output
+        run: |
+          cat > /tmp/model-output.json <<'JSON'
+          {"records":[{"temp_id":"r1","kind":"observation","statement":"The accepted release selected for this self-consumption trial is Reasoning Distiller 0.2.0.","provenance":{"primary":["self-trial-evidence"]}}]}
+          JSON
+          cp /tmp/model-output.json /tmp/model-output.original.json
+
+      - name: Make adjacent source framework unavailable
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rd-source-hidden
+          for d in agents admission backends protocols runtime schemas validators; do
+            test -d "$d"
+            mv "$d" "/tmp/rd-source-hidden/$d"
+          done
+          for d in agents admission backends protocols runtime schemas validators; do
+            test ! -e "$d"
+          done
+          test -f .reasoning-distiller/runtime/rd_distill.py
+
+      - name: Repeat prepare and finalize while source is denied
+        run: |
+          set -euo pipefail
+          rm .self-consumption-trial/activation.json
+          python .reasoning-distiller/runtime/rd_distill.py prepare \
+            --request .self-consumption-trial/invocation.json \
+            --bundle-out .self-consumption-trial/activation.json
+          python .reasoning-distiller/runtime/rd_distill.py finalize \
+            --request .self-consumption-trial/invocation.json \
+            --raw-candidate /tmp/model-output.json \
+            > /tmp/invocation-result.json
+          cmp /tmp/model-output.original.json .self-consumption-trial/invocation.raw.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('/tmp/invocation-result.json').read_text())
+          assert r['status']=='PASS'
+          s=json.loads(Path('.self-consumption-trial/submission.json').read_text())
+          assert s['status']=='candidate'
+          assert s['producer']['role']=='reasoning-distiller'
+          assert s['candidate_graph']==json.loads(Path('/tmp/model-output.original.json').read_text())
+          assert not Path('.self-consumption-trial').joinpath('canonical').exists()
+          PY
+
+      - name: Audit installed tree and source isolation
+        run: |
+          set -euo pipefail
+          cp packaging/audit_runtime_isolation.py /tmp/audit_runtime_isolation.py || true
+          # packaging/ is intentionally not one of the denied framework roots; audit only the installed tree.
+          python /tmp/audit_runtime_isolation.py .reasoning-distiller > /tmp/isolation-audit.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('/tmp/isolation-audit.json').read_text())
+          assert a['status']=='PASS', a
+          assert a['violations']==[]
+          PY
+
+      - name: Verify source/project ownership boundary
+        run: |
+          set -euo pipefail
+          # Restore source only so git can measure the consumer-created paths accurately.
+          for d in agents admission backends protocols runtime schemas validators; do
+            mv "/tmp/rd-source-hidden/$d" "$d"
+          done
+          python - <<'PY'
+          from pathlib import Path
+          assert Path('.reasoning-distiller').is_dir()
+          assert Path('.self-consumption-trial').is_dir()
+          assert not Path('.rd-install-transaction.json').exists()
+          assert not Path('.rd-install-backup').exists()
+          PY
+          git status --porcelain > /tmp/final-status.txt
+          grep -q '^?? .reasoning-distiller/' /tmp/final-status.txt
+          grep -q '^?? .self-consumption-trial/' /tmp/final-status.txt
+
+      - name: Emit durable-run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-consumption-isolation-${{ github.run_id }}
+          path: |
+            /tmp/trial-base-sha
+            /tmp/install-result.json
+            /tmp/invocation-result.json
+            /tmp/isolation-audit.json
+            /tmp/final-status.txt
+            .self-consumption-trial/invocation.json
+            .self-consumption-trial/activation.json
+            .self-consumption-trial/invocation.raw.json
+            .self-consumption-trial/submission.json
+            .reasoning-distiller/.installation/INSTALLATION.json
+            .reasoning-distiller/.installation/MANIFEST.json
