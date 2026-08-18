@@ -1,0 +1,43 @@
+{
+  "contract": "distiller-phase3-shadow-review/1",
+  "sample_id": "common-no-clip-camera",
+  "candidate_path": "docs/distiller/evaluation/phase3/shadow/common-no-clip-camera/candidate.rgp.json",
+  "validation": {
+    "workflow": "Distiller Phase 3 Shadow Validation",
+    "run_id": 32009739331,
+    "head_sha": "fa6ba35259d3796ee313c097c8a77e313eacfc74",
+    "result": "pass",
+    "fixture_suite": "pass"
+  },
+  "human_review": {
+    "disposition": "acceptable_shadow_candidate",
+    "useful_durable_propositions_preserved": [
+      "NoClipCameraController ownership moved into common/input as a reusable project-independent component.",
+      "The historical demo path remains a compatibility adapter.",
+      "MobileTouchControls was intentionally not generalized by the extraction.",
+      "Independent common-camera headless validation was added and wired into CI."
+    ],
+    "material_omissions": [],
+    "invented_propositions": [],
+    "false_or_unnecessary_relations": [],
+    "duplicate_semantics": [],
+    "provenance_issues": [],
+    "classification_issues": [],
+    "authority_or_certainty_promotions": [],
+    "unnecessary_activity_retention": [],
+    "reviewer_edits_required_before_possible_admission": [],
+    "review_burden": "low"
+  },
+  "metrics": {
+    "record_count": 4,
+    "relation_count": 0,
+    "invented_proposition_count": 0,
+    "material_omission_count": 0,
+    "provenance_issue_count": 0,
+    "authority_or_certainty_promotion_count": 0,
+    "reviewer_edit_count": 0
+  },
+  "canonical_pems_cove_modified": false,
+  "admission_requested": false,
+  "phase3_exit_evidence": "positive_sample_only"
+}

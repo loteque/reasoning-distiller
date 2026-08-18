@@ -1,0 +1,12 @@
+{
+  "contract":"distiller-phase3-shadow-evidence/1",
+  "sample_id":"bounded-chunk-loading",
+  "task":"Add prioritized bounded chunk loading",
+  "repository":"loteque/gdscript-voxel-engine",
+  "sources":[
+    {"id":"shadow:bounded-chunk-loading:pr45","type":"pull_request","locator":"github:pull/45","immutable_revision":"merge_commit:8707a141524b419915c6b90b42078e546bedc599","role":"feature behavior, architecture boundary, explicit non-goals, validation plan"}
+  ],
+  "authority_note":"The pull request supplies implementation and scope evidence; its non-goals are preserved without elevating them into broader project policy.",
+  "canonical_pems_cove_modified":false,
+  "admission_requested":false
+}

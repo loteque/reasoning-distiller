@@ -1,0 +1,10 @@
+{
+  "records": [
+    {"temp_id":"r1","kind":"observation","statement":"CI and deployment succeeded for the deployed revision.","provenance":{"primary":["eval:phase1:deployed-ui-failure:workflow"]}},
+    {"temp_id":"r2","kind":"observation","statement":"Phone validation of the deployed view showed the gray scene and the global Hide UI button.","provenance":{"primary":["eval:phase1:deployed-ui-failure:phone"]}},
+    {"temp_id":"r3","kind":"observation","statement":"RuntimeWorkloadExperimentUI was absent from the phone's deployed view.","provenance":{"primary":["eval:phase1:deployed-ui-failure:phone"]}},
+    {"temp_id":"r4","kind":"observation","statement":"No fix for the missing RuntimeWorkloadExperimentUI had been committed.","provenance":{"primary":["eval:phase1:deployed-ui-failure:investigation"]}},
+    {"temp_id":"r5","kind":"uncertainty","statement":"The cause of the missing RuntimeWorkloadExperimentUI was unresolved.","provenance":{"primary":["eval:phase1:deployed-ui-failure:investigation"]}}
+  ],
+  "relations": []
+}

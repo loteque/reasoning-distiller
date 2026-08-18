@@ -1,0 +1,46 @@
+{
+  "contract": "distiller-phase1-independent-closeout/1",
+  "date": "2026-08-17",
+  "branch": "project-chat-handoff",
+  "batch": ["invocation-1", "invocation-20260817-b", "invocation-20260817-c"],
+  "input_blobs": {
+    "docs/distiller/DIRECTIVE.md": "d578841d64da93f0883686eda80f00fde53d5f66",
+    "docs/distiller/evaluation/PHASE0_BASELINE.md": "f8a130bef35b818197320bb7bde93dac051d71f5",
+    "docs/distiller/evaluation/phase1-inputs.json": "7b343786418923648ebc3aa2b6a78bda8b993bf7",
+    "docs/distiller/evaluation/expected.yaml": "3436454b60e3235bf2305a5dc62e8849670a2661",
+    "docs/distiller/evaluation/SCORING.md": "017eaf8ab1fa8e4b9646616d924fc6a9aa7c2b05"
+  },
+  "candidate_outputs_edited": false,
+  "canonical_pems_cove_modified": false,
+  "admission_artifacts_modified": false,
+  "runs": [
+    {"invocation":1,"directory":"invocation-1","case":"field-authority","validator":"pass","record_count":3,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":1,"directory":"invocation-1","case":"offline-runtime-split","validator":"pass","record_count":3,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":1,"directory":"invocation-1","case":"validation-demo-contract","validator":"pass","record_count":4,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":1,"directory":"invocation-1","case":"resource-loading-investigation","validator":"pass","record_count":2,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":1,"directory":"invocation-1","case":"deployed-ui-failure","validator":"pass","record_count":3,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":2,"directory":"invocation-20260817-b","case":"field-authority","validator":"pass","record_count":3,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":2,"directory":"invocation-20260817-b","case":"offline-runtime-split","validator":"pass","record_count":3,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":2,"directory":"invocation-20260817-b","case":"validation-demo-contract","validator":"pass","record_count":4,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":2,"directory":"invocation-20260817-b","case":"resource-loading-investigation","validator":"pass","record_count":3,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":2,"directory":"invocation-20260817-b","case":"deployed-ui-failure","validator":"pass","record_count":3,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":3,"directory":"invocation-20260817-c","case":"field-authority","validator":"pass","record_count":2,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":3,"directory":"invocation-20260817-c","case":"offline-runtime-split","validator":"pass","record_count":2,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":3,"directory":"invocation-20260817-c","case":"validation-demo-contract","validator":"pass","record_count":2,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":3,"directory":"invocation-20260817-c","case":"resource-loading-investigation","validator":"pass","record_count":2,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]},
+    {"invocation":3,"directory":"invocation-20260817-c","case":"deployed-ui-failure","validator":"pass","record_count":3,"relation_count":0,"scores":{"durable_recall":3,"precision":3,"relation_integrity":3,"provenance":3,"authority_epistemic_safety":3,"compression":3,"total":18},"hard_failures":[]}
+  ],
+  "stability": {
+    "field-authority":{"required_propositions_present":"3/3","kind_relation_review_required":false,"stable_semantics":true,"note":"All runs preserve authority and non-duplication; the runtime-streaming scope limit is additionally retained in 2/3 runs."},
+    "offline-runtime-split":{"required_propositions_present":"3/3","kind_relation_review_required":false,"stable_semantics":true,"note":"All runs preserve the two required decisions; the generation-side scope detail is additionally retained in 2/3 runs."},
+    "validation-demo-contract":{"required_propositions_present":"3/3","kind_relation_review_required":false,"stable_semantics":true,"note":"Owner requirements are atomized in two runs and bundled in one; the required normative meaning and implementation-gap observation are stable."},
+    "resource-loading-investigation":{"required_propositions_present":"3/3","required_uncertainty_present":"3/3","kind_relation_review_required":false,"stable_semantics":true,"note":"All runs preserve measurement scope and explicit uncertainty. One run additionally derives the supported non-universal-causality claim."},
+    "deployed-ui-failure":{"required_propositions_present":"3/3","required_uncertainty_present":"3/3","kind_relation_review_required":false,"stable_semantics":true}
+  },
+  "phase1_stable": true,
+  "blocking_reasons": [],
+  "next_gate": [
+    "Phase 1 is stable enough for Phase-2 producer/validator integration or shadow-operation consideration.",
+    "Automatic canonical admission remains unauthorized; retain human review and existing admission controls."
+  ]
+}

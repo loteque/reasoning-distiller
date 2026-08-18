@@ -1,0 +1,8 @@
+{
+  "records": [
+    {"temp_id":"r1","kind":"observation","statement":"The 0.13.0 large single-LOD baseline exposed resource-loading throughput as the first material scaling pressure visible in the tested fixture.","provenance":{"primary":["shadow:resource-loading-roadmap:baseline"]}},
+    {"temp_id":"r2","kind":"uncertainty","statement":"The baseline did not isolate the internal cause of the observed loading latency.","provenance":{"primary":["shadow:resource-loading-roadmap:baseline"],"corroborating":["shadow:resource-loading-roadmap:pr52"]}},
+    {"temp_id":"r3","kind":"decision","statement":"Resource-loading analysis and a resulting loading-architecture decision should precede LOD architecture work.","provenance":{"primary":["shadow:resource-loading-roadmap:pr52"]}},
+    {"temp_id":"r4","kind":"decision","statement":"Planning records should preserve distinctions among intent, evidence, constraints, decisions, desired outcomes, and unresolved questions without prescribing implementation details prematurely.","provenance":{"primary":["shadow:resource-loading-roadmap:pr52"]}}
+  ]
+}

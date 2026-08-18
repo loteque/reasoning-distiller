@@ -1,0 +1,363 @@
+{
+  "contract": "pems/2-rgp/1-compatibility-fixtures/1",
+  "cases": [
+    {
+      "id": "decision-current-accepted",
+      "category": "domain_export",
+      "input": {
+        "kind": "decision",
+        "lifecycle": "current",
+        "decision_state": "accepted"
+      },
+      "expected": {
+        "exportable": true,
+        "rgp_kind": "decision"
+      }
+    },
+    {
+      "id": "decision-current-proposed",
+      "category": "domain_export",
+      "input": {
+        "kind": "decision",
+        "lifecycle": "current",
+        "decision_state": "proposed"
+      },
+      "expected": {
+        "exportable": false,
+        "reason": "state_or_lifecycle_not_lossless"
+      }
+    },
+    {
+      "id": "decision-current-rejected",
+      "category": "domain_export",
+      "input": {
+        "kind": "decision",
+        "lifecycle": "current",
+        "decision_state": "rejected"
+      },
+      "expected": {
+        "exportable": false,
+        "reason": "state_or_lifecycle_not_lossless"
+      }
+    },
+    {
+      "id": "decision-superseded",
+      "category": "domain_export",
+      "input": {
+        "kind": "decision",
+        "lifecycle": "superseded",
+        "decision_state": "superseded"
+      },
+      "expected": {
+        "exportable": false,
+        "reason": "state_or_lifecycle_not_lossless"
+      }
+    },
+    {
+      "id": "decision-historical-accepted",
+      "category": "domain_export",
+      "input": {
+        "kind": "decision",
+        "lifecycle": "historical",
+        "decision_state": "accepted"
+      },
+      "expected": {
+        "exportable": false,
+        "reason": "historical_snapshot_required"
+      }
+    },
+    {
+      "id": "decision-tombstoned-accepted",
+      "category": "domain_export",
+      "input": {
+        "kind": "decision",
+        "lifecycle": "tombstoned",
+        "decision_state": "accepted"
+      },
+      "expected": {
+        "exportable": false,
+        "reason": "state_or_lifecycle_not_lossless"
+      }
+    },
+    {
+      "id": "uncertainty-current-open",
+      "category": "domain_export",
+      "input": {
+        "kind": "unresolved_item",
+        "lifecycle": "current",
+        "resolution_state": "open"
+      },
+      "expected": {
+        "exportable": true,
+        "rgp_kind": "uncertainty"
+      }
+    },
+    {
+      "id": "uncertainty-current-blocked",
+      "category": "domain_export",
+      "input": {
+        "kind": "unresolved_item",
+        "lifecycle": "current",
+        "resolution_state": "blocked"
+      },
+      "expected": {
+        "exportable": true,
+        "rgp_kind": "uncertainty"
+      }
+    },
+    {
+      "id": "uncertainty-current-deferred",
+      "category": "domain_export",
+      "input": {
+        "kind": "unresolved_item",
+        "lifecycle": "current",
+        "resolution_state": "deferred"
+      },
+      "expected": {
+        "exportable": true,
+        "rgp_kind": "uncertainty"
+      }
+    },
+    {
+      "id": "uncertainty-current-resolved",
+      "category": "domain_export",
+      "input": {
+        "kind": "unresolved_item",
+        "lifecycle": "current",
+        "resolution_state": "resolved"
+      },
+      "expected": {
+        "exportable": false,
+        "reason": "state_or_lifecycle_not_lossless"
+      }
+    },
+    {
+      "id": "uncertainty-historical-open",
+      "category": "domain_export",
+      "input": {
+        "kind": "unresolved_item",
+        "lifecycle": "historical",
+        "resolution_state": "open"
+      },
+      "expected": {
+        "exportable": false,
+        "reason": "historical_snapshot_required"
+      }
+    },
+    {
+      "id": "unprofiled-requirement",
+      "category": "domain_export",
+      "input": {
+        "kind": "requirement",
+        "lifecycle": "current"
+      },
+      "expected": {
+        "exportable": false,
+        "reason": "unprofiled_domain_kind"
+      }
+    },
+    {
+      "id": "contradiction-canonical-order",
+      "category": "relation",
+      "input": {
+        "kind": "contradicts",
+        "a": "pems:proposition:z",
+        "b": "pems:proposition:a"
+      },
+      "expected": {
+        "from": "pems:proposition:a",
+        "to": "pems:proposition:z",
+        "symmetric": true
+      }
+    },
+    {
+      "id": "contradiction-self-invalid",
+      "category": "relation",
+      "input": {
+        "kind": "contradicts",
+        "a": "pems:proposition:a",
+        "b": "pems:proposition:a"
+      },
+      "expected": {
+        "valid": false,
+        "reason": "self_contradiction"
+      }
+    },
+    {
+      "id": "v1-dependency-migration",
+      "category": "migration",
+      "input": {
+        "v1_kind": "depends_on",
+        "data": {
+          "qualifier": "legacy prose"
+        }
+      },
+      "expected": {
+        "v2_kind": "depends_on",
+        "dependency_kind": "legacy_untyped",
+        "qualifier": "legacy prose"
+      }
+    },
+    {
+      "id": "rgp-dependency-import",
+      "category": "rgp_import",
+      "input": {
+        "rgp_version": "rgp/1",
+        "relation": "depends_on"
+      },
+      "expected": {
+        "pems_kind": "depends_on",
+        "dependency_kind": "conditional_validity"
+      }
+    },
+    {
+      "id": "unknown-rgp-major",
+      "category": "rgp_import",
+      "input": {
+        "rgp_version": "rgp/2",
+        "kind": "claim"
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "unsupported_rgp_major"
+      }
+    },
+    {
+      "id": "generic-observation",
+      "category": "rgp_import",
+      "input": {
+        "rgp_version": "rgp/1",
+        "kind": "observation"
+      },
+      "expected": {
+        "pems_kind": "proposition",
+        "proposition_kind": "observation"
+      }
+    },
+    {
+      "id": "generic-assumption",
+      "category": "rgp_import",
+      "input": {
+        "rgp_version": "rgp/1",
+        "kind": "assumption"
+      },
+      "expected": {
+        "pems_kind": "proposition",
+        "proposition_kind": "assumption"
+      }
+    },
+    {
+      "id": "generic-claim",
+      "category": "rgp_import",
+      "input": {
+        "rgp_version": "rgp/1",
+        "kind": "claim"
+      },
+      "expected": {
+        "pems_kind": "proposition",
+        "proposition_kind": "claim"
+      }
+    },
+    {
+      "id": "refinement-preserves-old-identity",
+      "category": "identity",
+      "input": {
+        "generic_id": "pems:proposition:old",
+        "domain_candidate_id": "pems:decision:new"
+      },
+      "expected": {
+        "reuse_generic_id_for_domain": false,
+        "preserve_generic_historically": true,
+        "reviewed_supersession_required": true
+      }
+    },
+    {
+      "id": "provenance-add-corroboration",
+      "category": "provenance",
+      "input": {
+        "operation": "add",
+        "role": "corroborating",
+        "same_meaning": true
+      },
+      "expected": {
+        "same_identity_permitted": true,
+        "review_class": "ordinary_enrichment"
+      }
+    },
+    {
+      "id": "provenance-untyped-to-primary",
+      "category": "provenance",
+      "input": {
+        "operation": "reclassify",
+        "from_role": "untyped",
+        "to_role": "primary"
+      },
+      "expected": {
+        "same_identity_permitted": true,
+        "atomic": true,
+        "review_class": "governed_classification"
+      }
+    },
+    {
+      "id": "provenance-primary-to-context",
+      "category": "provenance",
+      "input": {
+        "operation": "reclassify",
+        "from_role": "primary",
+        "to_role": "context"
+      },
+      "expected": {
+        "review_class": "semantic_correction"
+      }
+    },
+    {
+      "id": "typed-provenance-downgrade-fails",
+      "category": "downgrade",
+      "input": {
+        "provenance": {
+          "primary": [
+            "pems:source_observation:x"
+          ]
+        }
+      },
+      "expected": {
+        "lossless": false,
+        "reason": "v2_only_typed_provenance"
+      }
+    },
+    {
+      "id": "generic-proposition-downgrade-fails",
+      "category": "downgrade",
+      "input": {
+        "kind": "proposition"
+      },
+      "expected": {
+        "lossless": false,
+        "reason": "v2_only_record_kind"
+      }
+    },
+    {
+      "id": "conditional-dependency-downgrade-fails",
+      "category": "downgrade",
+      "input": {
+        "kind": "depends_on",
+        "dependency_kind": "conditional_validity"
+      },
+      "expected": {
+        "lossless": false,
+        "reason": "v2_only_dependency_semantics"
+      }
+    },
+    {
+      "id": "legacy-dependency-downgrade-allowed",
+      "category": "downgrade",
+      "input": {
+        "kind": "depends_on",
+        "dependency_kind": "legacy_untyped"
+      },
+      "expected": {
+        "lossless": true
+      }
+    }
+  ]
+}

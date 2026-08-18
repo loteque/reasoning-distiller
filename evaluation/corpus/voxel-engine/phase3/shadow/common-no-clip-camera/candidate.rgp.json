@@ -1,0 +1,38 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "decision",
+      "statement": "NoClipCameraController ownership was moved into common/input as the reusable project-independent free-flight camera component.",
+      "provenance": {
+        "primary": ["shadow:common-no-clip-camera:pr57"],
+        "corroborating": ["shadow:common-no-clip-camera:merge"]
+      }
+    },
+    {
+      "temp_id": "r2",
+      "kind": "decision",
+      "statement": "The historical demo camera path remains as a thin compatibility adapter to the common implementation.",
+      "provenance": {
+        "primary": ["shadow:common-no-clip-camera:pr57"],
+        "corroborating": ["shadow:common-no-clip-camera:merge"]
+      }
+    },
+    {
+      "temp_id": "r3",
+      "kind": "decision",
+      "statement": "MobileTouchControls was not promoted or generalized as part of the camera extraction.",
+      "provenance": {
+        "primary": ["shadow:common-no-clip-camera:pr57"]
+      }
+    },
+    {
+      "temp_id": "r4",
+      "kind": "observation",
+      "statement": "Independent headless tests for the common no-clip camera were added and wired into the existing validation workflow.",
+      "provenance": {
+        "primary": ["shadow:common-no-clip-camera:merge"]
+      }
+    }
+  ]
+}

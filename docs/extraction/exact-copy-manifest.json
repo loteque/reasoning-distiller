@@ -1,0 +1,392 @@
+{
+  "artifacts": [
+    {
+      "classification": "framework",
+      "destination": "admission/apply_admission_transaction.py",
+      "destination_blob_sha": "0f0117a7770f1928e41bd76082d9a572102e823a",
+      "source_blob_sha": "0f0117a7770f1928e41bd76082d9a572102e823a",
+      "source_path": "docs/handoff/rgp/admission/apply_admission_transaction.py"
+    },
+    {
+      "classification": "framework",
+      "destination": "admission/apply_admission_transaction_v2.py",
+      "destination_blob_sha": "01cd344a95e73a1be695dcdd98afa3c2bd2f41fa",
+      "source_blob_sha": "01cd344a95e73a1be695dcdd98afa3c2bd2f41fa",
+      "source_path": "docs/handoff/rgp/admission/apply_admission_transaction_v2.py"
+    },
+    {
+      "classification": "framework",
+      "destination": "admission/test_admission_transaction_v2.py",
+      "destination_blob_sha": "41d79a317cc68fa464c2dc422d122372b6938c29",
+      "source_blob_sha": "41d79a317cc68fa464c2dc422d122372b6938c29",
+      "source_path": "docs/handoff/rgp/admission/test_admission_transaction_v2.py"
+    },
+    {
+      "classification": "framework",
+      "destination": "backends/pems-cove/pems-v2.schema.json",
+      "destination_blob_sha": "0c3a2a0bc83869553171f063203fbbf16f7d7253",
+      "source_blob_sha": "0c3a2a0bc83869553171f063203fbbf16f7d7253",
+      "source_path": "docs/handoff/pems/v2/pems-v2.schema.json"
+    },
+    {
+      "classification": "framework",
+      "destination": "backends/pems-cove/validate_pems2_contract.py",
+      "destination_blob_sha": "d615bf2e95d3721b0ca312075cc0c39522f0a896",
+      "source_blob_sha": "d615bf2e95d3721b0ca312075cc0c39522f0a896",
+      "source_path": "docs/handoff/pems/v2/validate_pems2_contract.py"
+    },
+    {
+      "classification": "framework",
+      "destination": "backends/pems-cove/ADMISSION_FIXTURES.json",
+      "destination_blob_sha": "e5a9156dc6860fb5370e286d389e1fe0f3678a04",
+      "source_blob_sha": "e5a9156dc6860fb5370e286d389e1fe0f3678a04",
+      "source_path": "docs/handoff/pems/v2/ADMISSION_FIXTURES.json"
+    },
+    {
+      "classification": "framework",
+      "destination": "backends/pems-cove/RGP_COMPATIBILITY_FIXTURES.json",
+      "destination_blob_sha": "5edd37470932d9fffaa7cde47039cf078af72607",
+      "source_blob_sha": "5edd37470932d9fffaa7cde47039cf078af72607",
+      "source_path": "docs/handoff/pems/v2/RGP_COMPATIBILITY_FIXTURES.json"
+    },
+    {
+      "classification": "framework",
+      "destination": "backends/pems-cove/RGP_UNCERTAINTY_IMPORT_FIXTURES.json",
+      "destination_blob_sha": "b349db5c7b3f21141df2eb8b2e909dd2c40fd848",
+      "source_blob_sha": "b349db5c7b3f21141df2eb8b2e909dd2c40fd848",
+      "source_path": "docs/handoff/pems/v2/RGP_UNCERTAINTY_IMPORT_FIXTURES.json"
+    },
+    {
+      "classification": "framework",
+      "destination": "backends/pems-cove/validate_rgp_uncertainty_import.py",
+      "destination_blob_sha": "4dfd0db85d38944058fa64a94f80e85f83c035bd",
+      "source_blob_sha": "4dfd0db85d38944058fa64a94f80e85f83c035bd",
+      "source_path": "docs/handoff/pems/v2/validate_rgp_uncertainty_import.py"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/closeout.json",
+      "destination_blob_sha": "28432d062e270f86baf8beebf6576d24d07fa35c",
+      "source_blob_sha": "28432d062e270f86baf8beebf6576d24d07fa35c",
+      "source_path": "docs/distiller/evaluation/phase1/independent/closeout.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-1/deployed-ui-failure.json",
+      "destination_blob_sha": "af5794a01a43961b5b8c4b0471b366f256686d95",
+      "source_blob_sha": "af5794a01a43961b5b8c4b0471b366f256686d95",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-1/deployed-ui-failure.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-1/field-authority.json",
+      "destination_blob_sha": "7ab8fb4e22916e23da6af1fd03a17a6e47d69a5e",
+      "source_blob_sha": "7ab8fb4e22916e23da6af1fd03a17a6e47d69a5e",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-1/field-authority.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-1/manifest.json",
+      "destination_blob_sha": "accb1eda9c3a948f0c6e4ec0f5d64659740c8f1c",
+      "source_blob_sha": "accb1eda9c3a948f0c6e4ec0f5d64659740c8f1c",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-1/manifest.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-1/offline-runtime-split.json",
+      "destination_blob_sha": "30a07277e7f2fec69c559be0b814b83e45a715ea",
+      "source_blob_sha": "30a07277e7f2fec69c559be0b814b83e45a715ea",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-1/offline-runtime-split.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-1/resource-loading-investigation.json",
+      "destination_blob_sha": "eb15a0961c37d0de8cfb8473b4f2eca636b794be",
+      "source_blob_sha": "eb15a0961c37d0de8cfb8473b4f2eca636b794be",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-1/resource-loading-investigation.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-1/validation-demo-contract.json",
+      "destination_blob_sha": "f1846eb4127f8574c0b2225aeffb5444a6115388",
+      "source_blob_sha": "f1846eb4127f8574c0b2225aeffb5444a6115388",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-1/validation-demo-contract.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-2/deployed-ui-failure.json",
+      "destination_blob_sha": "f2acf011385e9ab8109b3db67fd892cc0fcd93dc",
+      "source_blob_sha": "f2acf011385e9ab8109b3db67fd892cc0fcd93dc",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-2/deployed-ui-failure.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-2/field-authority.json",
+      "destination_blob_sha": "1a09b8254578ca78094c43438e587a25e1894343",
+      "source_blob_sha": "1a09b8254578ca78094c43438e587a25e1894343",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-2/field-authority.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-2/manifest.json",
+      "destination_blob_sha": "de0adf188f430a269e0d5b825df053a63a6bb814",
+      "source_blob_sha": "de0adf188f430a269e0d5b825df053a63a6bb814",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-2/manifest.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-2/offline-runtime-split.json",
+      "destination_blob_sha": "30a07277e7f2fec69c559be0b814b83e45a715ea",
+      "source_blob_sha": "30a07277e7f2fec69c559be0b814b83e45a715ea",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-2/offline-runtime-split.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-2/resource-loading-investigation.json",
+      "destination_blob_sha": "4b35ef9aee8a56df48f4fe35fcd19e0ac3a21c8d",
+      "source_blob_sha": "4b35ef9aee8a56df48f4fe35fcd19e0ac3a21c8d",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-2/resource-loading-investigation.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-2/validation-demo-contract.json",
+      "destination_blob_sha": "b3b7f59d6ca3f5f81b50274185dc703439f1ecfe",
+      "source_blob_sha": "b3b7f59d6ca3f5f81b50274185dc703439f1ecfe",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-2/validation-demo-contract.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-b/deployed-ui-failure.json",
+      "destination_blob_sha": "413dc8f0feaee5c7c8cb5ac88f4b1bee2473d237",
+      "source_blob_sha": "413dc8f0feaee5c7c8cb5ac88f4b1bee2473d237",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-b/deployed-ui-failure.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-b/field-authority.json",
+      "destination_blob_sha": "e91595ac94658818fb352c5e559482d9252bed41",
+      "source_blob_sha": "e91595ac94658818fb352c5e559482d9252bed41",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-b/field-authority.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-b/manifest.json",
+      "destination_blob_sha": "3a0d06c953519f17ae1e12a6e9b2bee5fc145e27",
+      "source_blob_sha": "3a0d06c953519f17ae1e12a6e9b2bee5fc145e27",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-b/manifest.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-b/offline-runtime-split.json",
+      "destination_blob_sha": "30a07277e7f2fec69c559be0b814b83e45a715ea",
+      "source_blob_sha": "30a07277e7f2fec69c559be0b814b83e45a715ea",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-b/offline-runtime-split.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-b/resource-loading-investigation.json",
+      "destination_blob_sha": "b847f22c46ad3b095a556211567919d1c2fc4624",
+      "source_blob_sha": "b847f22c46ad3b095a556211567919d1c2fc4624",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-b/resource-loading-investigation.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-b/validation-demo-contract.json",
+      "destination_blob_sha": "4034d65d62109673a8c030c81d1eb6b2331a881b",
+      "source_blob_sha": "4034d65d62109673a8c030c81d1eb6b2331a881b",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-b/validation-demo-contract.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-c/deployed-ui-failure.json",
+      "destination_blob_sha": "413dc8f0feaee5c7c8cb5ac88f4b1bee2473d237",
+      "source_blob_sha": "413dc8f0feaee5c7c8cb5ac88f4b1bee2473d237",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-c/deployed-ui-failure.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-c/field-authority.json",
+      "destination_blob_sha": "e8b4cdcf7b7ce18403d4907ddb6cb56ff24a2f9d",
+      "source_blob_sha": "e8b4cdcf7b7ce18403d4907ddb6cb56ff24a2f9d",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-c/field-authority.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-c/manifest.json",
+      "destination_blob_sha": "2e525e659cae989749836cf2d7d30ce877577c35",
+      "source_blob_sha": "2e525e659cae989749836cf2d7d30ce877577c35",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-c/manifest.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-c/offline-runtime-split.json",
+      "destination_blob_sha": "c00bd248b9f7605053f078ee92cec94f6119b7d1",
+      "source_blob_sha": "c00bd248b9f7605053f078ee92cec94f6119b7d1",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-c/offline-runtime-split.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-c/resource-loading-investigation.json",
+      "destination_blob_sha": "eb15a0961c37d0de8cfb8473b4f2eca636b794be",
+      "source_blob_sha": "eb15a0961c37d0de8cfb8473b4f2eca636b794be",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-c/resource-loading-investigation.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-20260817-c/validation-demo-contract.json",
+      "destination_blob_sha": "b3b7f59d6ca3f5f81b50274185dc703439f1ecfe",
+      "source_blob_sha": "b3b7f59d6ca3f5f81b50274185dc703439f1ecfe",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-20260817-c/validation-demo-contract.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-3/deployed-ui-failure.json",
+      "destination_blob_sha": "9d958b79671be098038790e06a84196831185bd5",
+      "source_blob_sha": "9d958b79671be098038790e06a84196831185bd5",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-3/deployed-ui-failure.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-3/field-authority.json",
+      "destination_blob_sha": "ea2d12f957af24c8b6e1c045f77a72570a600fb4",
+      "source_blob_sha": "ea2d12f957af24c8b6e1c045f77a72570a600fb4",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-3/field-authority.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-3/manifest.json",
+      "destination_blob_sha": "27f02d6b8cfe59238a363ccfe2574cd4c5306a34",
+      "source_blob_sha": "27f02d6b8cfe59238a363ccfe2574cd4c5306a34",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-3/manifest.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-3/offline-runtime-split.json",
+      "destination_blob_sha": "6375ad980f0d965311d3e92213eee1146a9ee21e",
+      "source_blob_sha": "6375ad980f0d965311d3e92213eee1146a9ee21e",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-3/offline-runtime-split.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-3/resource-loading-investigation.json",
+      "destination_blob_sha": "007bd3063be22c75c02489b8ee066a6abacf98da",
+      "source_blob_sha": "007bd3063be22c75c02489b8ee066a6abacf98da",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-3/resource-loading-investigation.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase1/independent/invocation-3/validation-demo-contract.json",
+      "destination_blob_sha": "6b2bef78936dffaedd50866b7eaa326049557cda",
+      "source_blob_sha": "6b2bef78936dffaedd50866b7eaa326049557cda",
+      "source_path": "docs/distiller/evaluation/phase1/independent/invocation-3/validation-demo-contract.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/bounded-chunk-loading/candidate.rgp.json",
+      "destination_blob_sha": "c81bf1f04b77511179537905b58f80de4aba175a",
+      "source_blob_sha": "c81bf1f04b77511179537905b58f80de4aba175a",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/bounded-chunk-loading/candidate.rgp.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/bounded-chunk-loading/evidence.json",
+      "destination_blob_sha": "ad42645be37e732034e2e481799872a0c92f7eea",
+      "source_blob_sha": "ad42645be37e732034e2e481799872a0c92f7eea",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/bounded-chunk-loading/evidence.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/bounded-chunk-loading/review.json",
+      "destination_blob_sha": "158fa3c8b7e37607b72b4eefb70c8f9054126938",
+      "source_blob_sha": "158fa3c8b7e37607b72b4eefb70c8f9054126938",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/bounded-chunk-loading/review.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/common-no-clip-camera/candidate.rgp.json",
+      "destination_blob_sha": "61e29a9573a704da00e9acb42ff14cd24b2166ae",
+      "source_blob_sha": "61e29a9573a704da00e9acb42ff14cd24b2166ae",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/common-no-clip-camera/candidate.rgp.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/common-no-clip-camera/evidence.json",
+      "destination_blob_sha": "0447d9f9e86397b959a5ec223f95937999c28696",
+      "source_blob_sha": "0447d9f9e86397b959a5ec223f95937999c28696",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/common-no-clip-camera/evidence.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/common-no-clip-camera/review.json",
+      "destination_blob_sha": "f05a472a98204bfd42bfe84a07bf7e2083cb3ec2",
+      "source_blob_sha": "f05a472a98204bfd42bfe84a07bf7e2083cb3ec2",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/common-no-clip-camera/review.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/docs-release-policy/candidate.rgp.json",
+      "destination_blob_sha": "4319afdae5b6d6b3cdb918262a1ed8565bb13d0b",
+      "source_blob_sha": "4319afdae5b6d6b3cdb918262a1ed8565bb13d0b",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/docs-release-policy/candidate.rgp.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/docs-release-policy/evidence.json",
+      "destination_blob_sha": "ccfc9da0d8e134bdb82aaecc8a4e4c9b107530a7",
+      "source_blob_sha": "ccfc9da0d8e134bdb82aaecc8a4e4c9b107530a7",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/docs-release-policy/evidence.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/docs-release-policy/review.json",
+      "destination_blob_sha": "a807cf4ca7374bd655919dc0e6d75d95a3be99ab",
+      "source_blob_sha": "a807cf4ca7374bd655919dc0e6d75d95a3be99ab",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/docs-release-policy/review.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/resource-loading-roadmap/candidate.rgp.json",
+      "destination_blob_sha": "a4127036f707926f437ff0dd7d64d5388f75340e",
+      "source_blob_sha": "a4127036f707926f437ff0dd7d64d5388f75340e",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/resource-loading-roadmap/candidate.rgp.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/resource-loading-roadmap/evidence.json",
+      "destination_blob_sha": "3d42a9dbead064b95d363c229258f300567cd93c",
+      "source_blob_sha": "3d42a9dbead064b95d363c229258f300567cd93c",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/resource-loading-roadmap/evidence.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/resource-loading-roadmap/review.json",
+      "destination_blob_sha": "6637dedd4b8a9f908e8480f4f4f9a4c09877a5c1",
+      "source_blob_sha": "6637dedd4b8a9f908e8480f4f4f9a4c09877a5c1",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/resource-loading-roadmap/review.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/streaming-performance-baseline/candidate.rgp.json",
+      "destination_blob_sha": "b5706889b799470d1c2c4e63bd87746c402beea4",
+      "source_blob_sha": "b5706889b799470d1c2c4e63bd87746c402beea4",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/streaming-performance-baseline/candidate.rgp.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/streaming-performance-baseline/evidence.json",
+      "destination_blob_sha": "06638eb4ff735b7674edf04215400433643c1d79",
+      "source_blob_sha": "06638eb4ff735b7674edf04215400433643c1d79",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/streaming-performance-baseline/evidence.json"
+    },
+    {
+      "classification": "reference-corpus",
+      "destination": "evaluation/corpus/voxel-engine/phase3/shadow/streaming-performance-baseline/review.json",
+      "destination_blob_sha": "aa0d18c1ace57f8d16a527414109602056e43714",
+      "source_blob_sha": "aa0d18c1ace57f8d16a527414109602056e43714",
+      "source_path": "docs/distiller/evaluation/phase3/shadow/streaming-performance-baseline/review.json"
+    }
+  ],
+  "contract": "reasoning-distiller-exact-copy-manifest/1",
+  "source_commit": "1c25bf7cc858218941476097a3a5ac5ba204f270",
+  "source_repository": "loteque/gdscript-voxel-engine"
+}

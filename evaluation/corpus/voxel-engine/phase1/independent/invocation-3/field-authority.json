@@ -1,0 +1,8 @@
+{
+  "records": [
+    {"temp_id":"r1","kind":"decision","statement":"PointFieldResource is authoritative for scalar-field geometry, indexing, sampling, densities, validation, and freshness semantics.","provenance":{"primary":["eval:phase1:field-authority:governed-architecture"]}},
+    {"temp_id":"r2","kind":"decision","statement":"SurfaceNetsMesher and other consumers use the PointFieldResource contract instead of duplicating field state or indexing.","provenance":{"primary":["eval:phase1:field-authority:governed-architecture"]}},
+    {"temp_id":"r3","kind":"decision","statement":"PointFieldResource does not own runtime streaming responsibilities.","provenance":{"primary":["eval:phase1:field-authority:governed-architecture"]}}
+  ],
+  "relations": []
+}

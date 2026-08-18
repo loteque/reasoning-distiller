@@ -1,0 +1,35 @@
+{
+  "contract": "pems/2-admission-fixtures/1",
+  "cases": [
+    {
+      "id": "equivalent-candidate-reuses-identity",
+      "input": {"equivalent_existing_id": "pems:proposition:existing", "candidate_kind": "proposition", "same_grounding": true},
+      "expected": {"outcome": "reconcile_existing", "canonical_id": "pems:proposition:existing", "allocate_new_id": false}
+    },
+    {
+      "id": "domain-refinement-uses-distinct-identity",
+      "input": {"generic_id": "pems:proposition:generic", "domain_candidate_id": "pems:decision:domain", "refinement_established": true},
+      "expected": {"outcome": "review_required", "reuse_generic_id": false, "preserve_generic_history": true, "supersession_required": true}
+    },
+    {
+      "id": "derived-subgraph-admitted-atomically",
+      "input": {"derived_id": "pems:proposition:derived", "premise_id": "pems:proposition:premise", "premise_already_canonical": false, "required_relation": "derived_from"},
+      "expected": {"outcome": "transaction_required", "partial_admission_allowed": false, "required_nodes": ["pems:proposition:derived", "pems:proposition:premise"]}
+    },
+    {
+      "id": "unresolved-required-provenance-blocks-grounded-admission",
+      "input": {"candidate_kind": "proposition", "required_provenance_resolved": false},
+      "expected": {"outcome": "provisional", "admit_as_grounded": false, "reason": "unresolved_provenance"}
+    },
+    {
+      "id": "conflict-is-preserved-not-overwritten",
+      "input": {"conflicts_with": "pems:proposition:existing", "conflict_established": true},
+      "expected": {"outcome": "review_required", "overwrite_existing": false, "explicit_conflict_required": true}
+    },
+    {
+      "id": "recency-does-not-establish-supersession",
+      "input": {"older_id": "pems:proposition:older", "newer_id": "pems:proposition:newer", "only_evidence": "newer_observed_at"},
+      "expected": {"outcome": "review_required", "supersedes": false, "reason": "recency_insufficient"}
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "contract":"distiller-phase3-shadow-review/1",
+  "sample_id":"docs-release-policy",
+  "validator":"pass",
+  "validator_evidence":{"workflow":"Distiller Phase 3 Shadow Validation","run_id":32010131308,"step":"Validate Phase 3 shadow candidates","conclusion":"success"},
+  "human_review":{
+    "useful_durable_propositions_preserved":4,
+    "important_omissions":0,
+    "invented_propositions":0,
+    "false_or_unnecessary_relations":0,
+    "duplicate_semantics":0,
+    "provenance_issues":0,
+    "classification_issues":0,
+    "authority_or_certainty_promotions":0,
+    "unnecessary_activity_records":0,
+    "reviewer_edits_required":0,
+    "review_burden":"low",
+    "note":"The candidate captures the narrowed docs-only exception, preserves the release-impacting default for all other path classes, and retains the deterministic classifier/workflow behavior without widening the exception."
+  },
+  "disposition":"shadow-accepted-for-evaluation",
+  "canonical_pems_cove_modified":false,
+  "admission_requested":false
+}

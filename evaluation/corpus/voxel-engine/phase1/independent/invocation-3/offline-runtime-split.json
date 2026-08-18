@@ -1,0 +1,8 @@
+{
+  "records": [
+    {"temp_id":"r1","kind":"decision","statement":"Persisted chunk assets and their manifest are produced during offline generation.","provenance":{"primary":["eval:phase1:offline-runtime-split:governed-architecture"]}},
+    {"temp_id":"r2","kind":"decision","statement":"Runtime streaming owns residency and consumes the precomputed chunk assets.","provenance":{"primary":["eval:phase1:offline-runtime-split:governed-architecture"]}},
+    {"temp_id":"r3","kind":"decision","statement":"PointFieldResource and SurfaceNetsMesher are generation-side concerns.","provenance":{"primary":["eval:phase1:offline-runtime-split:governed-architecture"]}}
+  ],
+  "relations": []
+}

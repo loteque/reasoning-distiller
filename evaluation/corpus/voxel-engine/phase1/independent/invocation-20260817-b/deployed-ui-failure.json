@@ -1,0 +1,28 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "observation",
+      "statement": "CI and deployment completed successfully for the deployed revision.",
+      "provenance": {
+        "primary": ["eval:phase1:deployed-ui-failure:workflow"]
+      }
+    },
+    {
+      "temp_id": "r2",
+      "kind": "observation",
+      "statement": "RuntimeWorkloadExperimentUI was missing in the deployed phone view.",
+      "provenance": {
+        "primary": ["eval:phase1:deployed-ui-failure:phone"]
+      }
+    },
+    {
+      "temp_id": "r3",
+      "kind": "uncertainty",
+      "statement": "The cause of the missing RuntimeWorkloadExperimentUI remained unresolved.",
+      "provenance": {
+        "primary": ["eval:phase1:deployed-ui-failure:investigation"]
+      }
+    }
+  ]
+}

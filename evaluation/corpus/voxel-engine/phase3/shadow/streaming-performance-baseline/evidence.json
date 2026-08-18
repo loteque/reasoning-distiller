@@ -1,0 +1,13 @@
+{
+  "contract": "distiller-phase3-shadow-evidence/1",
+  "sample_id": "streaming-performance-baseline",
+  "task": "Record 0.13.0 large single-LOD streaming performance baseline",
+  "repository": "loteque/gdscript-voxel-engine",
+  "sources": [
+    {"id":"shadow:streaming-performance:pr49","type":"pull_request","locator":"github:pull/49","immutable_revision":"merge_commit:7b0620e26bc3f43335313d04c533ca3957f90daa","role":"reporting intent, process rule, baseline summary"},
+    {"id":"shadow:streaming-performance:report","type":"repository_file","locator":"docs/performance/0.13.0-large-single-lod-validation.md","immutable_revision":"blob:dc1b2bdcc96dd5b46e38d2446d2e41fcadb59b1e","role":"measured evidence, engineering inference, decisions, open questions"}
+  ],
+  "authority_note": "Measured observations and engineering inferences retain the distinctions made by the report; repository evidence is not promoted into owner authority.",
+  "canonical_pems_cove_modified": false,
+  "admission_requested": false
+}

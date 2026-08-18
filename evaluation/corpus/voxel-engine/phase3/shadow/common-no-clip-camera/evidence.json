@@ -1,0 +1,25 @@
+{
+  "contract": "distiller-phase3-shadow-evidence/1",
+  "sample_id": "common-no-clip-camera",
+  "task": "Promote no-clip camera controller to common library",
+  "repository": "loteque/gdscript-voxel-engine",
+  "sources": [
+    {
+      "id": "shadow:common-no-clip-camera:pr57",
+      "type": "pull_request",
+      "locator": "github:pull/57",
+      "immutable_revision": "merge_commit:0c62cbcfbfef7eac03213f23b0fdc311d7e3afa4",
+      "role": "explicit task intent, architecture scope, validation summary, and non-goals"
+    },
+    {
+      "id": "shadow:common-no-clip-camera:merge",
+      "type": "commit",
+      "locator": "github:commit/0c62cbcfbfef7eac03213f23b0fdc311d7e3afa4",
+      "immutable_revision": "0c62cbcfbfef7eac03213f23b0fdc311d7e3afa4",
+      "role": "merged implementation, compatibility adapter, tests, CI wiring, release documentation"
+    }
+  ],
+  "authority_note": "Neither source type is treated as owner_instruction or governed_artifact solely by being supplied here.",
+  "canonical_pems_cove_modified": false,
+  "admission_requested": false
+}

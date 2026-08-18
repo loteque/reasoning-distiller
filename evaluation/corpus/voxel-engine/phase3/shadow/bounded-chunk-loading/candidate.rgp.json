@@ -1,0 +1,9 @@
+{
+  "records": [
+    {"temp_id":"r1","kind":"decision","statement":"Queued chunk loads are scheduled nearest-first with deterministic tie-breaking and bounded by per-frame start and concurrent-load limits.","provenance":{"primary":["shadow:bounded-chunk-loading:pr45"]}},
+    {"temp_id":"r2","kind":"decision","statement":"Residency remains responsible for which chunk coordinates should eventually exist, while loading scheduling decides which queued requests may enter LOADING next.","provenance":{"primary":["shadow:bounded-chunk-loading:pr45"]}},
+    {"temp_id":"r3","kind":"decision","statement":"Offline generation, Surface Nets, chunk baking, and manifest contracts remain unchanged by prioritized bounded loading.","provenance":{"primary":["shadow:bounded-chunk-loading:pr45"]}},
+    {"temp_id":"r4","kind":"decision","statement":"The feature does not introduce LOD, hysteresis, prediction, visibility weighting, memory policy, runtime procedural generation, or Dual Contouring.","provenance":{"primary":["shadow:bounded-chunk-loading:pr45"]}},
+    {"temp_id":"r5","kind":"observation","statement":"Validation was designed to expose queued priority and active loading under deliberately small budgets while retaining the existing Web thread smoke test and baked terrain fixture.","provenance":{"primary":["shadow:bounded-chunk-loading:pr45"]}}
+  ]
+}

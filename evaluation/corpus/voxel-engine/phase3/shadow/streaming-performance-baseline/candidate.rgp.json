@@ -1,0 +1,9 @@
+{
+  "records": [
+    {"temp_id":"r1","kind":"observation","statement":"The accepted mobile-Web baseline measured approximately 2.2 seconds average chunk load latency with four concurrent loads.","provenance":{"primary":["shadow:streaming-performance:report"]}},
+    {"temp_id":"r2","kind":"observation","statement":"The accepted run recorded zero failed loads, zero pending cancellations, peak residency of 36 chunks, and approximately 0.39 MiB estimated resident mesh memory.","provenance":{"primary":["shadow:streaming-performance:report"]}},
+    {"temp_id":"r3","kind":"claim","statement":"Resource-loading throughput was the first obvious runtime scaling pressure exposed by this mobile-Web experiment.","premise":["r1","r2"],"provenance":{"context":["shadow:streaming-performance:report"]}},
+    {"temp_id":"r4","kind":"decision","statement":"The project should investigate where threaded resource-loading time is spent before introducing LOD to address the observed loading latency.","provenance":{"primary":["shadow:streaming-performance:report"],"corroborating":["shadow:streaming-performance:pr49"]}},
+    {"temp_id":"r5","kind":"uncertainty","statement":"The internal composition of the approximately 2.2-second average mobile-Web load latency remained unresolved.","provenance":{"primary":["shadow:streaming-performance:report"]}}
+  ]
+}

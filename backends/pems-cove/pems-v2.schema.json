@@ -1,0 +1,1265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/loteque/gdscript-voxel-engine/blob/project-chat-handoff/docs/handoff/pems/v2/pems-v2.schema.json",
+  "title": "Project Engineering Memory Schema (PEMS) v2",
+  "description": "Normative structural schema for normalized expanded pems/2 project engineering memory. PEMS/2 preserves the closed PEMS/1 project-domain vocabulary, adds generic propositions, typed provenance, and closed reasoning relations. Graph integrity, identity admission, snapshot exportability, provenance semantics, deterministic normalization, and retention are semantic validation responsibilities outside JSON Schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "semantic",
+    "project_id",
+    "records",
+    "relations"
+  ],
+  "properties": {
+    "semantic": {
+      "const": "pems/2"
+    },
+    "project_id": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableNonEmptyString": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timestampOrNull": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "idArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "lifecycle": {
+      "enum": [
+        "current",
+        "historical",
+        "superseded",
+        "tombstoned"
+      ]
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "lifecycle",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "kind": {
+          "enum": [
+            "project",
+            "chat",
+            "role",
+            "expectation",
+            "requirement",
+            "decision",
+            "unresolved_item",
+            "external_file",
+            "module",
+            "environment_variable",
+            "database_table",
+            "database_column",
+            "branch",
+            "pull_request",
+            "validation",
+            "architecture_adjustment",
+            "roadmap_adjustment",
+            "continuation",
+            "source",
+            "source_observation",
+            "proposition"
+          ]
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/lifecycle"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "data": {
+          "type": "object"
+        },
+        "supersedes": {
+          "$ref": "#/$defs/idArray"
+        },
+        "superseded_by": {
+          "$ref": "#/$defs/idArray"
+        },
+        "effective_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "project"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/projectData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "chat"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/chatData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "role"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/roleData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "expectation"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/expectationData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "requirement"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/requirementData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "decision"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/decisionData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "unresolved_item"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/unresolvedItemData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "external_file"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/externalFileData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "module"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/moduleData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "environment_variable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/environmentVariableData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "database_table"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/databaseTableData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "database_column"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/databaseColumnData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "branch"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/branchData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "pull_request"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/pullRequestData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "validation"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/validationData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "architecture_adjustment"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/adjustmentData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "roadmap_adjustment"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/adjustmentData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "continuation"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/continuationData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "source"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/sourceData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "source_observation"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/sourceObservationData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "proposition"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/$defs/propositionData"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "projectData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "repository",
+        "summary"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "repository": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "chatData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "title",
+        "summary",
+        "started_at"
+      ],
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        },
+        "active_role_id": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      }
+    },
+    "roleData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "responsibility",
+        "directive_source_id"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "responsibility": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "directive_source_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "expectationData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "expectation_state"
+      ],
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "expectation_state": {
+          "enum": [
+            "active",
+            "satisfied",
+            "deprecated",
+            "superseded"
+          ]
+        }
+      }
+    },
+    "requirementData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "requirement_state"
+      ],
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "requirement_state": {
+          "enum": [
+            "active",
+            "satisfied",
+            "deprecated",
+            "superseded"
+          ]
+        }
+      }
+    },
+    "decisionData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "decision_state"
+      ],
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "decision_state": {
+          "enum": [
+            "proposed",
+            "accepted",
+            "rejected",
+            "superseded"
+          ]
+        },
+        "rationale": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      }
+    },
+    "unresolvedItemData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "resolution_state"
+      ],
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "resolution_state": {
+          "enum": [
+            "open",
+            "blocked",
+            "resolved",
+            "deferred"
+          ]
+        },
+        "blocking_reason": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      }
+    },
+    "externalFileData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "purpose"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "safe_locator": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      }
+    },
+    "moduleData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "path",
+        "domain",
+        "public_role"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "domain": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "public_role": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "environmentVariableData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value_state",
+        "purpose"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "value_state": {
+          "enum": [
+            "literal",
+            "redacted",
+            "external_secret",
+            "unset",
+            "unknown"
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        },
+        "external_ref": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "value_state": {
+                "const": "literal"
+              }
+            },
+            "required": [
+              "value_state"
+            ]
+          },
+          "then": {
+            "required": [
+              "value"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/$defs/nonEmptyString"
+              },
+              "external_ref": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "value_state": {
+                "const": "external_secret"
+              }
+            },
+            "required": [
+              "value_state"
+            ]
+          },
+          "then": {
+            "required": [
+              "external_ref"
+            ],
+            "properties": {
+              "value": {
+                "type": "null"
+              },
+              "external_ref": {
+                "$ref": "#/$defs/nonEmptyString"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "value_state": {
+                "enum": [
+                  "redacted",
+                  "unset",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "value_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "databaseTableData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "purpose"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "databaseColumnData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "table_id",
+        "name",
+        "data_type",
+        "nullable"
+      ],
+      "properties": {
+        "table_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "data_type": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "nullable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "branchData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "name"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "head_commit": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      }
+    },
+    "pullRequestData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "number",
+        "title",
+        "pull_request_state"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "number": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "pull_request_state": {
+          "enum": [
+            "open",
+            "closed",
+            "merged",
+            "draft"
+          ]
+        },
+        "head_branch_id": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      }
+    },
+    "validationData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "validation_state",
+        "target_id"
+      ],
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "validation_state": {
+          "enum": [
+            "planned",
+            "implemented",
+            "passing",
+            "failing",
+            "not_applicable"
+          ]
+        },
+        "target_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "adjustmentData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "adjustment_state",
+        "authority_target"
+      ],
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "adjustment_state": {
+          "enum": [
+            "proposed",
+            "accepted",
+            "rejected",
+            "superseded"
+          ]
+        },
+        "authority_target": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "continuationData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chat_id",
+        "active_role_id",
+        "current_focus",
+        "blocker_ids",
+        "pending_owner_decision_ids",
+        "high_value_record_ids"
+      ],
+      "properties": {
+        "chat_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "active_role_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "current_focus": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "blocker_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "pending_owner_decision_ids": {
+          "$ref": "#/$defs/idArray"
+        },
+        "high_value_record_ids": {
+          "$ref": "#/$defs/idArray"
+        }
+      }
+    },
+    "identityLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "branch": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "owner_instruction_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "artifact_path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "uri": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "sourceData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "authority",
+        "identity_locator"
+      ],
+      "properties": {
+        "source_kind": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "authority": {
+          "enum": [
+            "repository_state",
+            "accepted_architecture",
+            "roadmap_intent",
+            "executable_validation",
+            "owner_instruction",
+            "chat_history",
+            "external_file",
+            "generated_derivative",
+            "other"
+          ]
+        },
+        "identity_locator": {
+          "$ref": "#/$defs/identityLocator"
+        }
+      }
+    },
+    "evidenceLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "commit": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "line_start": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "line_end": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "note_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "owner_instruction_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "artifact_path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "uri": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "sourceObservationData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "evidence_state",
+        "observed_at",
+        "evidence_locator"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "evidence_state": {
+          "enum": [
+            "immutable_snapshot",
+            "unversioned_observation",
+            "owner_attestation"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "evidence_locator": {
+          "$ref": "#/$defs/evidenceLocator"
+        },
+        "captured_fingerprint": {
+          "$ref": "#/$defs/nullableNonEmptyString"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "$ref": "#/$defs/idArray"
+        },
+        "corroborating": {
+          "$ref": "#/$defs/idArray"
+        },
+        "context": {
+          "$ref": "#/$defs/idArray"
+        },
+        "untyped": {
+          "$ref": "#/$defs/idArray"
+        }
+      },
+      "minProperties": 1
+    },
+    "propositionData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statement",
+        "proposition_kind",
+        "epistemic_role"
+      ],
+      "properties": {
+        "statement": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "proposition_kind": {
+          "enum": [
+            "observation",
+            "assumption",
+            "claim"
+          ]
+        },
+        "epistemic_role": {
+          "enum": [
+            "asserted",
+            "derived"
+          ]
+        },
+        "about_ids": {
+          "$ref": "#/$defs/idArray"
+        }
+      }
+    },
+    "relationData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "qualifier": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "dependency_kind": {
+          "enum": [
+            "conditional_validity",
+            "structural",
+            "legacy_untyped"
+          ]
+        }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "from",
+        "to",
+        "lifecycle",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "kind": {
+          "enum": [
+            "owns",
+            "scoped_to",
+            "depends_on",
+            "implements",
+            "validates",
+            "references",
+            "continues_as",
+            "member_of",
+            "supersedes",
+            "derived_from",
+            "supports",
+            "contradicts"
+          ]
+        },
+        "from": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "to": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/lifecycle"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "data": {
+          "$ref": "#/$defs/relationData"
+        },
+        "supersedes": {
+          "$ref": "#/$defs/idArray"
+        },
+        "superseded_by": {
+          "$ref": "#/$defs/idArray"
+        },
+        "effective_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestampOrNull"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "depends_on"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "object",
+                "required": [
+                  "dependency_kind"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "not": {
+                  "const": "depends_on"
+                }
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "not": {
+                  "required": [
+                    "dependency_kind"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

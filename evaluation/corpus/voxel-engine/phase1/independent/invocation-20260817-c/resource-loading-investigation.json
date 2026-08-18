@@ -1,0 +1,20 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "observation",
+      "statement": "Conclusions about the measured loading stages must remain scoped to the supplied measurements.",
+      "provenance": {
+        "primary": ["eval:phase1:resource-loading-investigation:investigation"]
+      }
+    },
+    {
+      "temp_id": "r2",
+      "kind": "uncertainty",
+      "statement": "Unmeasured platforms or builds remain unverified.",
+      "provenance": {
+        "primary": ["eval:phase1:resource-loading-investigation:investigation"]
+      }
+    }
+  ]
+}

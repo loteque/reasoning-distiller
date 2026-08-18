@@ -1,0 +1,36 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "decision",
+      "statement": "Substantial engine features require a dedicated validation scene using the public runtime path.",
+      "provenance": {
+        "primary": ["eval:phase1:validation-demo-contract:owner-rule"]
+      }
+    },
+    {
+      "temp_id": "r2",
+      "kind": "decision",
+      "statement": "Substantial engine features require headless validation where practical.",
+      "provenance": {
+        "primary": ["eval:phase1:validation-demo-contract:owner-rule"]
+      }
+    },
+    {
+      "temp_id": "r3",
+      "kind": "decision",
+      "statement": "Substantial engine features require Integration Preview exposure when browser-suitable.",
+      "provenance": {
+        "primary": ["eval:phase1:validation-demo-contract:owner-rule"]
+      }
+    },
+    {
+      "temp_id": "r4",
+      "kind": "observation",
+      "statement": "Chunk residency validation coverage and web exposure were initially incomplete.",
+      "provenance": {
+        "primary": ["eval:phase1:validation-demo-contract:implementation-gap"]
+      }
+    }
+  ]
+}

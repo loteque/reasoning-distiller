@@ -1,0 +1,12 @@
+{
+  "contract":"distiller-phase3-shadow-evidence/1",
+  "sample_id":"docs-release-policy",
+  "task":"Allow documentation-only pull requests without version bumps",
+  "repository":"loteque/gdscript-voxel-engine",
+  "sources":[
+    {"id":"shadow:docs-release-policy:pr51","type":"pull_request","locator":"github:pull/51","immutable_revision":"merge_commit:34d7023d35fd367ea35488265556a95eadbde696","role":"policy change, classifier design, regression expectations"}
+  ],
+  "authority_note":"The merged pull request is supplied repository evidence; its statements are retained as project decisions without manufacturing owner-level authority.",
+  "canonical_pems_cove_modified":false,
+  "admission_requested":false
+}

@@ -1,0 +1,8 @@
+{
+  "records": [
+    {"temp_id":"r1","kind":"decision","statement":"Documentation-only pull requests do not require a product version bump or versioned Web release validation.","provenance":{"primary":["shadow:docs-release-policy:pr51"]}},
+    {"temp_id":"r2","kind":"decision","statement":"Changes to code, workflows, configuration, assets, tests, or other non-documentation paths continue to require the existing versioned release contract.","provenance":{"primary":["shadow:docs-release-policy:pr51"]}},
+    {"temp_id":"r3","kind":"decision","statement":"The Validate Versioned Release workflow still runs for documentation-only changes but skips release-metadata and versioned-Web stages when the deterministic classifier marks the change documentation-only.","provenance":{"primary":["shadow:docs-release-policy:pr51"]}},
+    {"temp_id":"r4","kind":"observation","statement":"Regression coverage was added for Markdown-only changes, non-Markdown docs files, mixed documentation and production changes, and workflow changes.","provenance":{"primary":["shadow:docs-release-policy:pr51"]}}
+  ]
+}
