@@ -1,0 +1,61 @@
+name: Reasoning Distiller Runtime Isolation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/audit_runtime_isolation.py'
+      - 'packaging/rd_install.py'
+      - 'packaging/build_release_package.py'
+      - 'packaging/validate_install_package_contract.py'
+      - 'packaging/package-build.json'
+      - 'tests/test_runtime_isolation_p5.py'
+      - 'tests/test_installer_p3.py'
+      - 'tests/test_installer_p4.py'
+      - 'docs/packaging/P5_RUNTIME_ISOLATION.md'
+      - 'admission/**'
+      - 'agents/**'
+      - 'backends/**'
+      - 'protocols/**'
+      - 'schemas/**'
+      - 'validators/**'
+      - '.github/workflows/runtime-isolation.yml'
+  pull_request:
+    paths:
+      - 'packaging/audit_runtime_isolation.py'
+      - 'packaging/rd_install.py'
+      - 'packaging/build_release_package.py'
+      - 'packaging/validate_install_package_contract.py'
+      - 'packaging/package-build.json'
+      - 'tests/test_runtime_isolation_p5.py'
+      - 'tests/test_installer_p3.py'
+      - 'tests/test_installer_p4.py'
+      - 'docs/packaging/P5_RUNTIME_ISOLATION.md'
+      - 'admission/**'
+      - 'agents/**'
+      - 'backends/**'
+      - 'protocols/**'
+      - 'schemas/**'
+      - 'validators/**'
+      - '.github/workflows/runtime-isolation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install schema validator
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+      - name: Run P5 runtime isolation pressure suite
+        run: python -m unittest -v tests/test_runtime_isolation_p5.py
+      - name: Retain P3 deterministic installer proof
+        run: python -m unittest -v tests/test_installer_p3.py
+      - name: Retain P4 recovery proof
+        run: python -m unittest -v tests/test_installer_p4.py
