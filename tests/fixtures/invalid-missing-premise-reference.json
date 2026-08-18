@@ -1,0 +1,10 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "claim",
+      "statement": "Derived from an absent proposition.",
+      "premise": ["r404"]
+    }
+  ]
+}
