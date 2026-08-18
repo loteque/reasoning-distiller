@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/loteque/reasoning-distiller/blob/main/schemas/install-package-manifest.schema.json",
+  "title": "Reasoning Distiller install package manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "version",
+    "source_commit",
+    "content_identity",
+    "transport_sha256",
+    "compatibility",
+    "managed_roots",
+    "files"
+  ],
+  "properties": {
+    "contract": {"const": "reasoning-distiller-install-package/1"},
+    "version": {"type": "string", "minLength": 1},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "content_identity": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "transport_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_knowledge_package", "rgp", "backends"],
+      "properties": {
+        "project_knowledge_package": {"$ref": "#/$defs/nonEmptyStringArray"},
+        "rgp": {"$ref": "#/$defs/nonEmptyStringArray"},
+        "backends": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/nonEmptyStringArray"}
+        }
+      }
+    },
+    "managed_roots": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "mode", "sha256"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "mode": {"enum": ["0644", "0755"]},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "description": "Reserved optional publisher attestation metadata. Presence is not required by package contract v1.",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}
