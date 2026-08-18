@@ -1,0 +1,21 @@
+{
+  "contract": "reasoning-distiller-consumer-migration/1",
+  "status": "PASS",
+  "phase6_0": "COMPLETE",
+  "consumer_repository": "loteque/gdscript-voxel-engine",
+  "consumer_branch": "project-chat-handoff",
+  "framework_pin": "fb7290622d6a9d929a059f111cdd60cd50496fcf",
+  "consumer_evidence_commit": "c6db899903b990fe510f429e9e4934035dcd8a2e",
+  "consumer_evidence_path": "project-knowledge/integration-proof.json",
+  "consumer_integration_workflow_run": 32089217092,
+  "embedded_framework_audit_workflow_run": 32089217047,
+  "checks": {
+    "project_package_active": "PASS",
+    "canonical_state_project_owned": "PASS",
+    "authority_rules_roles_project_owned": "PASS",
+    "active_executor_pinned_to_framework": "PASS",
+    "embedded_generic_executable_schema_implementation_retired": "PASS",
+    "active_workflow_embedded_framework_references": 0
+  },
+  "next_gate": "Phase 6.1 stable production Distiller invocation contract"
+}
