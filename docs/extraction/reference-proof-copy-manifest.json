@@ -1,0 +1,22 @@
+{
+  "contract": "reasoning-distiller-reference-proof-copy/1",
+  "source_repository": "loteque/gdscript-voxel-engine",
+  "source_commit": "1c25bf7cc858218941476097a3a5ac5ba204f270",
+  "artifacts": [
+    {
+      "classification": "reference-corpus",
+      "source_path": "docs/handoff/rgp/admission/transactions/RGP-20260817T073100-0700-007.steward-016-v2.json",
+      "source_blob_sha": "70321a94e193c67cd6c013ca40dc43ca06349a8d",
+      "destination": "evaluation/corpus/voxel-engine/admission/transactions/RGP-20260817T073100-0700-007.steward-016-v2.json",
+      "destination_blob_sha": "70321a94e193c67cd6c013ca40dc43ca06349a8d"
+    },
+    {
+      "classification": "reference-corpus",
+      "source_path": "docs/handoff/rgp/evidence/RGP-20260817T073100-0700-007.admission-016-v2.runner-artifact/admission-proof.json",
+      "source_blob_sha": "2e415cb8af3301f059d11f1fbde6d630303c9d0b",
+      "destination": "evaluation/corpus/voxel-engine/admission/proofs/RGP-20260817T073100-0700-007.admission-016-v2/admission-proof.json",
+      "destination_blob_sha": "2e415cb8af3301f059d11f1fbde6d630303c9d0b"
+    }
+  ],
+  "selection_note": "Selected Phase-4/5 parity evidence retains one exact Steward v2 transaction and its exact deterministic proof summary. Generic guarded-update pressure tests exercise transaction mechanics independently of active voxel-engine canonical state."
+}
