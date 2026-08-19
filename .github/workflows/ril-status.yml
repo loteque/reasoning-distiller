@@ -1,0 +1,32 @@
+name: RIL R9 Composite Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_status.py'
+      - 'runtime/ril_mutation.py'
+      - 'runtime/ril_operators.py'
+      - 'runtime/ril_roles.py'
+      - 'runtime/ril_steward_authorization.py'
+      - 'runtime/rd_bootstrap.py'
+      - 'tests/test_ril_status.py'
+      - 'docs/operations/RIL_STATUS_CONTRACT.md'
+      - '.github/workflows/ril-status.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run R9 composite-status conformance suite
+        run: python -m unittest tests/test_ril_status.py -v
+      - name: Compile R9 primitive
+        run: python -m py_compile runtime/ril_status.py
