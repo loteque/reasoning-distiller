@@ -1,0 +1,31 @@
+name: RIL R8 Activation Evidence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_activation.py'
+      - 'runtime/ril_steward_authorization.py'
+      - 'runtime/ril_roles.py'
+      - 'runtime/ril_operators.py'
+      - 'runtime/ril_mutation.py'
+      - 'tests/test_ril_activation.py'
+      - 'docs/operations/RIL_ACTIVATION_EVIDENCE_CONTRACT.md'
+      - '.github/workflows/ril-activation-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run R8 activation-evidence conformance suite
+        run: python -m unittest tests/test_ril_activation.py -v
+      - name: Compile R8 primitive
+        run: python -m py_compile runtime/ril_activation.py
