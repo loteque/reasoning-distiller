@@ -1,0 +1,25 @@
+name: Reasoning Distiller Steward Setup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/rd_steward_setup.py'
+      - 'tests/test_steward_setup.py'
+      - 'docs/operations/STEWARD_SETUP_CONTRACT.md'
+      - '.github/workflows/steward-setup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run Steward setup conformance suite
+        run: python -m unittest tests/test_steward_setup.py -v
