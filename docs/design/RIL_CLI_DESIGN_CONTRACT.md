@@ -1,14 +1,14 @@
 # R16A — `ril` CLI Design Contract
 
-Status: **Normative design contract — accepted, amended for R16B-D1 and R16B-D3 integration**
+Status: **Normative design contract — accepted, amended for R16B-D1/R16B-D3 and R17 integration**
 
 Contract: `reasoning-distiller-ril-cli-design/1`
 
 Public command: `ril`
 
-Depends on: accepted R1–R15 primitive and orchestration contracts; accepted R16B-D1 durable workflow design where workflow commands are concerned; accepted R16B-D3 pre-approval proposal revalidation where approval creation is concerned.
+Depends on: accepted R1–R15 primitive and orchestration contracts; accepted R16B-D1 durable workflow design where workflow commands are concerned; accepted R16B-D3 pre-approval proposal revalidation where approval creation is concerned; accepted R17 `reasoning-distiller-authority-grant/1` where bounded prospective authority is concerned.
 
-Implementation status: **not authorized by acceptance alone; implementation follows the R16 UX design gates.**
+Implementation status: **not authorized by acceptance alone; implementation follows the R16/R17 UX design gates.**
 
 ## Purpose
 
@@ -152,13 +152,15 @@ ril approve <proposal> [--auth <file|->]
 ril apply <proposal> --approval <approval>
 ```
 
-Proposals and approvals are globally inspectable artifacts. `ril approve` creates the appropriate approval artifact and SHALL NOT apply mutation. `--auth` supplies authentication/identity evidence without inventing provider semantics.
+Proposals and approvals are globally inspectable artifacts. `ril approve` creates the appropriate direct proposal-specific approval artifact and SHALL NOT apply mutation. `--auth` supplies authentication/identity evidence without inventing provider semantics.
 
-Immediately before creating an approval artifact, `ril approve` SHALL invoke the accepted deterministic proposal-applicability revalidation defined by `reasoning-distiller-proposal-revalidation/1` against the exact immutable proposal and current authoritative project state/evidence. Approval creation proceeds only when that attempt returns `APPLICABLE` and all independent authentication/approval requirements succeed. `STALE`, `BLOCKED`, or `INVALID` revalidation MUST NOT create approval.
+Immediately before creating a direct approval artifact, `ril approve` SHALL invoke the accepted deterministic proposal-applicability revalidation defined by `reasoning-distiller-proposal-revalidation/1` against the exact immutable proposal and current authoritative project state/evidence. Approval creation proceeds only when that attempt returns `APPLICABLE` and all independent authentication/approval requirements succeed. `STALE`, `BLOCKED`, or `INVALID` revalidation MUST NOT create approval.
 
 The revalidation is part of the approval-creation attempt and MUST be protected against check/use races by atomic validation-plus-creation or equivalent exact-state binding. It is read-only, grants no authority, does not rewrite/rebase/repair the proposal, is not a reusable freshness certificate, and does not replace apply-time validation.
 
-`ril apply` dispatches the exact proposal to the appropriate proven operation without modifying or broadening it or manufacturing authority. Apply-time validation remains independently mandatory and authoritative even when pre-approval revalidation previously returned `APPLICABLE`.
+Grant-derived approval under R17 is produced by the shared authority-grant issuance primitive, not by pretending `ril approve` received fresh human assent. Such approval remains exact-proposal-bound and its `authority_basis` identifies the issuing `authority-grant:<id>`/grant event.
+
+`ril apply` dispatches the exact proposal to the appropriate proven operation without modifying or broadening it or manufacturing authority. Apply-time validation remains independently mandatory and authoritative for direct and grant-derived approvals.
 
 ## Workflow commands
 
@@ -189,11 +191,13 @@ Successful creation returns a compact control-return receipt identifying the wor
 
 `workflow continue` advances an already-authorized bounded workflow until the next meaningful control boundary, which may include completion, approval/activation/evidence wait, unresolved/blocking state, materiality pause, or execution failure. It may traverse multiple consequential stages only where each stage independently satisfies its normative requirements.
 
-`continue` consumes satisfied prerequisites; it MUST NOT manufacture or silently enter ceremonies for missing approval, activation, acknowledgement, authentication, or other authority. Reaching such a boundary without progression is a valid evaluation outcome.
+`continue` consumes satisfied prerequisites; it MUST NOT manufacture missing approval, activation, acknowledgement, authentication, or other authority. For a delegable proposal in a workflow with applicable R17 authority grants, shared orchestration MAY satisfy the approval prerequisite through deterministic grant-derived issuance before concluding that `AWAITING_APPROVAL` is the current boundary.
+
+If no valid grant applies, grant selection is materially ambiguous, or the operation is non-delegable, `continue` returns the ordinary approval boundary rather than allowing the adapter/agent to invent authority.
 
 An `auto-advance` workflow may also be manually continued by a permitted continuation operator or protected root. Expected-head concurrency prevents duplicate authoritative progression.
 
-Normal output summarizes material consequential progression and the final control boundary. Operations performed and operations not performed MUST be unmistakable.
+Normal output summarizes material consequential progression and the final control boundary. Operations performed and operations not performed MUST be unmistakable. Where grant-derived approval occurred, the material progression output SHOULD identify the consumed authority grant and distinguish it from direct human approval.
 
 ### Cancellation
 
@@ -215,6 +219,8 @@ Interactive revision may begin from the predecessor definition for editing conve
 
 Revision atomically creates the successor and appends predecessor supersession. The authenticated successor payload binds the exact predecessor normative state/head. If predecessor state advances before commit, the entire revision fails stale: no successor is created and no supersession occurs. RIL MUST NOT automatically rebase authenticated intent.
 
+A grant bound to the predecessor workflow does not migrate to a revised successor workflow.
+
 ### Materiality acknowledgement
 
 Acknowledgement binds to the exact immutable pause event:
@@ -226,6 +232,8 @@ ril workflow acknowledge workflow:abc workflow-event:def
 The primitive validates event membership/type, continued applicability, and acknowledgement permission/root override. Acknowledgement restores sufficiently informed intent but is not itself a continuation request. An operator-driven workflow becomes eligible for a later explicit `continue`; an auto-advance workflow becomes autonomously eligible again according to its existing mode.
 
 Intervening informational extension events do not invalidate an otherwise current acknowledgement. Later normative events that acknowledge, invalidate, terminate, or otherwise change pause applicability do.
+
+Authority grants MUST NOT bypass a current materiality pause.
 
 ### Workflow heads and concurrency
 
@@ -242,13 +250,39 @@ Normative core transitions bind the expected `normative_head` plus exact authori
 
 At workflow inspection depth 0, `Head` means `normative_head`. At depth 1 or greater, both heads are named explicitly.
 
+## Authority-grant commands
+
+R17 bounded prospective authority is a first-class CLI resource:
+
+```text
+ril authority-grant
+ril authority-grant list
+ril authority-grant show <authority-grant> [--depth=<supported-depth>]
+ril authority-grant create [<file|->] [--auth <file|->]
+ril authority-grant revoke <authority-grant> [--auth <file|->]
+```
+
+Bare `ril authority-grant` is a read-only dashboard showing active grants visible to the current operator, their bound workflows, remaining finite capacity where applicable, and current actionability.
+
+`authority-grant list` is a bounded inventory surface; `show` is singular inspection and may expose definition, current projected eligibility, consumption history, issued approvals, workflow binding, and grant events according to the standardized depth semantics.
+
+Grant creation accepts file, stdin, or guided interactive construction, all producing one exact canonical grant definition. Before creation, RIL SHALL preview that exact definition, authenticate the grantor to it, and separately make the prospective delegation consequence conspicuous. A grant cannot exceed the immutable workflow intent to which it is bound, cannot authorize non-delegable operations, and cannot subdelegate grant creation/expansion.
+
+Grant creation is itself non-delegable. The grant primitive validates the grantor's current authority for every operation class included by the grant under each operation contract's published R17 schema.
+
+There is no `update`. Material scope changes require a new immutable grant. Existing grants do not migrate across workflow revision.
+
+Requester revocation uses ordinary explicit confirmation. Protected-root revocation of another operator's active grant uses the stronger exact-reference override ceremony. Revocation is an exact-state transition and MUST NOT silently retry over intervening grant consumption. It prevents future grant-derived approval issuance but does not rewrite previously issued approvals or completed mutation history.
+
+Grant consumption is normally performed by shared workflow/orchestration semantics rather than a separate human-facing `use` command. The CLI MUST NOT expose a convenience command that lets an agent/operator choose an authority grant strategically outside the deterministic issuance rules.
+
 ## Interactive and non-interactive mutation behavior
 
-Interactive mutation commands MAY guide complete ceremonies. Before approval, RIL SHALL provide a layered preview with concise human-readable summary/diff, canonical proposal reference, and a means to inspect the complete normative proposal. Friendly representation is never authoritative.
+Interactive mutation commands MAY guide complete ceremonies. Before direct proposal-specific approval, RIL SHALL provide a layered preview with concise human-readable summary/diff, canonical proposal reference, and a means to inspect the complete normative proposal. Friendly representation is never authoritative.
 
-A non-interactive mutation SHALL advance only as far as existing authority permits. Reaching a valid approval boundary is a successful intermediate protocol state, with proposal reference and next action exposed. RIL MUST NOT manufacture missing approval.
+A non-interactive mutation SHALL advance only as far as existing authority permits. Reaching a valid approval boundary is a successful intermediate protocol state, with proposal reference and next action exposed. A valid active authority grant may satisfy that boundary only through the accepted deterministic R17 issuance primitive; RIL MUST NOT manufacture approval outside that path.
 
-Confirmation is risk-sensitive. Ordinary operations MAY use concise explicit confirmation. Protected/exceptional operations retain stronger ceremonies required by their contracts.
+Confirmation is risk-sensitive. Ordinary operations MAY use concise explicit confirmation. Protected/exceptional operations and authority-grant creation retain their stronger/conspicuous ceremonies required by their contracts.
 
 ## References and identifiers
 
@@ -264,6 +298,8 @@ receipt:<id>
 workflow:<id>
 workflow-event:<id>
 provenance:<id>
+authority-grant:<id>
+authority-grant-event:<id>
 ```
 
 Persisted artifacts and structured output retain complete canonical identity.
@@ -290,6 +326,8 @@ The typed reference dispatches to exactly the same authoritative inspector used 
 
 `ril show` requires a typed reference. It MUST NOT infer resource type from global uniqueness of a bare identifier. Candidate-oriented or other domain convenience lookups remain domain-specific and are not generalized through `ril show`.
 
+`authority-grant:<id>` and `authority-grant-event:<id>` participate in this invariant.
+
 ## Inspection depth
 
 `--depth` is a standard capability for singular inspection surfaces with meaningful layered inspection. It is not mandatory on every `show`, and collection/dashboard surfaces do not gain depth merely for syntactic uniformity.
@@ -313,7 +351,7 @@ A resource supports only the meaningful prefix of this scale (`0`, `0|1`, or `0|
 
 Depth is cumulative: `--depth=N` means inspect through level N. Omitted depth always means depth 0, independent of presentation mode. Higher depth adds authoritative context/evidence and MUST NOT change object semantics.
 
-Depth expansion is strictly read-only. It MUST NOT generate, repair, refresh, or mutate authoritative state. Missing referenced evidence is surfaced as an integrity/availability fact at the depth where encountered; RIL MUST NOT fabricate expansion. Repeated/cyclic references are detected and represented by reference rather than traversed indefinitely.
+Depth expansion is strictly read-only. It MUST NOT generate, repair, refresh, consume, revoke, or mutate authoritative state. Missing referenced evidence is surfaced as an integrity/availability fact at the depth where encountered; RIL MUST NOT fabricate expansion. Repeated/cyclic references are detected and represented by reference rather than traversed indefinitely.
 
 The scale is contract-bounded rather than arbitrary recursive graph depth. Machine-readable depth-capable inspection exposes both requested depth and maximum supported depth.
 
@@ -352,6 +390,7 @@ The documented canonical grammar places global/project/presentation options befo
 
 ```text
 ril [global-options] workflow show <workflow> [--depth=N]
+ril [global-options] authority-grant show <authority-grant> [--depth=N]
 ril [global-options] show <typed-reference> [--depth=N]
 ```
 
@@ -365,7 +404,7 @@ ril --project ./repo --json workflow show abc --depth=2
 
 ## Exit status
 
-Exit `0` means RIL successfully processed the request, including legitimate intermediate outcomes such as `APPROVAL_REQUIRED` or a workflow already resting at a valid control boundary. Nonzero means processing failed, including invalid input, contract violation, unsafe state, unresolved/ambiguous reference, conflicting authoritative state, stale normative concurrency, or execution failure. Rich protocol state belongs in operation results rather than proliferating shell exit codes.
+Exit `0` means RIL successfully processed the request, including legitimate intermediate outcomes such as `APPROVAL_REQUIRED`, an authority-grant miss/ambiguity that correctly returns to approval, or a workflow already resting at a valid control boundary. Nonzero means processing failed, including invalid input, contract violation, unsafe state, unresolved/ambiguous reference, conflicting authoritative state, stale normative concurrency, or execution failure. Rich protocol state belongs in operation results rather than proliferating shell exit codes.
 
 ## Help
 
@@ -436,6 +475,11 @@ ril
 │   ├── cancel <workflow> [--auth <file|->]
 │   ├── revise <workflow> [<file|->] [--auth <file|->]
 │   └── acknowledge <workflow> <workflow-event> [--auth <file|->]
+├── authority-grant
+│   ├── list
+│   ├── show <authority-grant> [--depth=<supported-depth>]
+│   ├── create [<file|->] [--auth <file|->]
+│   └── revoke <authority-grant> [--auth <file|->]
 ├── proposal
 │   ├── list
 │   └── show <proposal>
@@ -451,9 +495,9 @@ ril
 
 Bare domain commands described by this contract remain part of the topology even where the tree emphasizes subcommands.
 
-## Reconciliation of R16B dependency amendments
+## Reconciliation of dependency amendments
 
-The workflow CLI amendment, inspection-grammar normalization, and D3 approval-path strengthening were reconciled against accepted R1–R15 and the established R16A authority boundaries.
+The workflow CLI amendment, inspection-grammar normalization, D3 approval-path strengthening, and R17 authority-grant surface were reconciled against accepted R1–R17 authority boundaries.
 
 Result: **PASS.**
 
@@ -461,18 +505,18 @@ R16B-D1 adds adapter coverage for accepted workflow primitive operations without
 
 The standardized `--depth`/`ril show` grammar is inspection-only and introduces no new authoritative state. `ril history` remains aggregate read-only history and is distinct from resource evidence expansion.
 
-R16B-D3 strengthens every fresh CLI approval creation with the same immediately-before deterministic applicability validation required by the peer Human ↔ Agent adapter. This preserves exact proposal identity and proposal/approval/apply separation, creates no new authority, and leaves mandatory apply-time validation intact.
+R16B-D3 strengthens every fresh direct CLI approval creation with the same immediately-before deterministic applicability validation required by the peer Human ↔ Agent adapter. This preserves exact proposal identity and proposal/approval/apply separation, creates no new authority, and leaves mandatory apply-time validation intact.
 
-R16B-D1 integration finding I1 and R16B-D3 integration finding D3-I1 are therefore resolved at the CLI design-contract level.
+R17 adds a first-class CLI surface for authenticated bounded human authority and shared deterministic grant-derived approval issuance. The CLI never treats an agent as authority, never turns a grant into workflow scope, never delegates non-delegable operations, and never lets convenience syntax choose among materially different authority bases.
+
+R16B-D1 I1, R16B-D3 D3-I1, and R17-I3 are resolved at the CLI design-contract level.
 
 ## Non-goals
 
-R16A does not redesign primitive semantics; introduce new protocol authority; create Architect or RGP Engineer authority; permit RGP/PEMS/COVE contract mutation; define authentication providers; infer Steward activation from operator/session identity; implement Role Directive Markdown semantics; create a global history sequence; collapse reconciliation and admission; automatically verify after admission; make storage paths public artifact identity; prescribe auto-advance deployment architecture; or finalize Human↔Agent conversational behavior.
+R16A does not redesign primitive semantics; introduce new agent authority; create Architect or RGP Engineer authority; permit RGP/PEMS/COVE contract mutation; define authentication providers; infer Steward activation from operator/session identity; implement Role Directive Markdown semantics; create a global history sequence; collapse reconciliation and admission; automatically verify after admission; make storage paths public artifact identity; prescribe auto-advance deployment architecture; make non-delegable protected authority grant-delegable; or finalize Human↔Agent conversational behavior.
 
-Human↔Agent interaction belongs to R16B.
+Human↔Agent interaction belongs to R16B. Authority-grant semantics belong to R17 and its primitive contracts.
 
 ## Acceptance condition
 
-R16A remains **accepted as amended**. Its implementation gate requires that every command map to an accepted primitive/orchestrator/workflow behavior or be explicitly read-only presentation/resolution; no command introduce new authority or protocol semantics; interactive and non-interactive authority boundaries remain explicit; fresh approval creation perform accepted pre-approval applicability revalidation; and reference, depth, output, exit, discovery, concurrency, and help semantics remain conformant with this contract.
-
-R16B Human↔Agent Interaction Design SHALL continue against these amended adapter and authority boundaries before UX implementation slices are finalized.
+R16A remains **accepted as amended**. Its implementation gate requires that every command map to an accepted primitive/orchestrator/workflow/authority-grant behavior or be explicitly read-only presentation/resolution; no command introduce new authority or protocol semantics; interactive and non-interactive authority boundaries remain explicit; fresh direct approval creation perform accepted pre-approval applicability revalidation; grant-derived approvals arise only through accepted R17 validation/issuance; and reference, depth, output, exit, discovery, concurrency, and help semantics remain conformant with this contract.
