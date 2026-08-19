@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "runtime"))
 
-from ril_admission import RECEIPT_CONTRACT, encode_cove, jcs, sha256_bytes  # noqa: E402
+from ril_admission import RECEIPT_CONTRACT, encode_cove, jcs, normalize_pems, sha256_bytes  # noqa: E402
 from ril_mutation import canonical_json_bytes  # noqa: E402
 from ril_storage_verification import verify_storage  # noqa: E402
 
@@ -74,7 +74,7 @@ class StorageVerificationR14Tests(unittest.TestCase):
         }
 
     def install_state(self, root: Path, pems: dict | None = None) -> tuple[Path, Path, Path]:
-        pems = copy.deepcopy(pems or self.valid_pems())
+        pems = normalize_pems(copy.deepcopy(pems or self.valid_pems()))
         canonical = root / "project-knowledge" / "canonical"
         receipts = root / "project-knowledge" / "admission" / "receipts"
         canonical.mkdir(parents=True)
@@ -130,7 +130,7 @@ class StorageVerificationR14Tests(unittest.TestCase):
 
     def test_incomplete_pair_fails(self):
         root = self.root()
-        pems_path, cove_path, _ = self.install_state(root)
+        _, cove_path, _ = self.install_state(root)
         cove_path.unlink()
         result = verify_storage(root, ROOT)
         self.assertEqual(result["outcome"], "INCOMPLETE_CANONICAL_PAIR")
