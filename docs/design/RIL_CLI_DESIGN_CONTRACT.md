@@ -1,12 +1,12 @@
 # R16A — `ril` CLI Design Contract
 
-Status: **Normative design contract — accepted, amended for R16B-D1 integration**
+Status: **Normative design contract — accepted, amended for R16B-D1 and R16B-D3 integration**
 
 Contract: `reasoning-distiller-ril-cli-design/1`
 
 Public command: `ril`
 
-Depends on: accepted R1–R15 primitive and orchestration contracts; accepted R16B-D1 durable workflow design where workflow commands are concerned.
+Depends on: accepted R1–R15 primitive and orchestration contracts; accepted R16B-D1 durable workflow design where workflow commands are concerned; accepted R16B-D3 pre-approval proposal revalidation where approval creation is concerned.
 
 Implementation status: **not authorized by acceptance alone; implementation follows the R16 UX design gates.**
 
@@ -152,7 +152,13 @@ ril approve <proposal> [--auth <file|->]
 ril apply <proposal> --approval <approval>
 ```
 
-Proposals and approvals are globally inspectable artifacts. `ril approve` creates the appropriate approval artifact and SHALL NOT apply mutation. `--auth` supplies authentication/identity evidence without inventing provider semantics. `ril apply` dispatches the exact proposal to the appropriate proven operation without modifying or broadening it or manufacturing authority.
+Proposals and approvals are globally inspectable artifacts. `ril approve` creates the appropriate approval artifact and SHALL NOT apply mutation. `--auth` supplies authentication/identity evidence without inventing provider semantics.
+
+Immediately before creating an approval artifact, `ril approve` SHALL invoke the accepted deterministic proposal-applicability revalidation defined by `reasoning-distiller-proposal-revalidation/1` against the exact immutable proposal and current authoritative project state/evidence. Approval creation proceeds only when that attempt returns `APPLICABLE` and all independent authentication/approval requirements succeed. `STALE`, `BLOCKED`, or `INVALID` revalidation MUST NOT create approval.
+
+The revalidation is part of the approval-creation attempt and MUST be protected against check/use races by atomic validation-plus-creation or equivalent exact-state binding. It is read-only, grants no authority, does not rewrite/rebase/repair the proposal, is not a reusable freshness certificate, and does not replace apply-time validation.
+
+`ril apply` dispatches the exact proposal to the appropriate proven operation without modifying or broadening it or manufacturing authority. Apply-time validation remains independently mandatory and authoritative even when pre-approval revalidation previously returned `APPLICABLE`.
 
 ## Workflow commands
 
@@ -257,6 +263,7 @@ disposition:<id>
 receipt:<id>
 workflow:<id>
 workflow-event:<id>
+provenance:<id>
 ```
 
 Persisted artifacts and structured output retain complete canonical identity.
@@ -444,17 +451,19 @@ ril
 
 Bare domain commands described by this contract remain part of the topology even where the tree emphasizes subcommands.
 
-## Reconciliation of the R16B-D1 amendment
+## Reconciliation of R16B dependency amendments
 
-The workflow CLI amendment and inspection-grammar normalization were reconciled against accepted R1–R15, the previously accepted R16A authority boundaries, and accepted R16B-D1 workflow semantics.
+The workflow CLI amendment, inspection-grammar normalization, and D3 approval-path strengthening were reconciled against accepted R1–R15 and the established R16A authority boundaries.
 
 Result: **PASS.**
 
-The amendment adds adapter coverage for accepted workflow primitive operations; it does not add workflow authority. `continue` cannot manufacture missing prerequisites; workflow creation/revision authentication binds exact durable intent; cancellation/revision/acknowledgement preserve exact-state concurrency; auto-advance remains prospectively disclosed and independently authority-gated; informational workflow events cannot affect normative semantics.
+R16B-D1 adds adapter coverage for accepted workflow primitive operations without adding workflow authority. `continue` cannot manufacture missing prerequisites; workflow creation/revision authentication binds exact durable intent; cancellation/revision/acknowledgement preserve exact-state concurrency; auto-advance remains prospectively disclosed and independently authority-gated; informational workflow events cannot affect normative semantics.
 
 The standardized `--depth`/`ril show` grammar is inspection-only and introduces no new authoritative state. `ril history` remains aggregate read-only history and is distinct from resource evidence expansion.
 
-R16B-D1 integration finding I1 is therefore resolved at the CLI design-contract level.
+R16B-D3 strengthens every fresh CLI approval creation with the same immediately-before deterministic applicability validation required by the peer Human ↔ Agent adapter. This preserves exact proposal identity and proposal/approval/apply separation, creates no new authority, and leaves mandatory apply-time validation intact.
+
+R16B-D1 integration finding I1 and R16B-D3 integration finding D3-I1 are therefore resolved at the CLI design-contract level.
 
 ## Non-goals
 
@@ -464,6 +473,6 @@ Human↔Agent interaction belongs to R16B.
 
 ## Acceptance condition
 
-R16A remains **accepted as amended**. Its implementation gate requires that every command map to an accepted primitive/orchestrator/workflow behavior or be explicitly read-only presentation/resolution; no command introduce new authority or protocol semantics; interactive and non-interactive authority boundaries remain explicit; and reference, depth, output, exit, discovery, concurrency, and help semantics remain conformant with this contract.
+R16A remains **accepted as amended**. Its implementation gate requires that every command map to an accepted primitive/orchestrator/workflow behavior or be explicitly read-only presentation/resolution; no command introduce new authority or protocol semantics; interactive and non-interactive authority boundaries remain explicit; fresh approval creation perform accepted pre-approval applicability revalidation; and reference, depth, output, exit, discovery, concurrency, and help semantics remain conformant with this contract.
 
 R16B Human↔Agent Interaction Design SHALL continue against these amended adapter and authority boundaries before UX implementation slices are finalized.
