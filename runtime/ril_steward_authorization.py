@@ -106,6 +106,20 @@ def _normalize_change(operation: str, scope: str, role_id: str | None) -> dict[s
     return {"scope": scope, "role_id": role_id}
 
 
+def _parse_proposal(proposal: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    validate_proposal(proposal)
+    operation = proposal["operation"]
+    if proposal["domain"] != DOMAIN or operation not in OPERATIONS:
+        raise ContractError("INVALID_AUTHORIZATION_PROPOSAL", "proposal is not a Steward authorization transition")
+    raw = proposal["change"]
+    if not isinstance(raw, dict) or set(raw) != {"scope", "role_id"}:
+        raise ContractError("INVALID_AUTHORIZATION_PROPOSAL", "authorization change shape is invalid")
+    change = _normalize_change(operation, raw["scope"], raw["role_id"])
+    if change != raw:
+        raise ContractError("INVALID_AUTHORIZATION_PROPOSAL", "authorization change is not canonical")
+    return operation, change
+
+
 def _validate_transition_preconditions(state: dict[str, Any], operation: str, change: dict[str, Any], role_state: dict[str, Any] | None = None) -> None:
     scope = change["scope"]
     current = state["assignments"][scope]
@@ -156,21 +170,6 @@ def approve_authorization_change(
     return make_approval(proposal, approving_operator_id, auth)
 
 
-def _validate_proposal_semantics(state: dict[str, Any], proposal: dict[str, Any], role_state: dict[str, Any] | None) -> tuple[str, dict[str, Any]]:
-    validate_proposal(proposal)
-    operation = proposal["operation"]
-    if proposal["domain"] != DOMAIN or operation not in OPERATIONS:
-        raise ContractError("INVALID_AUTHORIZATION_PROPOSAL", "proposal is not a Steward authorization transition")
-    raw = proposal["change"]
-    if not isinstance(raw, dict) or set(raw) != {"scope", "role_id"}:
-        raise ContractError("INVALID_AUTHORIZATION_PROPOSAL", "authorization change shape is invalid")
-    change = _normalize_change(operation, raw["scope"], raw["role_id"])
-    if change != raw:
-        raise ContractError("INVALID_AUTHORIZATION_PROPOSAL", "authorization change is not canonical")
-    _validate_transition_preconditions(state, operation, change, role_state)
-    return operation, change
-
-
 def _validate_approval(approval: dict[str, Any], proposal: dict[str, Any]) -> None:
     validate_approval(approval, proposal)
     auth = approval["authentication"]
@@ -207,13 +206,14 @@ def apply_authorization_change(project_root: Path, proposal: dict[str, Any], app
     proposals_dir, approvals_dir = evidence_paths(project_root)
     try:
         state, events = _load_authorization(project_root)
-        role_state = _load_role_state(project_root) if proposal.get("operation") != "REVOKE" else None
-        operation, change = _validate_proposal_semantics(state, proposal, role_state)
+        operation, change = _parse_proposal(proposal)
         _validate_approval(approval, proposal)
         pd = digest(proposal)
         ad = digest(approval)
         consumed = next((e for e in events if e["proposal_digest"] == pd and e["approval_digest"] == ad), None)
         if consumed is None:
+            role_state = _load_role_state(project_root) if operation != "REVOKE" else None
+            _validate_transition_preconditions(state, operation, change, role_state)
             operator_state = _load_operator_state(project_root)
             _validate_approver(operator_state, approval["operator_id"])
         _persist_artifact(proposals_dir, proposal)
