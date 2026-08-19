@@ -1,0 +1,32 @@
+name: RIL R12 Reconciliation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_reconciliation.py'
+      - 'runtime/ril_activation.py'
+      - 'runtime/ril_steward_authorization.py'
+      - 'runtime/ril_roles.py'
+      - 'runtime/ril_operators.py'
+      - 'runtime/ril_mutation.py'
+      - 'tests/test_ril_reconciliation.py'
+      - 'docs/operations/RIL_RECONCILIATION_CONTRACT.md'
+      - '.github/workflows/ril-reconciliation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run R12 reconciliation conformance suite
+        run: python -m unittest tests/test_ril_reconciliation.py -v
+      - name: Compile R12 primitive
+        run: python -m py_compile runtime/ril_reconciliation.py
