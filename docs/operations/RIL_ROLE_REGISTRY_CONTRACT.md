@@ -1,6 +1,6 @@
 # RIL Role Registry Contract
 
-Status: **Normative v1 primitive contract**
+Status: **Normative v1 primitive contract — amended for R17 authority grants**
 
 Implements architecture gate **R6** from `docs/design/RIL_ARCHITECTURE_SYNTHESIS.md`.
 
@@ -8,6 +8,10 @@ Contracts:
 
 - `reasoning-distiller-role-registry/1`
 - `reasoning-distiller-role-submission/1`
+- common `reasoning-distiller-proposal/1`
+- common `reasoning-distiller-approval/1|2`
+
+Depends on accepted R17 `reasoning-distiller-authority-grant/1` for bounded delegated approval.
 
 ## Purpose
 
@@ -98,21 +102,82 @@ Mutating classifications are collected into one atomic proposal bound to the cur
 
 If no mutations are required, planning returns `PASS/NO_CHANGE` and no approval is needed.
 
-## Approval
+## R17 grant-matching schema
 
-Mutating role-registry proposals require explicit human approval from an active operator holding:
+Role-registry mutation is the first R1-R7 administrative operation class explicitly declared grant-delegable.
+
+Canonical delegation metadata:
 
 ```text
-rd:role_registry
+operation_class: role-registry.change
+delegable: true
 ```
 
-Approval uses the common `reasoning-distiller-approval/1` contract and confirmation value:
+The authority-relevant target view of an exact proposal is derived deterministically from its complete atomic change set:
+
+```text
+role_ids
+  = sorted unique set of every project role_id added, updated,
+    disabled, or reenabled by the proposal
+
+mutation_kinds
+  = sorted unique subset of [ADD, UPDATE, DISABLE, REENABLE]
+
+submission_mode
+  = incremental | snapshot
+```
+
+Package-provided roles and forbidden protocol-governance roles are never valid grant targets because they remain invalid proposal targets under this contract.
+
+Supported R17 target selectors:
+
+```text
+field: role_id
+match: exact | one-of
+```
+
+A selector over `role_id` must cover **every** member of the proposal's derived `role_ids` set. A proposal affecting any unlisted role is `OUTSIDE_GRANT`.
+
+Supported R17 constraints:
+
+```text
+field: mutation_kinds
+predicate: subset-of
+value: <finite subset of ADD|UPDATE|DISABLE|REENABLE>
+
+field: role_ids
+predicate: max-count
+value: <positive integer>
+
+field: submission_mode
+predicate: eq | one-of
+value/values: incremental|snapshot
+```
+
+No other proposal field or predicate is authority-grant-matchable in v1. Unsupported selectors/constraints fail closed.
+
+The grant validator evaluates the complete atomic role-registry proposal. It MUST NOT split a proposal into grant-covered and non-covered mutations, rewrite the proposal, or infer that a role is equivalent to another role.
+
+An authority grant does not waive the existing prohibition on `rd:*` consumer capabilities or forbidden Architect/RGP Engineer governance roles.
+
+## Approval
+
+Mutating role-registry proposals require a valid exact approval. Two authority bases are accepted:
+
+1. direct human approval from an active operator holding `rd:role_registry`; or
+2. a valid R17 grant-derived `reasoning-distiller-approval/2` issued for `operation_class: role-registry.change` under an ACTIVE workflow-bound authority grant whose grantor was authorized to establish that prospective authority.
+
+Direct approval uses confirmation value:
 
 ```text
 ROLE_REGISTRY_CHANGE
 ```
 
-Agents may prepare proposals and relay approval artifacts but may not originate human approval.
+For direct approval, the approving operator MUST be active and hold `rd:role_registry`.
+
+For grant creation that includes `role-registry.change`, the grant-creation primitive MUST establish that the authenticated grantor is active and holds `rd:role_registry` at grant creation. Grant use later does not turn an agent into that operator and does not bypass any proposal/state validation.
+
+Agents may prepare proposals and request deterministic grant evaluation but may not originate direct human approval or expand grant scope.
 
 ## Apply
 
@@ -120,12 +185,16 @@ Apply MUST:
 
 1. validate canonical submission and proposal semantics;
 2. validate proposal/approval exact binding;
-3. validate operator registry/history health;
-4. require an active approving operator with `rd:role_registry`;
-5. validate role registry/history/projection health;
-6. persist immutable submission/proposal/approval evidence;
-7. append exactly one role-registry mutation event;
-8. deterministically update the current projection.
+3. validate the approval authority basis under the common mutation substrate;
+4. validate operator registry/history health;
+5. for direct approval, require an active approving operator with `rd:role_registry`;
+6. for grant-derived approval, validate the immutable grant issuance evidence and this contract's delegability declaration;
+7. validate role registry/history/projection health;
+8. persist immutable submission/proposal/approval evidence;
+9. append exactly one role-registry mutation event;
+10. deterministically update the current projection.
+
+Apply-time proposal basis/current-state validation remains mandatory regardless of approval authority basis.
 
 Retry with the same already-consumed approval follows the common mutation substrate semantics.
 
@@ -144,6 +213,8 @@ project-knowledge/roles/
 
 Evidence filenames use the canonical artifact SHA-256 hex payload and `.json`. Existing evidence bytes MUST match exactly; conflicting same-name evidence fails closed.
 
+Authority-grant definitions/events remain owned by the R17 grant primitive rather than the role registry.
+
 ## Registry state
 
 A project role entry records:
@@ -156,14 +227,27 @@ A project role entry records:
 
 The package-provided default Steward is `origin: package`, `protected: true`, `status: available`.
 
+## R17 non-authority boundary
+
+Grant-delegable role-registry mutation means only that a human operator with `rd:role_registry` may prospectively authorize a deterministic bounded subset of otherwise ordinary role-registry changes inside one immutable workflow.
+
+It does not permit an authority grant to:
+
+- create `rd:*` capabilities;
+- create or assign Steward authority;
+- create protected/package roles;
+- mutate authority grants;
+- expand workflow scope;
+- reinterpret a proposal beyond the published grant-matching schema.
+
 ## Conformance gate
 
-R6 PASS requires tests proving at least:
+R6/R17 PASS requires tests proving at least:
 
 1. default Steward exists without an authority grant;
 2. package role cannot be submitted, changed, scoped, or disabled;
 3. plan is deterministic and mutation-free;
-4. incremental ADD works only after valid human/operator approval;
+4. direct incremental ADD works only after valid operator approval;
 5. identical incremental submission is `NO_CHANGE`;
 6. changed role definition is approval-gated UPDATE;
 7. disabled role may be explicitly re-enabled by a later submission;
@@ -171,7 +255,11 @@ R6 PASS requires tests proving at least:
 9. roles outside snapshot scope remain unchanged;
 10. `rd:*` consumer capabilities are rejected;
 11. forbidden Architect/RGP Engineer protocol-governance roles are rejected;
-12. unauthorized/disabled approvers fail closed;
-13. conflicting role or operator projection/history fails closed;
-14. submission/proposal/approval evidence is preserved;
-15. no Steward authorization, reconciliation, admission, PEMS, COVE, or canonical state is created.
+12. unauthorized/disabled direct approvers fail closed;
+13. a valid bounded `role-registry.change` authority grant may issue exact grant-derived approval without fresh proposal-specific assent;
+14. a proposal touching one ungranted role is wholly `OUTSIDE_GRANT` rather than partially applied;
+15. unsupported grant predicates fail closed;
+16. grant-derived approval cannot bypass stale proposal basis or conflicting role/operator history;
+17. conflicting role or operator projection/history fails closed;
+18. submission/proposal/approval evidence is preserved;
+19. no Steward authorization, reconciliation, admission, PEMS, COVE, or canonical state is created.
