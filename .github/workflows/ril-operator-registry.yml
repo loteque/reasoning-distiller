@@ -1,0 +1,28 @@
+name: RIL Operator Registry R4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_mutation.py'
+      - 'runtime/ril_operators.py'
+      - 'tests/test_ril_operators.py'
+      - 'docs/operations/RIL_OPERATOR_REGISTRY_CONTRACT.md'
+      - '.github/workflows/ril-operator-registry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run R4 operator conformance suite
+        run: python -m unittest -v tests.test_ril_operators
+      - name: Compile R4 primitive
+        run: python -m py_compile runtime/ril_mutation.py runtime/ril_operators.py
