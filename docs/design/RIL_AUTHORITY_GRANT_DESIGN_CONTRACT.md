@@ -1,12 +1,12 @@
 # R17 — Bounded Authority Grant Design Contract
 
-Status: **Draft normative design contract — designer recommendation complete; awaiting acceptance**
+Status: **Normative design contract — accepted; integration amendments pending**
 
 Contract: `reasoning-distiller-authority-grant/1`
 
 Depends on: accepted R1–R16B, including accepted durable workflow, provenance, and pre-approval proposal-revalidation contracts.
 
-Implementation status: **not authorized by this draft.**
+Implementation status: **not authorized by acceptance alone; implementation requires the integration amendments recorded below.**
 
 ## Purpose
 
@@ -20,7 +20,7 @@ The grant carries authority; the agent does not.
 
 An exact proposal may receive grant-derived approval only when deterministic validation proves that the complete proposal falls within an active grant and every independent validity/materiality requirement is satisfied.
 
-## Designer survey decisions
+## Accepted design decisions
 
 1. **Typed identity:** use `authority-grant:<id>`.
 2. **Creation authority:** grant creation is an authenticated human operator act, not agent authority.
@@ -62,9 +62,9 @@ authority-grant:<id>
   grantor: operator:alice
   workflow: workflow:<id>
   scope:
-    operations: [<allowlisted operation classes>]
-    targets: <deterministic constraints>
-    constraints: <deterministic bounded predicates>
+    operations: [<operation-class-id>]
+    targets: [<target-selector>]
+    constraints: [<constraint>]
   limits:
     approvals: <optional finite count>
   exclusions:
@@ -74,6 +74,85 @@ authority-grant:<id>
 ```
 
 The grant identity commits to both the exact scope and authenticated human act establishing that prospective authority.
+
+## Structured scope vocabulary
+
+R17 v1 defines a deliberately small common scope language. Individual operation contracts publish the exact operation classes, target fields, and constraint keys they support. Unsupported vocabulary fails closed.
+
+### Operation classes
+
+Every proposal type eligible for delegated approval SHALL expose one stable canonical `operation_class` identifier. The identifier is contract-defined and version-stable within the applicable protocol version.
+
+A grant contains an explicit allowlist:
+
+```text
+scope:
+  operations:
+    - <operation-class-id>
+```
+
+Wildcards, prefix matching, free-form categories, and agent-inferred equivalence are not normative v1 scope semantics.
+
+An operation class marked `delegable: false` by its defining primitive can never be authorized by a grant even if named in the grant payload.
+
+### Target selectors
+
+Target selectors are conjunctions over exact proposal fields whose semantics are published by the proposal's operation contract. V1 selectors MAY use only:
+
+```text
+exact     # field equals one canonical value/reference
+one-of    # field equals one member of a finite canonical set
+within    # field's canonical typed target is contained by a contract-defined parent target
+```
+
+`within` is valid only where the relevant target hierarchy is itself deterministic and contract-defined. No filesystem glob, regex, fuzzy matching, natural-language matching, or inferred project relationship is normative scope syntax unless a future accepted contract explicitly adds it.
+
+Examples:
+
+```text
+targets:
+  - field: candidate
+    match: exact
+    value: candidate:abc
+
+  - field: resource
+    match: one-of
+    values: [resource:a, resource:b]
+```
+
+If a proposal exposes multiple authority-relevant targets, every such target must be covered by the grant. Unmentioned authority-relevant target dimensions fail closed rather than inheriting permission.
+
+### Constraints
+
+Constraints are typed predicates over canonical proposal fields. V1 common predicate forms are:
+
+```text
+eq
+one-of
+max-count
+subset-of
+```
+
+Each operation contract declares which proposal fields accept which predicates and how canonical comparison is performed. A constraint key or predicate not explicitly published for that operation class is unsupported and therefore outside grant scope.
+
+Constraints only narrow authority. They cannot transform a proposal, select a different target, or create a default value missing from the proposal.
+
+### Containment algorithm
+
+For an exact proposal P and grant G, the common validator succeeds only when all of the following are true:
+
+1. G is ACTIVE and bound to the currently applicable workflow;
+2. P belongs to an operation class explicitly allowed by G;
+3. that operation class is contract-delegable;
+4. every authority-relevant proposal target is covered by G's target selectors;
+5. every applicable grant constraint evaluates true against P;
+6. no proposal field introduces an authority-relevant effect not represented by the operation contract's published grant-matching schema;
+7. the complete proposal lies within the bound workflow's immutable intent;
+8. no contract-defined exclusion/non-delegable rule applies.
+
+If any fact is unknown, unsupported, ambiguous, or partially covered, the result is `OUTSIDE_GRANT` and ordinary proposal-specific approval remains required.
+
+The validator MUST NOT mutate or normalize a proposal into compliance.
 
 ## Workflow-bound authority
 
@@ -123,6 +202,33 @@ independent apply-time validation
 
 An agent/runtime is never the authority basis merely because it requested evaluation.
 
+## Approval authority-basis extension
+
+R17 extends the common approval model so an exact approval records one accepted authority basis.
+
+At minimum the approval contract SHALL distinguish:
+
+```text
+authority_basis:
+  kind: direct-operator
+  authentication: <exact authenticated assent evidence>
+```
+
+or:
+
+```text
+authority_basis:
+  kind: authority-grant
+  grant: authority-grant:<id>
+  grant_event: authority-grant-event:<approval-issued-event-id>
+```
+
+Both forms still bind the approval to exactly one immutable proposal.
+
+The `authority-grant` form does not claim that a human reviewed the exact proposal at issuance time. It means a prior authenticated human act prospectively authorized that proposal class/target/effect and deterministic RIL validation proved exact containment at issuance time.
+
+Consumers MUST NOT collapse the distinction between direct proposal-specific assent and grant-derived authority in audit or presentation.
+
 ## Grant event history
 
 Grant definitions are immutable. Normative evolving state is represented by a linear append-only event chain:
@@ -158,19 +264,23 @@ Only ACTIVE grants may issue new grant-derived approvals.
 
 Workflow-terminal ineligibility may be derived from the authoritative bound workflow rather than duplicated as a grant event; once the bound workflow is terminal, grant eligibility cannot return.
 
-## Scope language
+## Scope validation result
 
-Grant scope MUST use deterministic structured fields defined by accepted operation contracts. It MUST NOT rely on an agent deciding whether a proposal is "close enough" to natural-language intent.
+The common grant validator returns one of:
 
-The validator is fail-closed:
+```text
+WITHIN_GRANT
+OUTSIDE_GRANT
+GRANT_INACTIVE
+GRANT_EXHAUSTED
+WORKFLOW_MISMATCH
+NON_DELEGABLE
+INVALID
+```
 
-- unknown operation class → outside grant;
-- unknown target semantics → outside grant;
-- unsupported constraint → outside grant;
-- partially covered proposal → outside grant;
-- ambiguous scope → outside grant.
+Only `WITHIN_GRANT` permits grant-derived approval issuance to proceed to the remaining mandatory checks.
 
-The correct outcome is then ordinary `APPROVAL_REQUIRED`, not guessed delegation.
+These classifications are deterministic protocol state, not shell exit-code taxonomy.
 
 ## Non-delegable authority
 
@@ -214,9 +324,9 @@ If revocation wins, later issuance fails. If a valid approval issuance wins firs
 
 The adapter MUST report the actual race outcome rather than pretending revocation rewrote history.
 
-## CLI integration recommendation
+## CLI integration contract
 
-A first-class resource is recommended:
+R16A SHALL gain the first-class resource family:
 
 ```text
 ril authority-grant
@@ -230,7 +340,23 @@ Bare `ril authority-grant` is a read-only dashboard showing active grants, bound
 
 There is no `update`; scope changes create a new immutable grant.
 
+Creation accepts one canonical structured grant-definition format via file, stdin, or guided interactive construction. Interactive construction is not a second scope language. Before creation, RIL displays the exact canonical grant definition, authenticates the grantor's assent to that definition, and separately makes prospective delegated approval consequences conspicuous.
+
+Requester revocation uses ordinary explicit confirmation. Protected-root revocation of another operator's grant uses the stronger exact-reference override ceremony. Revocation is exact-state and does not silently retry over intervening grant consumption.
+
 Grant events are inspectable through generic typed-reference inspection and may also be surfaced by depth-expanded grant inspection.
+
+## Human↔Agent integration contract
+
+R16B auto-advance orchestration SHALL evaluate applicable active authority grants before returning `AWAITING_APPROVAL` for an ordinary delegable proposal.
+
+For each candidate grant, the adapter/orchestrator uses the common deterministic grant validator. If exactly one applicable authority path is established, it may issue grant-derived approval and continue without fresh proposal-specific human assent.
+
+If no grant covers the proposal, normal proposal-specific approval is required. If multiple grants could cover the proposal, the deterministic orchestration layer MAY choose among them only when the choice cannot alter authority scope, consumption semantics, or audit meaning; otherwise it MUST surface the ambiguity rather than allowing the agent to choose authority strategically.
+
+Grant use never bypasses D3, materiality, Steward activation, workflow scope, apply-time validation, or non-delegable-operation rules.
+
+Control-return output MUST distinguish direct human approval from grant-derived approval and identify the consumed `authority-grant:<id>` where material.
 
 ## Automation consequence
 
@@ -247,18 +373,26 @@ This reduces ordinary approval from a fundamental human boundary to a determinis
 
 ## Reconciliation findings
 
-Designer reconciliation against accepted R1–R16B finds the model **semantically compatible in principle** with the existing authority architecture, provided approval semantics are amended to recognize `authority-grant:<id>` as an alternate human-derived authority basis for an exact approval artifact.
+The focused acceptance review resolved both previously open design questions:
 
-The primary integration changes required before acceptance are:
+1. **Approval authority basis:** accepted as the explicit `direct-operator` versus `authority-grant` union defined above. Grant-derived approval remains an exact ordinary approval artifact and does not grant agents authority.
+2. **Structured scope vocabulary:** accepted as a fail-closed operation-class + target-selector + typed-constraint language whose concrete fields/predicates are published by each delegable operation contract.
 
-- extend the approval artifact/primitive contract with `authority_basis: authority-grant:<id>` and deterministic grant-derived issuance;
-- add shared authority-grant primitive/artifact/event semantics;
-- add peer-adapter surfaces, including the recommended R16A CLI family;
-- update R16B auto-advance semantics to consume valid grants without fresh proposal-specific assent while retaining D3/materiality/apply checks;
-- define the exact structured operation/target constraint vocabulary accepted by grant scope matching.
+Reconciliation against accepted R1–R16B: **SEMANTIC PASS; CROSS-CONTRACT INTEGRATION AMENDMENTS REQUIRED.**
 
-No recommendation permits agents to become independent authority holders.
+No contradiction was found with exact proposal identity, D3 pre-approval revalidation, proposal/approval/apply separation, apply-time validation, workflow immutable intent, materiality, Steward activation, protected-root ceremony, provenance non-authority, or Canon boundaries.
 
-## Acceptance gate
+Required integration amendments are:
 
-This R17 draft is **designer-complete but not yet accepted**. Acceptance should follow focused review of the integration changes above, especially the structured scope vocabulary and the extension of approval authority basis.
+- **R17-I1 — approval primitive/artifact:** incorporate the accepted `authority_basis` union and atomic grant-derived issuance path.
+- **R17-I2 — operation contracts:** every operation intended to be grant-delegable publishes `operation_class`, `delegable`, authority-relevant target fields, and supported scope predicates; unamended operations remain non-delegable by default.
+- **R17-I3 — R16A:** incorporate the `ril authority-grant` peer-adapter family and grant inspection/reference semantics.
+- **R17-I4 — R16B:** incorporate grant evaluation into bounded auto-advance before ordinary `AWAITING_APPROVAL`, while retaining all existing interruption and validation boundaries.
+
+These are integration work, not unresolved R17 design questions.
+
+## Acceptance status
+
+R17 is **ACCEPTED / INTEGRATION-PENDING R17-I1..I4**.
+
+Implementation SHALL NOT treat authority grants as available until the required approval, operation-contract, CLI, and Human↔Agent integration amendments are accepted and reconciled.
