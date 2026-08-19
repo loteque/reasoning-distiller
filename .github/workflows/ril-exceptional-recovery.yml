@@ -1,0 +1,23 @@
+name: RIL R11 Exceptional Recovery
+
+on:
+  push:
+    paths:
+      - 'runtime/ril_recovery.py'
+      - 'tests/test_ril_recovery.py'
+      - 'docs/operations/RIL_EXCEPTIONAL_RECOVERY_CONTRACT.md'
+      - '.github/workflows/ril-exceptional-recovery.yml'
+  workflow_dispatch:
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run R11 exceptional-recovery conformance suite
+        run: python -m unittest -v tests.test_ril_recovery
+      - name: Compile R11 primitive
+        run: python -m py_compile runtime/ril_recovery.py
