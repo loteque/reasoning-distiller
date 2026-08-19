@@ -1,0 +1,27 @@
+name: RIL Common Mutation R1-R3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_mutation.py'
+      - 'tests/test_ril_mutation.py'
+      - 'docs/operations/RIL_COMMON_MUTATION_CONTRACT.md'
+      - '.github/workflows/ril-common-mutation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run R1-R3 conformance suite
+        run: python -m unittest -v tests.test_ril_mutation
+      - name: Compile runtime primitive
+        run: python -m py_compile runtime/ril_mutation.py
