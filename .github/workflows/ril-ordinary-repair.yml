@@ -1,0 +1,31 @@
+name: RIL R10 Ordinary Repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_repair.py'
+      - 'runtime/ril_mutation.py'
+      - 'runtime/ril_operators.py'
+      - 'runtime/ril_roles.py'
+      - 'runtime/ril_steward_authorization.py'
+      - 'tests/test_ril_repair.py'
+      - 'docs/operations/RIL_ORDINARY_REPAIR_CONTRACT.md'
+      - '.github/workflows/ril-ordinary-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run R10 ordinary-repair conformance suite
+        run: python -m unittest tests/test_ril_repair.py -v
+      - name: Compile R10 primitive
+        run: python -m py_compile runtime/ril_repair.py
