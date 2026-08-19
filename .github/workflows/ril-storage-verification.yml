@@ -1,0 +1,32 @@
+name: RIL R14 Storage Verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_storage_verification.py'
+      - 'runtime/ril_admission.py'
+      - 'backends/pems-cove/pems-v2.schema.json'
+      - 'backends/pems-cove/validate_pems2_contract.py'
+      - 'tests/test_ril_storage_verification.py'
+      - 'docs/operations/RIL_STORAGE_VERIFICATION_CONTRACT.md'
+      - '.github/workflows/ril-storage-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install validator dependency
+        run: python -m pip install jsonschema
+      - name: Run R14 storage verification conformance suite
+        run: python -m unittest tests/test_ril_storage_verification.py -v
+      - name: Compile R14 primitive
+        run: python -m py_compile runtime/ril_storage_verification.py
