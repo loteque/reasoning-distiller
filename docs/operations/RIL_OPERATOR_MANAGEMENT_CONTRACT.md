@@ -1,16 +1,18 @@
 # RIL Operator Management and Root Transfer Contract
 
-Status: **Normative R5 primitive contract**
+Status: **Normative R5 primitive contract — amended for accepted R18 delegability classification**
 
 Contracts/building blocks:
 
 - `reasoning-distiller-operator-registry/1`
 - common `reasoning-distiller-proposal/1`
-- common `reasoning-distiller-approval/1`
+- common `reasoning-distiller-approval/1` / `reasoning-distiller-approval/2`
 - common `reasoning-distiller-mutation-event/1`
 - common `reasoning-distiller-operation-result/1`
+- accepted `reasoning-distiller-authority-grant/1`
+- accepted `reasoning-distiller-operation-delegability/1`
 
-Governing design: `docs/design/RD_INIT_DESIGN_CONTRACT.md` and `docs/design/RIL_ARCHITECTURE_SYNTHESIS.md`.
+Governing design: `docs/design/RD_INIT_DESIGN_CONTRACT.md`, `docs/design/RIL_ARCHITECTURE_SYNTHESIS.md`, `docs/design/RIL_AUTHORITY_GRANT_DESIGN_CONTRACT.md`, and `docs/design/RIL_OPERATION_DELEGABILITY_CLASSIFICATION.md`.
 
 ## Purpose
 
@@ -29,6 +31,8 @@ rd:operator_management
 The protected root may use that capability like any other manager, but ordinary mutations MUST NOT disable, demote, remove, or otherwise mutate the protected root.
 
 Root transfer is a distinct ceremony. It requires explicit approval by the currently protected root and cannot be performed by delegated `rd:operator_management` authority alone.
+
+R18 permits prospective `authority-grant:<id>` authority only for the exact delegable subset explicitly published below. Delegability never changes the capability required of the grantor when the grant is created and never permits an agent/runtime to become the authority holder.
 
 ## Operator entry
 
@@ -67,12 +71,14 @@ DISABLE_OPERATOR
 REENABLE_OPERATOR
 ```
 
-All use the accepted common transaction sequence:
+All semantic mutations use the accepted common transaction sequence:
 
 ```text
-plan → exact proposal digest → explicit human approval → apply
+plan → exact proposal digest → accepted approval authority basis → apply
      → append-only event → deterministic operator projection
 ```
+
+Direct human approval remains available for all ordinary operations. Grant-derived approval is accepted only for operation classes explicitly marked `delegable: true` below.
 
 ### ADD_OPERATOR
 
@@ -84,6 +90,15 @@ Preconditions:
 
 The created operator is active and not protected root.
 
+R18 classification:
+
+```text
+operation: ADD_OPERATOR
+delegable: false
+```
+
+Creating a new durable administrative identity is non-delegable.
+
 ### UPDATE_CAPABILITIES
 
 Preconditions:
@@ -94,6 +109,15 @@ Preconditions:
 
 This is full replacement, not an implicit merge.
 
+R18 classification:
+
+```text
+operation: UPDATE_CAPABILITIES
+delegability: DEFERRED
+```
+
+Until a separately accepted deterministic authority-non-increasing predicate exists, every `UPDATE_CAPABILITIES` proposal remains outside authority grants.
+
 ### DISABLE_OPERATOR
 
 Preconditions:
@@ -102,6 +126,26 @@ Preconditions:
 - target is not the protected root.
 
 Disabling preserves identity and history. It grants no fallback or authority transfer.
+
+R18 publishes this exact grant-matching schema:
+
+```text
+operation_class: operator-registry.disable
+delegable: true
+
+authority_relevant_targets:
+  - operator_id
+
+selectors:
+  operator_id: exact | one-of
+
+constraints:
+  operation: eq(DISABLE_OPERATOR)
+```
+
+Grant matching MUST independently prove from authoritative current operator-registry state that every selected target is not the protected root. Exact/finite target selection is required; wildcard, prefix, fuzzy, inferred, or natural-language operator targeting is not normative grant scope.
+
+A grant-derived approval remains bound to the exact immutable proposal and still requires all accepted R17 checks, including workflow containment, D3 applicability revalidation, materiality clearance, grant lifecycle/limit validation, atomic approval issuance, and independent apply-time validation.
 
 ### REENABLE_OPERATOR
 
@@ -112,19 +156,37 @@ Preconditions:
 
 The existing capability set is retained.
 
-## Human approval
-
-An ordinary-management proposal is approved by an operator identity using explicit human confirmation:
+R18 classification:
 
 ```text
-ADMINISTER_OPERATORS
+operation: REENABLE_OPERATOR
+delegable: false
 ```
 
-Apply MUST verify against authoritative current state that the approver:
+Re-enabling restores administrative actionability and is non-delegable in v1.
 
-- exists;
-- is active;
-- holds `rd:operator_management`.
+## Approval
+
+An ordinary-management proposal may be approved through either accepted approval authority basis where the exact operation permits it:
+
+```text
+direct-operator
+```
+
+or, only for `operator-registry.disable`:
+
+```text
+authority-grant
+```
+
+For direct operator approval, the approving operator MUST, against authoritative current state:
+
+- exist;
+- be active;
+- hold `rd:operator_management`;
+- provide the required exact proposal-bound authentication/confirmation evidence.
+
+For grant-derived `DISABLE_OPERATOR` approval, the grant creation ceremony MUST already have established authenticated prospective authority from an operator who satisfied the applicable `rd:operator_management` authority requirement, and the common grant validator MUST return `WITHIN_GRANT` for the exact proposal.
 
 Approval remains exact-proposal-bound and follows common consumed-approval retry semantics.
 
@@ -169,6 +231,8 @@ The approval artifact MUST be issued by the current root with explicit human con
 TRANSFER_ROOT_OPERATOR
 ```
 
+`TRANSFER_ROOT` is explicitly non-delegable under R18. An `authority-grant:<id>` MUST NOT satisfy this ceremony.
+
 Successful transfer atomically:
 
 1. changes `root_operator_id` to the target;
@@ -209,6 +273,8 @@ TARGET_MISSING_CORE_CAPABILITIES
 ROOT_TRANSFER_SOURCE_MISMATCH
 PROJECTION_CONFLICT
 STALE_BASIS
+OUTSIDE_GRANT
+NON_DELEGABLE
 ```
 
 Conflicting projections and invalid authoritative event history remain fail-closed under the common substrate.
@@ -223,21 +289,34 @@ R5 MUST NOT:
 - create activation evidence;
 - reconcile a Distiller submission;
 - mutate PEMS/COVE/canonical state;
-- rewrite historical operator events.
+- rewrite historical operator events;
+- allow authority grants to establish, restore, transfer, or expand protected/core operator authority beyond the explicitly accepted delegable subset.
 
-## R5 conformance gate
+## R5 / R18 conformance gate
 
 PASS requires tests proving at least:
 
-1. authorized manager can add a delegated operator;
+1. authorized manager can add a delegated operator through direct approval;
 2. unauthorized/inactive approver is rejected;
 3. project capabilities do not satisfy `rd:operator_management`;
-4. capabilities can be replaced only through approved mutation;
-5. delegated operators can be disabled and reenabled;
+4. capabilities can be replaced only through directly approved mutation while R18 deferral remains in force;
+5. delegated operators can be disabled and reenabled through their permitted authority paths;
 6. ordinary mutations cannot change the protected root;
-7. root transfer requires current-root approval;
+7. root transfer requires current-root direct approval;
 8. root-transfer target must be active and hold all core capabilities;
 9. successful root transfer leaves exactly one protected root;
 10. old root remains an ordinary operator after transfer;
 11. retry is idempotent while old approval cannot authorize a later transition;
-12. no Steward/admission/canonical state is created.
+12. no Steward/admission/canonical state is created;
+13. a valid workflow-bound grant can authorize an exact non-root `DISABLE_OPERATOR` proposal when all R17 checks pass;
+14. an operator-disable grant cannot target the protected root, even if the grant payload names that operator;
+15. exact and finite `one-of` operator target selectors are enforced and out-of-scope targets return `OUTSIDE_GRANT`;
+16. grants cannot authorize `ADD_OPERATOR`;
+17. grants cannot authorize `REENABLE_OPERATOR`;
+18. grants cannot authorize `TRANSFER_ROOT`;
+19. grants cannot authorize `UPDATE_CAPABILITIES` while the operation remains `DEFERRED`;
+20. grant-derived operator disable preserves exact proposal binding, D3 revalidation, materiality, grant-consumption accounting, and apply-time validation.
+
+## R18 integration status
+
+R18-I1 and the operator-management portion of R18-I3 are integrated by this amendment.
