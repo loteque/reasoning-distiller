@@ -56,6 +56,8 @@ def _candidate(project_root: Path, candidate_path: Path) -> tuple[dict[str, Any]
     root = project_root.resolve()
     submissions = (root / "project-knowledge" / "submissions").resolve(strict=False)
     path = candidate_path if candidate_path.is_absolute() else root / candidate_path
+    if path.is_symlink():
+        raise ContractError("INVALID_CANDIDATE_PATH", "candidate must not be a symlink")
     try:
         resolved = path.resolve(strict=True)
     except OSError as exc:
@@ -64,7 +66,7 @@ def _candidate(project_root: Path, candidate_path: Path) -> tuple[dict[str, Any]
         resolved.relative_to(submissions)
     except ValueError as exc:
         raise ContractError("CANDIDATE_PATH_OUTSIDE_SUBMISSIONS", str(candidate_path)) from exc
-    if resolved.is_symlink() or not resolved.is_file():
+    if not resolved.is_file():
         raise ContractError("INVALID_CANDIDATE_PATH", str(candidate_path))
     candidate = load_json(resolved)
     rel = resolved.relative_to(root).as_posix()
@@ -100,7 +102,7 @@ def reconcile_candidate(
     assessment: dict[str, Any],
 ) -> dict[str, Any]:
     try:
-        candidate, candidate_digest, candidate_rel = _candidate(project_root, candidate_path)
+        _candidate_value, candidate_digest, candidate_rel = _candidate(project_root, candidate_path)
         normalized_assessment = validate_assessment(assessment)
 
         activation_result = validate_activation(project_root, SCOPE, activation)
