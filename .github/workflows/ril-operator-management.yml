@@ -1,0 +1,29 @@
+name: RIL Operator Management
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_operator_management.py'
+      - 'runtime/ril_operators.py'
+      - 'runtime/ril_mutation.py'
+      - 'tests/test_ril_operator_management.py'
+      - 'docs/operations/RIL_OPERATOR_MANAGEMENT_CONTRACT.md'
+      - '.github/workflows/ril-operator-management.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run R5 operator-management conformance suite
+        run: python -m unittest -v tests/test_ril_operator_management.py
+      - name: Compile R5 primitive
+        run: python -m py_compile runtime/ril_operator_management.py runtime/ril_operators.py runtime/ril_mutation.py
