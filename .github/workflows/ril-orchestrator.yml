@@ -1,0 +1,38 @@
+name: RIL R15 Orchestrator Composition
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/ril_orchestrator.py'
+      - 'runtime/ril_status.py'
+      - 'runtime/ril_storage_verification.py'
+      - 'runtime/ril_repair.py'
+      - 'runtime/ril_reconciliation.py'
+      - 'runtime/ril_admission.py'
+      - 'runtime/ril_operators.py'
+      - 'runtime/ril_operator_management.py'
+      - 'runtime/ril_roles.py'
+      - 'runtime/ril_steward_authorization.py'
+      - 'tests/test_ril_orchestrator.py'
+      - 'docs/operations/RIL_ORCHESTRATOR_COMPOSITION_CONTRACT.md'
+      - '.github/workflows/ril-orchestrator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install validator dependency
+        run: python -m pip install jsonschema
+      - name: Run R15 orchestrator conformance suite
+        run: python -m unittest tests/test_ril_orchestrator.py -v
+      - name: Compile R15 primitive
+        run: python -m py_compile runtime/ril_orchestrator.py
