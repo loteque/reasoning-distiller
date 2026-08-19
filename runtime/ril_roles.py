@@ -218,8 +218,7 @@ def _classify_changes(state: dict[str, Any], submission: dict[str, Any]) -> list
         changes.append({"action": action, "role_id": role_id, "entry": target})
 
     if submission["mode"] == "snapshot":
-        scope_ids = submission["scope"]["role_ids"]
-        for role_id in scope_ids:
+        for role_id in submission["scope"]["role_ids"]:
             if role_id in submitted:
                 continue
             current = roles.get(role_id)
@@ -244,14 +243,7 @@ def plan_role_submission(project_root: Path, submission: dict[str, Any]) -> dict
             return operation_result("PASS", "NO_CHANGE", submission=normalized, submission_digest=submission_digest)
         change = {"submission": normalized, "changes": changes}
         proposal = make_proposal(DOMAIN, OPERATION, state, change)
-        return operation_result(
-            "PASS",
-            "PLANNED",
-            submission=normalized,
-            submission_digest=submission_digest,
-            proposal=proposal,
-            proposal_digest=digest(proposal),
-        )
+        return operation_result("PASS", "PLANNED", submission=normalized, submission_digest=submission_digest, proposal=proposal, proposal_digest=digest(proposal))
     except ContractError as exc:
         return operation_result("FAIL", exc.code, exc.detail)
 
@@ -263,7 +255,7 @@ def approve_role_submission(proposal: dict[str, Any], approving_operator_id: str
     return make_approval(proposal, approving_operator_id, auth)
 
 
-def _validate_proposal_semantics(state: dict[str, Any], proposal: dict[str, Any]) -> dict[str, Any]:
+def _validate_proposal_shape(proposal: dict[str, Any]) -> dict[str, Any]:
     validate_proposal(proposal)
     if proposal["domain"] != DOMAIN or proposal["operation"] != OPERATION:
         raise ContractError("INVALID_ROLE_PROPOSAL", "proposal is not a role-registry transition")
@@ -271,10 +263,17 @@ def _validate_proposal_semantics(state: dict[str, Any], proposal: dict[str, Any]
     if not isinstance(change, dict) or set(change) != {"submission", "changes"}:
         raise ContractError("INVALID_ROLE_PROPOSAL", "role proposal change shape is invalid")
     normalized = normalize_submission(change["submission"])
-    expected = _classify_changes(state, normalized)
+    if change["submission"] != normalized or not isinstance(change["changes"], list) or not change["changes"]:
+        raise ContractError("INVALID_ROLE_PROPOSAL", "role proposal is not canonical")
+    return change
+
+
+def _validate_proposal_semantics(state: dict[str, Any], proposal: dict[str, Any]) -> dict[str, Any]:
+    change = _validate_proposal_shape(proposal)
+    expected = _classify_changes(state, change["submission"])
     if not expected:
-        raise ContractError("INVALID_ROLE_PROPOSAL", "proposal contains no mutation")
-    expected_change = {"submission": normalized, "changes": expected}
+        raise ContractError("INVALID_ROLE_PROPOSAL", "proposal contains no current mutation")
+    expected_change = {"submission": change["submission"], "changes": expected}
     if change != expected_change:
         raise ContractError("INVALID_ROLE_PROPOSAL", "proposal does not match deterministic role diff")
     return expected_change
@@ -330,12 +329,13 @@ def apply_role_submission(project_root: Path, proposal: dict[str, Any], approval
     submissions_dir, proposals_dir, approvals_dir = evidence_paths(project_root)
     try:
         state, events = _load_role_state(project_root)
-        change = _validate_proposal_semantics(state, proposal)
+        change = _validate_proposal_shape(proposal)
         _validate_approval(approval, proposal)
         pd = digest(proposal)
         ad = digest(approval)
         consumed = next((e for e in events if e["proposal_digest"] == pd and e["approval_digest"] == ad), None)
         if consumed is None:
+            change = _validate_proposal_semantics(state, proposal)
             operator_state = _load_operator_state(project_root)
             _validate_role_approver(operator_state, approval["operator_id"])
         _persist_artifact(submissions_dir, change["submission"])
