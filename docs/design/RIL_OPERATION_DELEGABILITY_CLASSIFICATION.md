@@ -1,12 +1,12 @@
 # R18 — Operation Delegability Classification
 
-Status: **Draft normative design contract — designer recommendation complete; awaiting acceptance**
+Status: **Normative design contract — accepted and integrated**
 
 Contract: `reasoning-distiller-operation-delegability/1`
 
 Depends on: accepted R1–R17, including `reasoning-distiller-authority-grant/1`.
 
-Implementation status: **not authorized by this draft.**
+Implementation status: **not authorized by acceptance alone; implementation/conformance must satisfy the gates below.**
 
 ## Purpose
 
@@ -25,7 +25,7 @@ NOT_APPLICABLE
 DEFERRED
 ```
 
-- `DELEGABLE` — an operation contract may publish deterministic grant-matching semantics and permit grant-derived approval.
+- `DELEGABLE` — an operation contract publishes deterministic grant-matching semantics and permits grant-derived approval.
 - `NON_DELEGABLE` — grant-derived approval is forbidden; the operation retains direct/protected human ceremony.
 - `NOT_APPLICABLE` — the operation is not proposal-approval-gated and therefore does not consume authority-grant approval authority.
 - `DEFERRED` — no safe complete v1 grant-matching vocabulary is accepted yet; operation remains non-delegable until separately amended.
@@ -33,8 +33,6 @@ DEFERRED
 Absent an explicit accepted `DELEGABLE` declaration, fail closed as non-delegable.
 
 ## Classification principles
-
-The designer review applies these rules:
 
 1. Authority grants may automate ordinary bounded mutation; they must not automate creation or expansion of the authority system that governs grants themselves.
 2. Operations that create, transfer, restore, or expand core RIL administrative authority are non-delegable by default.
@@ -46,35 +44,35 @@ The designer review applies these rules:
 8. Every delegable operation must publish a complete authority-relevant target/effect schema; unknown effects fail closed.
 9. Materiality, D3, workflow scope, apply-time validation, and all R17 exclusions remain mandatory for every grant-derived approval.
 
-## Existing-operation matrix
+## Accepted existing-operation matrix
 
-| Domain / operation | Classification | Recommendation |
+| Domain / operation | Classification | Normative result |
 |---|---|---|
 | `role_registry` ordinary ADD/UPDATE/DISABLE/REENABLE | **DELEGABLE** | Preserve accepted `role-registry.change`; exact role IDs and mutation classes are scope-matchable and role registration alone creates no core RIL authority. |
-| `operator_registry` `ADD_OPERATOR` | **NON_DELEGABLE** | Creates a new durable human administrative identity and may establish future authority-bearing capability holders. |
-| `operator_registry` `UPDATE_CAPABILITIES` | **DEFERRED** | Could safely automate authority-reducing subsets, but replacement semantics can also expand core authority. Requires a future monotonic-authority predicate before opt-in. |
-| `operator_registry` `DISABLE_OPERATOR` | **DELEGABLE** | Reduces/removes actionability of one exact non-root operator without creating or expanding authority. |
-| `operator_registry` `REENABLE_OPERATOR` | **NON_DELEGABLE** | Restores the operator's existing administrative capabilities and therefore restores authority/actionability. |
-| `operator_registry` `INITIALIZE_ROOT` | **NON_DELEGABLE** | Establishes the protected root and fixed core capabilities; explicit human ceremony is foundational. |
-| `operator_registry` `TRANSFER_ROOT` | **NON_DELEGABLE** | Protected-root authority transfer remains a stronger direct-root ceremony. |
+| `operator_registry` `ADD_OPERATOR` | **NON_DELEGABLE** | Creates a new durable human administrative identity and potential future authority holder. |
+| `operator_registry` `UPDATE_CAPABILITIES` | **DEFERRED** | Full replacement can reduce and expand authority. No grant use until an accepted authority-non-increasing predicate exists. |
+| `operator_registry` `DISABLE_OPERATOR` | **DELEGABLE** | Exact non-root operator disable may use grant-derived approval. |
+| `operator_registry` `REENABLE_OPERATOR` | **NON_DELEGABLE** | Restores administrative actionability. |
+| `operator_registry` `INITIALIZE_ROOT` | **NON_DELEGABLE** | Foundational protected-root ceremony. |
+| `operator_registry` `TRANSFER_ROOT` | **NON_DELEGABLE** | Protected-root transfer remains a stronger direct-root ceremony. |
 | `steward_authorization` `AUTHORIZE` | **NON_DELEGABLE** | Creates semantic reconciliation/admission authority assignment. |
-| `steward_authorization` `REASSIGN` | **NON_DELEGABLE** | Transfers semantic Steward authority between roles. |
-| `steward_authorization` `REVOKE` | **NON_DELEGABLE** | Although authority-reducing, semantic Steward governance is kept entirely outside grant-derived approval in v1 for conceptual simplicity and audit clarity. |
-| ordinary repair of derived projections | **NOT_APPLICABLE** | Already deterministic and approval-free; valid authoritative history determines the exact result. |
-| exceptional recovery | **NON_DELEGABLE** | Explicit protected-root human recovery ceremony over damaged authoritative history. |
+| `steward_authorization` `REASSIGN` | **NON_DELEGABLE** | Transfers semantic Steward authority. |
+| `steward_authorization` `REVOKE` | **NON_DELEGABLE** | Steward governance remains entirely direct-human in v1 for audit clarity. |
+| ordinary repair of derived projections | **NOT_APPLICABLE** | Deterministic and approval-free. |
+| exceptional recovery | **NON_DELEGABLE** | Explicit protected-root recovery ceremony over damaged authoritative history. |
 | authority-grant creation / expansion | **NON_DELEGABLE** | R17 non-subdelegation floor. |
-| authority-grant revocation by grantor/root | **NOT_APPLICABLE to delegated approval** | Direct revocation is a safety/control operation; a grant cannot authorize its own or another grant's lifecycle authority. |
-| workflow creation with authenticated bounded intent | **NON_DELEGABLE** | Establishes durable human intent and, for auto-advance, prospective automation consent. |
-| workflow revision / scope expansion | **NON_DELEGABLE** | Creates materially new bounded intent; R17 already forbids delegation. |
-| workflow cancellation | **DEFERRED** | Cancellation does not expand work but may destroy remaining intent. Keep direct requester/root control until workflow-control delegation is separately designed. |
-| workflow materiality acknowledgement | **NON_DELEGABLE** | Exists specifically to restore informed human intent after material information surfaced. |
-| reconciliation invocation | **NOT_APPLICABLE** | Authority comes from valid Steward authorization + activation, not proposal-specific operator approval. |
-| admission invocation | **NOT_APPLICABLE** | Authority comes from valid admission Steward authorization + activation, not proposal-specific operator approval. |
-| storage/Canon verification | **NOT_APPLICABLE** | Read-only verification, not proposal-governed mutation. |
+| authority-grant revocation by grantor/root | **NOT_APPLICABLE** | Direct safety/control operation; grants cannot authorize grant lifecycle authority. |
+| workflow creation with authenticated bounded intent | **NON_DELEGABLE** | Establishes durable human intent and prospective automation consent. |
+| workflow revision / scope expansion | **NON_DELEGABLE** | Creates materially new bounded intent. |
+| workflow cancellation | **DEFERRED** | May destroy remaining intent; workflow-control delegation is not accepted yet. |
+| workflow materiality acknowledgement | **NON_DELEGABLE** | Exists specifically to restore informed human intent. |
+| reconciliation invocation | **NOT_APPLICABLE** | Authority is Steward authorization + activation, not proposal approval. |
+| admission invocation | **NOT_APPLICABLE** | Authority is admission Steward authorization + activation. |
+| storage/Canon verification | **NOT_APPLICABLE** | Read-only verification. |
 
 ## Operator-disable grant schema
 
-R18 recommends the first additional delegable operation class:
+R18 accepts the second grant-delegable operation class:
 
 ```text
 operation_class: operator-registry.disable
@@ -91,9 +89,11 @@ constraints:
   operation: eq(DISABLE_OPERATOR)
 ```
 
-Grant matching MUST additionally prove from authoritative current state that the target is not the protected root. A grant cannot convert a protected-root target into an ordinary target.
+Grant matching MUST additionally prove from authoritative current state that every selected target is not the protected root. A grant cannot convert a protected-root target into an ordinary target.
 
-No wildcard/prefix/fuzzy operator selection is normative v1 grant scope.
+No wildcard, prefix, fuzzy, inferred, or natural-language operator selection is normative v1 grant scope.
+
+The authoritative operator-management contract publishes the same metadata and owns operation-specific enforcement.
 
 ## Deferred operator capability updates
 
@@ -107,15 +107,11 @@ new_rd_capabilities ⊆ current_rd_capabilities
 
 and if project-defined capabilities are independently classified for authority significance. Until then, all `UPDATE_CAPABILITIES` proposals remain outside grants.
 
-This avoids an apparent "remove one capability" grant accidentally authorizing a replacement set that adds a different capability.
-
 ## Steward authorization policy
 
-R18 keeps the entire `steward_authorization` domain non-delegable in v1, including revocation.
+The entire `steward_authorization` domain remains non-delegable in v1, including revocation.
 
-Designer rationale: the domain determines who may exercise semantic reconciliation/admission authority. Keeping assignment and revocation under one direct-human governance rule is easier to audit and prevents grants from becoming an indirect mechanism for shaping semantic authority topology.
-
-This can be revisited later if operational experience demonstrates a strong need for emergency automated revocation.
+The domain determines who may exercise semantic reconciliation/admission authority. Keeping assignment and revocation under one direct-human governance rule preserves audit clarity and prevents grants from becoming an indirect mechanism for shaping semantic authority topology.
 
 ## Role registry policy
 
@@ -130,13 +126,26 @@ Grant matching must cover every affected role ID and every mutation class, and p
 
 A grant never turns role registration into Steward authorization.
 
+## R17 delegable-operation registry extension
+
+R18 normatively extends the accepted R17 delegable-operation registry. The accepted v1 registry is now:
+
+```text
+role-registry.change
+operator-registry.disable
+```
+
+This section is the accepted R18-I2 amendment to `reasoning-distiller-authority-grant/1`. R17's default remains fail-closed: operations not explicitly present through an accepted operation contract/amendment are non-delegable.
+
+No R17 authority semantics are otherwise changed.
+
 ## Non-proposal operations
 
-R18 explicitly distinguishes automation from delegation.
+R18 distinguishes automation from delegation.
 
 An operation such as ordinary repair, reconciliation, admission, or verification may run automatically when its own accepted prerequisites/authority are satisfied even though it does not use `authority-grant` at all.
 
-Therefore `NOT_APPLICABLE` does not mean "requires a human". It means R17 proposal-derived approval authority is not the governing mechanism.
+`NOT_APPLICABLE` therefore does not mean "requires a human". It means R17 proposal-derived approval authority is not the governing mechanism.
 
 ## Practical automation ceiling after R18
 
@@ -159,24 +168,44 @@ It still returns to a human for:
 - operations outside accepted grant scope;
 - materiality or other preserved R16/R17 human boundaries.
 
-## Integration amendments required if accepted
+## Conformance requirements
 
-- **R18-I1 — operator management:** split/publish stable operation-class metadata so `operator-registry.disable` is `delegable: true`; keep ADD/REENABLE/TRANSFER non-delegable and UPDATE_CAPABILITIES deferred.
-- **R18-I2 — R17 registry:** record `operator-registry.disable` as the second accepted delegable operation class and preserve unamended-default non-delegability.
-- **R18-I3 — conformance:** add tests proving grants cannot target protected root, cannot authorize ADD/REENABLE/TRANSFER/UPDATE_CAPABILITIES, and exact/finite operator-target scope is enforced.
+R18 conformance SHALL prove at minimum:
 
-No R16A topology change is required because authority-grant evaluation is already generic and operator management commands already exist.
+1. `operator-registry.disable` is recognized as delegable only through its published exact schema;
+2. a valid workflow-bound grant can authorize exact non-root `DISABLE_OPERATOR` proposals;
+3. a grant can never disable the protected root;
+4. exact and finite `one-of` target selectors are enforced;
+5. target mismatch fails `OUTSIDE_GRANT` rather than broadening scope;
+6. grants cannot authorize `ADD_OPERATOR`;
+7. grants cannot authorize `REENABLE_OPERATOR`;
+8. grants cannot authorize `TRANSFER_ROOT` or `INITIALIZE_ROOT`;
+9. grants cannot authorize `UPDATE_CAPABILITIES` while classification is `DEFERRED`;
+10. Steward authorization changes remain non-delegable;
+11. exceptional recovery remains non-delegable;
+12. authority-grant creation/expansion remains non-delegable;
+13. workflow revision/materiality acknowledgement remain non-delegable;
+14. grant-derived operator disable still enforces D3, workflow containment, materiality, grant state/limits, exact approval binding, atomic consumption, and apply-time validation;
+15. unclassified/unamended operation classes fail closed as non-delegable.
+
+The amended operator-management contract incorporates these operation-specific conformance obligations.
 
 ## Reconciliation
 
-Designer reconciliation against accepted R1–R17: **SEMANTIC PASS.**
+Final reconciliation against accepted R1–R17 and the amended R5 operator-management contract: **PASS.**
 
 The classification does not weaken protected-root ceremony, Steward authorization/activation separation, role-registry restrictions, exceptional recovery, D3, materiality, workflow scope, or apply-time validation.
 
-The key conservative choice is that authority-creating/restoring operations remain human-bound while deterministic ordinary role mutation and exact authority-reducing operator disable may use prospective bounded grants.
+The key conservative boundary remains: authority-creating/restoring operations are human-bound while deterministic ordinary role mutation and exact authority-reducing non-root operator disable may use prospective bounded grants.
 
-## Acceptance gate
+## Integration resolution
 
-R18 is **DESIGNER-COMPLETE / AWAITING ACCEPTANCE**.
+- **R18-I1 — operator management:** **RESOLVED** by the R5 amendment publishing `operator-registry.disable` as delegable and explicit non/deferred metadata for sibling operations.
+- **R18-I2 — R17 registry:** **RESOLVED** by this accepted normative registry extension adding `operator-registry.disable` alongside `role-registry.change`.
+- **R18-I3 — conformance:** **RESOLVED at contract level** by the explicit conformance requirements here and in amended R5. Executable tests remain implementation/conformance work.
 
-Acceptance authorizes the three integration amendments above, not implementation by itself.
+## Acceptance status
+
+R18 is **ACCEPTED AND INTEGRATED**.
+
+Implementation SHALL preserve the accepted classification and must not infer delegation for any operation not explicitly accepted as `DELEGABLE`.
