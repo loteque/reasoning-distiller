@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
-from rd_bootstrap import PROJECT_CONFIG, canonical_json
+from rd_bootstrap import PROJECT_CONFIG, canonical_json, validate_project_config
 from ril_mutation import ContractError, projection_status, replay
 from ril_operators import EMPTY_OPERATOR_STATE, operator_paths
 from ril_roles import DEFAULT_ROLE_STATE, role_paths
@@ -34,8 +35,12 @@ def _project_bootstrap(project_root: Path) -> str:
     if config.is_symlink() or not config.is_file():
         return "CONFLICT"
     try:
-        return "VALID" if config.read_bytes() == canonical_json(PROJECT_CONFIG) else "CONFLICT"
-    except OSError:
+        raw = config.read_bytes()
+        if raw == canonical_json(PROJECT_CONFIG):
+            return "VALID"
+        value = json.loads(raw.decode("utf-8"))
+        return "VALID" if validate_project_config(value) and raw == canonical_json(value) else "CONFLICT"
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return "CONFLICT"
 
 
@@ -236,7 +241,6 @@ def classify_status(project_root: Path) -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    import json
     import sys
 
     root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd().resolve()
