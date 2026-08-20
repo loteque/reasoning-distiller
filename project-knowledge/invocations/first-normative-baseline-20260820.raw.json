@@ -1,0 +1,139 @@
+{
+  "records": [
+    {
+      "temp_id": "r1",
+      "kind": "observation",
+      "statement": "The RIL CLI design describes the CLI as an adapter over shared Reasoning Distiller primitives and orchestration rather than a new semantic or authority layer.",
+      "provenance": {
+        "primary": ["src:file:71d9162352d8107132c1f937"]
+      }
+    },
+    {
+      "temp_id": "r2",
+      "kind": "observation",
+      "statement": "The Human-to-Agent interaction design states that conversation itself grants no authority and creates no semantic operation unavailable through the accepted RIL boundary.",
+      "provenance": {
+        "primary": ["src:file:77bdea8cdeb6f95186b56b60"]
+      }
+    },
+    {
+      "temp_id": "r3",
+      "kind": "observation",
+      "statement": "The CLI and Human-to-Agent designs keep proposal creation, approval creation, and application as distinct operations.",
+      "provenance": {
+        "primary": ["src:file:71d9162352d8107132c1f937"],
+        "corroborating": ["src:file:77bdea8cdeb6f95186b56b60"]
+      }
+    },
+    {
+      "temp_id": "r4",
+      "kind": "observation",
+      "statement": "Fresh direct approval creation requires proposal-applicability revalidation immediately before the approval is created.",
+      "provenance": {
+        "primary": ["src:file:71d9162352d8107132c1f937"],
+        "corroborating": ["src:file:77bdea8cdeb6f95186b56b60"]
+      }
+    },
+    {
+      "temp_id": "r5",
+      "kind": "observation",
+      "statement": "Apply-time validation remains independently mandatory after approval creation, including after grant-derived approval.",
+      "provenance": {
+        "primary": ["src:file:71d9162352d8107132c1f937"],
+        "corroborating": ["src:file:77bdea8cdeb6f95186b56b60"]
+      }
+    },
+    {
+      "temp_id": "r6",
+      "kind": "observation",
+      "statement": "A durable workflow identifies one immutable authenticated bounded intent and records progression through immutable append-only workflow events.",
+      "provenance": {
+        "primary": ["src:file:27e07171f4b52ff7c98a0c7f"]
+      }
+    },
+    {
+      "temp_id": "r7",
+      "kind": "observation",
+      "statement": "Durable workflow intent grants no downstream authority, approval, activation, semantic authority, admission authority, or resource lock.",
+      "provenance": {
+        "primary": ["src:file:27e07171f4b52ff7c98a0c7f"]
+      }
+    },
+    {
+      "temp_id": "r8",
+      "kind": "observation",
+      "statement": "Workflow auto-advance creates execution eligibility but does not grant authority for the operations it may advance.",
+      "provenance": {
+        "primary": ["src:file:27e07171f4b52ff7c98a0c7f"],
+        "corroborating": ["src:file:77bdea8cdeb6f95186b56b60"]
+      }
+    },
+    {
+      "temp_id": "r9",
+      "kind": "observation",
+      "statement": "A valid materiality pause must interrupt consequential continuation, and an authority grant cannot waive or consume the required acknowledgement.",
+      "provenance": {
+        "primary": ["src:file:77bdea8cdeb6f95186b56b60"],
+        "corroborating": ["src:file:27e07171f4b52ff7c98a0c7f"]
+      }
+    },
+    {
+      "temp_id": "r10",
+      "kind": "observation",
+      "statement": "The Human-to-Agent design defines authority grants as prospective bounded human authority for exact proposal approval issuance inside one immutable workflow, with the grant rather than the agent carrying authority.",
+      "provenance": {
+        "primary": ["src:file:77bdea8cdeb6f95186b56b60"]
+      }
+    },
+    {
+      "temp_id": "r11",
+      "kind": "observation",
+      "statement": "The R16-R18 conformance plan records G1 through G10 as passed and the R16-R18 implementation as conformant on main.",
+      "provenance": {
+        "primary": ["src:file:e556c36f56c6ce518fe49b23"]
+      }
+    },
+    {
+      "temp_id": "r12",
+      "kind": "observation",
+      "statement": "The install package contract separates the generic framework-managed .reasoning-distiller tree from project-owned knowledge, authority, policy, activation, evidence, and canonical state.",
+      "provenance": {
+        "primary": ["src:file:1fba971e51c885f07559dd4d"]
+      }
+    },
+    {
+      "temp_id": "r13",
+      "kind": "observation",
+      "statement": "The canonical installer is a deterministic network-independent local Python CLI; package retrieval and release selection occur outside the installer.",
+      "provenance": {
+        "primary": ["src:file:db91826a5f0edf7f223e95d2"],
+        "corroborating": ["src:file:eada58fbbaf5254da03b8202"]
+      }
+    },
+    {
+      "temp_id": "r14",
+      "kind": "observation",
+      "statement": "Installer updates fail closed on managed-tree drift and preserve or restore the prior verified installation when validation fails.",
+      "provenance": {
+        "primary": ["src:file:eada58fbbaf5254da03b8202"],
+        "corroborating": ["src:file:db91826a5f0edf7f223e95d2"]
+      }
+    },
+    {
+      "temp_id": "r15",
+      "kind": "observation",
+      "statement": "Package semantic content identity is distinct from the transport SHA-256 of the exact archive bytes.",
+      "provenance": {
+        "primary": ["src:file:1fba971e51c885f07559dd4d"]
+      }
+    },
+    {
+      "temp_id": "r16",
+      "kind": "observation",
+      "statement": "The accepted release procedure requires an exact pinned release and source, verification of the published release assets, local installation, offline-capable runtime validation, review of the resulting diff, and normal project governance for the consuming change.",
+      "provenance": {
+        "primary": ["src:file:55bf158b80e290f52e5549ea"]
+      }
+    }
+  ]
+}
