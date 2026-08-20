@@ -1,4 +1,4 @@
-name: Invoke Rupi on main
+name: Prepare Rupi initial root on main
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ env:
   PYTHONDONTWRITEBYTECODE: '1'
 
 jobs:
-  invoke:
+  prepare:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact main baseline
@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Invoke installed Rupi against main
+      - name: Prepare protected initial-root proposal
         run: |
           python - <<'PY'
           import json
@@ -37,34 +37,21 @@ jobs:
           runtime = root / '.reasoning-distiller' / 'runtime'
           sys.path.insert(0, str(runtime))
 
-          import ril_status
-          import rupi
+          import rupi_authority
 
-          status = ril_status.classify_status(root)
-          blocker = status.get('blocker')
-          boundary = blocker.get('code') if isinstance(blocker, dict) else None
-          checkpoint = rupi.build_checkpoint(
-              requested_goal='activate Rupi for main',
-              status_result=status,
-              primitive_results=[{'action': 'inspect_status', 'result': status}],
-              boundary=boundary,
-              durable_artifacts=['.reasoning-distiller'],
+          result = rupi_authority.prepare_initial_root(
+              root,
+              operator_id='operator:loteque',
+              requested_goal='initialize Reasoning Distiller project authority on main',
           )
-          control = rupi.control_return_from_checkpoint(checkpoint)
-          result = {
-              'contract': 'reasoning-distiller-rupi-main-invocation/1',
-              'status': 'PASS',
-              'rupi_invoked': True,
-              'main_sha': 'ea321c4e77de6e179d6afdb73b132141ac2e971d',
-              'checkpoint': checkpoint,
-              'control_return': control,
-          }
           print(json.dumps(result, indent=2, sort_keys=True))
-          assert status['status'] == 'PASS'
-          assert status['dimensions']['installation'] == 'VALID'
+          assert result['status'] == 'STOPPED'
+          assert result['outcome'] == 'INITIAL_ROOT_CONFIRMATION_REQUIRED'
+          assert result['required_confirmation'] == 'ESTABLISH_ROOT_OPERATOR'
+          assert result['proposal_reference']
           PY
 
-      - name: Prove invocation was read-only
+      - name: Prove proposal preparation was read-only
         shell: bash
         run: |
           set -euo pipefail
