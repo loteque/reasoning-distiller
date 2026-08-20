@@ -407,7 +407,7 @@ def execute(ns: argparse.Namespace, cwd: Path | None = None) -> dict[str, Any]:
             proposal = _json(ns.proposal); descriptor = shared._descriptor(root, proposal); rv = mutation.revalidate_proposal(proposal, descriptor["current_state"])
             if rv["classification"] != "APPLICABLE":
                 return _result("STOPPED", f"PROPOSAL_{rv['classification']}", project_root=str(root), revalidation=rv)
-            value = mutation.make_approval(proposal, ns.operator, _json(ns.auth) if ns.auth else None)
+            value = mutation.make_direct_approval_v2(proposal, ns.operator, _json(ns.auth) if ns.auth else None)
         elif ns.resource == "apply": value = _universal_apply(root, grant_store, _json(ns.proposal), _json(ns.approval))
         elif ns.resource in {"proposal", "approval", "candidate"}:
             kind = ns.resource
