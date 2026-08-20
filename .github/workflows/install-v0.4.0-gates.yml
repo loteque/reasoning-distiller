@@ -1,0 +1,296 @@
+name: Reasoning Distiller v0.4.0 Install Merge Gates
+
+on:
+  push:
+    branches: [install-v0.4.0]
+    paths:
+      - '.github/workflows/install-v0.4.0-gates.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reasoning-distiller-install-v0.4.0-gates
+  cancel-in-progress: false
+
+env:
+  EXPECTED_VERSION: '0.4.0'
+  EXPECTED_TAG: 'v0.4.0'
+  EXPECTED_SOURCE_SHA: '6259324d030822ac78da902f9288f18e8f071b84'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:f947fa0f4554a4bc46275a78b8e03f8dcaa8959324557243422400b49d1a7869'
+  EXPECTED_TRANSPORT_SHA256: '2ce8a58d1b4278d906f560ccce07c568573be1f87f667976330fac3e92369d54'
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: install-v0.4.0
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1 PyYAML==6.0.2
+
+      - name: Run ordered merge gates
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          STATUS_PATH='.github/install-v0.4.0-gate-status.json'
+          CURRENT_GATE=0
+          CURRENT_NAME='initialization'
+
+          write_status() {
+            local status="$1"
+            local detail="$2"
+            python3 - "$STATUS_PATH" "$status" "$CURRENT_GATE" "$CURRENT_NAME" "$detail" <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          path, status, gate, name, detail = sys.argv[1:]
+          payload = {
+              'contract': 'reasoning-distiller-self-install-gates/1',
+              'status': status,
+              'gate': int(gate),
+              'gate_name': name,
+              'detail': detail,
+              'install_branch': 'install-v0.4.0',
+              'install_head_at_start': os.environ['GITHUB_SHA'],
+              'release_version': os.environ['EXPECTED_VERSION'],
+              'release_tag': os.environ['EXPECTED_TAG'],
+              'release_source_commit': os.environ['EXPECTED_SOURCE_SHA'],
+              'content_identity': os.environ['EXPECTED_CONTENT_IDENTITY'],
+              'transport_sha256': os.environ['EXPECTED_TRANSPORT_SHA256'],
+              'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }
+          Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+          }
+
+          push_status() {
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -- "$STATUS_PATH"
+            git commit -m "test: record v0.4.0 install gate $CURRENT_GATE $1" || true
+            git push origin HEAD:install-v0.4.0
+          }
+
+          on_error() {
+            local rc=$?
+            trap - ERR
+            write_status FAIL "gate exited with status $rc"
+            push_status FAIL || true
+            exit "$rc"
+          }
+          trap on_error ERR
+
+          CURRENT_GATE=1
+          CURRENT_NAME='installation-identity'
+          echo "=== GATE 1: $CURRENT_NAME ==="
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path('.reasoning-distiller')
+          install = json.loads((root/'.installation/INSTALLATION.json').read_text(encoding='utf-8'))
+          manifest = json.loads((root/'.installation/MANIFEST.json').read_text(encoding='utf-8'))
+          assert install['version'] == os.environ['EXPECTED_VERSION']
+          assert install['source_locator'] == os.environ['EXPECTED_TAG']
+          assert install['source_commit'] == os.environ['EXPECTED_SOURCE_SHA']
+          assert install['content_identity'] == os.environ['EXPECTED_CONTENT_IDENTITY']
+          assert install['transport_sha256'] == os.environ['EXPECTED_TRANSPORT_SHA256']
+          assert manifest['version'] == os.environ['EXPECTED_VERSION']
+          assert manifest['source_commit'] == os.environ['EXPECTED_SOURCE_SHA']
+          assert manifest['content_identity'] == os.environ['EXPECTED_CONTENT_IDENTITY']
+          assert manifest['transport_sha256'] == os.environ['EXPECTED_TRANSPORT_SHA256']
+          print('PASS exact installation and manifest identities')
+          PY
+
+          CURRENT_GATE=2
+          CURRENT_NAME='managed-tree-integrity'
+          echo "=== GATE 2: $CURRENT_NAME ==="
+          python3 - <<'PY'
+          import hashlib, json, os, stat
+          from pathlib import Path
+          root = Path('.reasoning-distiller')
+          manifest = json.loads((root/'.installation/MANIFEST.json').read_text(encoding='utf-8'))
+          expected = set()
+          for item in manifest['files']:
+              rel = item['path']
+              expected.add(rel)
+              path = root / rel
+              assert path.is_file() and not path.is_symlink(), f'missing/nonregular: {rel}'
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              assert digest == item['sha256'], f'hash mismatch: {rel}'
+              mode = stat.S_IMODE(path.stat().st_mode)
+              assert f'{mode:04o}' == item['mode'], f'mode mismatch: {rel}: {mode:04o} != {item["mode"]}'
+          version = root/'VERSION'
+          assert version.is_file() and version.read_text(encoding='utf-8').strip() == os.environ['EXPECTED_VERSION']
+          allowed_generated = {'VERSION', '.installation/MANIFEST.json', '.installation/INSTALLATION.json'}
+          actual = {p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()}
+          extras = actual - expected - allowed_generated
+          missing = expected - actual
+          assert not extras, f'unexpected installed files: {sorted(extras)}'
+          assert not missing, f'missing installed files: {sorted(missing)}'
+          assert not any(p.is_symlink() for p in root.rglob('*')), 'symlink found in installed tree'
+          assert not Path('.rd-install-transaction.json').exists()
+          assert not Path('.rd-install-backup').exists()
+          print(f'PASS {len(expected)} manifest files plus installation metadata')
+          PY
+          git diff --check main...HEAD
+          unexpected="$(git diff --name-only main...HEAD | grep -vE '^(\.reasoning-distiller/|\.github/workflows/install-v0\.4\.0-gates\.yml$)' || true)"
+          test -z "$unexpected" || { echo "Unexpected branch changes:"; echo "$unexpected"; exit 1; }
+
+          CURRENT_GATE=3
+          CURRENT_NAME='runtime-isolation'
+          echo "=== GATE 3: $CURRENT_NAME ==="
+          python packaging/audit_runtime_isolation.py .reasoning-distiller
+          mkdir -p /tmp/rd-netblock
+          cat > /tmp/rd-netblock/sitecustomize.py <<'PY'
+          import socket
+          def blocked(*args, **kwargs):
+              raise RuntimeError('network disabled by install gate')
+          socket.create_connection = blocked
+          _orig_connect = socket.socket.connect
+          def blocked_connect(self, *args, **kwargs):
+              raise RuntimeError('network disabled by install gate')
+          socket.socket.connect = blocked_connect
+          PY
+          (
+            set -Eeuo pipefail
+            mkdir -p /tmp/rd-source-hidden
+            restore_source() {
+              for d in admission agents backends protocols runtime schemas validators; do
+                if [ -e "/tmp/rd-source-hidden/$d" ]; then mv "/tmp/rd-source-hidden/$d" "$d"; fi
+              done
+            }
+            trap restore_source EXIT
+            for d in admission agents backends protocols runtime schemas validators; do mv "$d" /tmp/rd-source-hidden/; done
+            PYTHONPATH=/tmp/rd-netblock python .reasoning-distiller/runtime/rd_distill.py --version | grep -Fx 'reasoning-distiller-invocation/1'
+            PYTHONPATH=/tmp/rd-netblock python .reasoning-distiller/validators/rgp_validator.py --version
+            PYTHONPATH=/tmp/rd-netblock python .reasoning-distiller/backends/pems-cove/validate_pems2_contract.py
+            PYTHONPATH=/tmp/rd-netblock python .reasoning-distiller/admission/test_admission_transaction_v2.py
+          )
+
+          CURRENT_GATE=4
+          CURRENT_NAME='installed-production-invocation'
+          echo "=== GATE 4: $CURRENT_NAME ==="
+          rm -rf /tmp/rd-consumer && mkdir -p /tmp/rd-consumer/evidence /tmp/rd-consumer/project-knowledge/{invocations,submissions}
+          printf '%s\n' 'The installed production invocation passed.' > /tmp/rd-consumer/evidence/fact.txt
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path('/tmp/rd-consumer')
+          evidence=root/'evidence/fact.txt'
+          digest='sha256:'+hashlib.sha256(evidence.read_bytes()).hexdigest()
+          request={
+            'contract':'reasoning-distiller-invocation/1',
+            'invocation_id':'self-install-gate-4',
+            'created_at':'2026-08-20T09:10:00-07:00',
+            'project_root':'.',
+            'evidence':[{'source_id':'src:gate4','type':'repository_file','locator':'evidence/fact.txt','digest':digest}],
+            'source_registry':[{'source_id':'src:gate4','type':'repository_file','locator':'evidence/fact.txt','digest':digest}],
+            'source_context':{'summary':'installed invocation gate','refs':['gate:4']},
+            'output':{'raw_candidate_path':'project-knowledge/invocations/gate4.raw.json','submission_path':'project-knowledge/submissions/gate4.json'}
+          }
+          candidate={'records':[{'temp_id':'r1','kind':'observation','statement':'The installed production invocation passed.','provenance':{'primary':['src:gate4']}}]}
+          (root/'request.json').write_text(json.dumps(request),encoding='utf-8')
+          (root/'candidate.json').write_text(json.dumps(candidate,indent=2)+'\n',encoding='utf-8')
+          (root/'project-knowledge/authority.json').write_text('{"owner":"project"}\n',encoding='utf-8')
+          (root/'project-knowledge/canonical.json').write_text('{"records":[]}\n',encoding='utf-8')
+          PY
+          authority_before="$(sha256sum /tmp/rd-consumer/project-knowledge/authority.json | awk '{print $1}')"
+          canonical_before="$(sha256sum /tmp/rd-consumer/project-knowledge/canonical.json | awk '{print $1}')"
+          (
+            cd /tmp/rd-consumer
+            python "$GITHUB_WORKSPACE/.reasoning-distiller/runtime/rd_distill.py" prepare --request request.json --bundle-out bundle.json
+            python "$GITHUB_WORKSPACE/.reasoning-distiller/runtime/rd_distill.py" finalize --request request.json --raw-candidate candidate.json > result.json
+          )
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/rd-consumer')
+          result=json.loads((root/'result.json').read_text())
+          bundle=json.loads((root/'bundle.json').read_text())
+          submission=json.loads((root/'project-knowledge/submissions/gate4.json').read_text())
+          assert result['status']=='PASS'
+          assert bundle['contract']=='reasoning-distiller-activation-bundle/1'
+          assert bundle['directive']['path']=='.reasoning-distiller/agents/distiller/DIRECTIVE.md'
+          assert submission['status']=='candidate'
+          assert submission['producer']['role']=='reasoning-distiller'
+          assert (root/'project-knowledge/invocations/gate4.raw.json').read_bytes()==(root/'candidate.json').read_bytes()
+          print('PASS installed prepare/finalize and immutable candidate submission')
+          PY
+          test "$authority_before" = "$(sha256sum /tmp/rd-consumer/project-knowledge/authority.json | awk '{print $1}')"
+          test "$canonical_before" = "$(sha256sum /tmp/rd-consumer/project-knowledge/canonical.json | awk '{print $1}')"
+
+          CURRENT_GATE=5
+          CURRENT_NAME='self-host-source-collision'
+          echo "=== GATE 5: $CURRENT_NAME ==="
+          rm -rf /tmp/rd-collision && mkdir -p /tmp/rd-collision/evidence /tmp/rd-collision/project-knowledge/{invocations,submissions}
+          printf '%s\n' 'The installed tree won the resolution test.' > /tmp/rd-collision/evidence/fact.txt
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path('/tmp/rd-collision')
+          ev=root/'evidence/fact.txt'; digest='sha256:'+hashlib.sha256(ev.read_bytes()).hexdigest()
+          req={'contract':'reasoning-distiller-invocation/1','invocation_id':'self-install-gate-5','created_at':'2026-08-20T09:10:00-07:00','project_root':'.','evidence':[{'source_id':'src:gate5','type':'repository_file','locator':'evidence/fact.txt','digest':digest}],'source_registry':[{'source_id':'src:gate5','type':'repository_file','locator':'evidence/fact.txt','digest':digest}],'output':{'raw_candidate_path':'project-knowledge/invocations/gate5.raw.json','submission_path':'project-knowledge/submissions/gate5.json'}}
+          cand={'records':[{'temp_id':'r1','kind':'observation','statement':'The installed tree won the resolution test.','provenance':{'primary':['src:gate5']}}]}
+          (root/'request.json').write_text(json.dumps(req),encoding='utf-8'); (root/'candidate.json').write_text(json.dumps(cand)+'\n',encoding='utf-8')
+          PY
+          (
+            set -Eeuo pipefail
+            cp agents/distiller/DIRECTIVE.md /tmp/source-directive.bak
+            cp validators/rgp_validator.py /tmp/source-validator.bak
+            restore_canaries() { cp /tmp/source-directive.bak agents/distiller/DIRECTIVE.md; cp /tmp/source-validator.bak validators/rgp_validator.py; }
+            trap restore_canaries EXIT
+            printf '%s\n' 'SOURCE_TREE_CANARY_DO_NOT_USE' > agents/distiller/DIRECTIVE.md
+            printf '%s\n' 'raise RuntimeError("SOURCE_TREE_VALIDATOR_CANARY_USED")' > validators/rgp_validator.py
+            cd /tmp/rd-collision
+            PYTHONPATH="$GITHUB_WORKSPACE" python "$GITHUB_WORKSPACE/.reasoning-distiller/runtime/rd_distill.py" prepare --request request.json --bundle-out bundle.json
+            PYTHONPATH="$GITHUB_WORKSPACE" python "$GITHUB_WORKSPACE/.reasoning-distiller/runtime/rd_distill.py" finalize --request request.json --raw-candidate candidate.json > result.json
+            ! grep -q 'SOURCE_TREE_CANARY_DO_NOT_USE' bundle.json
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/rd-collision')
+          assert json.loads((root/'result.json').read_text())['status']=='PASS'
+          bundle=json.loads((root/'bundle.json').read_text())
+          installed=Path(__import__('os').environ['GITHUB_WORKSPACE'])/'.reasoning-distiller/agents/distiller/DIRECTIVE.md'
+          assert bundle['directive']['content']==installed.read_text(encoding='utf-8')
+          print('PASS installed tree wins with poisoned source-tree canaries and root PYTHONPATH')
+          PY
+          )
+
+          CURRENT_GATE=6
+          CURRENT_NAME='existing-regression-suites'
+          echo "=== GATE 6: $CURRENT_NAME ==="
+          python -m unittest discover -s tests -v
+          python tests/run_fixture_tests.py
+          python tests/check_project_package.py
+          python tests/check_framework_isolation.py
+          python tests/check_corpus_integrity.py
+          python validators/rgp_validator.py --version
+          python backends/pems-cove/validate_pems2_contract.py
+          python backends/pems-cove/validate_rgp_uncertainty_import.py
+          python admission/test_admission_transaction_v2.py
+
+          CURRENT_GATE=7
+          CURRENT_NAME='release-source-separation'
+          echo "=== GATE 7: $CURRENT_NAME ==="
+          git fetch origin release-source
+          test -z "$(git ls-tree -r --name-only refs/remotes/origin/release-source | grep '^\.reasoning-distiller/' || true)"
+          git show refs/remotes/origin/release-source:.github/workflows/release-source-guard.yml | grep -F '.reasoning-distiller'
+          git show refs/remotes/origin/release-source:.github/workflows/package-builder.yml | grep -F 'branches: [release-source]'
+          test -z "$(git ls-tree -r --name-only refs/remotes/origin/release-source | grep '^\.reasoning-distiller/' || true)"
+          echo 'PASS release-source remains install-free and guarded'
+
+          trap - ERR
+          CURRENT_GATE=7
+          CURRENT_NAME='all-gates-complete'
+          write_status PASS 'all seven merge gates passed in order'
+          push_status PASS
