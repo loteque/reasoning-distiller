@@ -149,6 +149,7 @@ def advance_auto_proposal(
     proposal: dict[str, Any],
     *,
     workflow_scope_validator: Callable[[dict[str, Any], dict[str, Any], str, dict[str, Any]], bool] = default_workflow_scope_validator,
+    workflow_condition_resolver: Callable[[dict[str, Any], dict[str, Any]], str] | None = None,
     result_scope_validator: Callable[[dict[str, Any], str], bool] | None = None,
     grant_refs: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -177,7 +178,12 @@ def advance_auto_proposal(
             )
 
         definition = workflow.load_workflow(workflow_store, workflow_ref)
-        projection = workflow.project_workflow(workflow_store, workflow_ref)
+        projection = workflow.project_workflow(
+            workflow_store,
+            workflow_ref,
+            condition_resolver=workflow_condition_resolver,
+        )
+        observed_normative_head = projection["normative_head"]
         in_scope = bool(workflow_scope_validator(definition, proposal, operation_class, descriptor["authority_fields"]))
 
         candidates: list[tuple[str, dict[str, Any]]] = []
@@ -220,12 +226,34 @@ def advance_auto_proposal(
 
         if definition["payload"]["execution_mode"] != "auto-advance":
             return _result("STOPPED", "CONTINUATION_REQUIRED", operation_class=operation_class)
-        if projection["lifecycle"] != "OPEN":
-            return _result("STOPPED", "WORKFLOW_TERMINAL", lifecycle=projection["lifecycle"])
-        if projection["condition"] == "MATERIALITY_PAUSE":
-            return _result("STOPPED", "MATERIALITY_PAUSE", materiality_pause=projection["materiality_pause"])
-        if projection["condition"] not in {"READY", "AWAITING_APPROVAL"}:
-            return _result("STOPPED", projection["condition"], operation_class=operation_class)
+
+        # Re-read derived workflow state immediately before consuming authority.
+        # A competing normative transition cannot be silently rebased into this
+        # attempt, and a newly surfaced materiality/machine-state boundary wins.
+        current_projection = workflow.project_workflow(
+            workflow_store,
+            workflow_ref,
+            condition_resolver=workflow_condition_resolver,
+        )
+        if current_projection["lifecycle"] != "OPEN":
+            return _result("STOPPED", "WORKFLOW_TERMINAL", lifecycle=current_projection["lifecycle"])
+        if current_projection["condition"] == "MATERIALITY_PAUSE":
+            return _result(
+                "STOPPED",
+                "MATERIALITY_PAUSE",
+                materiality_pause=current_projection["materiality_pause"],
+            )
+        if current_projection["normative_head"] != observed_normative_head:
+            return _result(
+                "STOPPED",
+                "WORKFLOW_NORMATIVE_HEAD_CONFLICT",
+                operation_class=operation_class,
+                expected_normative_head=observed_normative_head,
+                actual_normative_head=current_projection["normative_head"],
+            )
+        if current_projection["condition"] not in {"READY", "AWAITING_APPROVAL"}:
+            return _result("STOPPED", current_projection["condition"], operation_class=operation_class)
+        projection = current_projection
 
         grant_ref = candidates[0][0]
         grant_projection = grants.project_grant(grant_store, grant_ref, workflow_lifecycle=projection["lifecycle"])
@@ -277,7 +305,11 @@ def advance_auto_proposal(
             except Exception as exc:
                 raise _normalize_error(exc) from exc
 
-        after = workflow.project_workflow(workflow_store, workflow_ref)
+        after = workflow.project_workflow(
+            workflow_store,
+            workflow_ref,
+            condition_resolver=workflow_condition_resolver,
+        )
         return _result(
             "PASS",
             "ADVANCED",
