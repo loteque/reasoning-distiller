@@ -71,8 +71,6 @@ def default_workflow_scope_validator(
     operations = intent.get("operations")
     if not isinstance(operations, list) or operation_class not in operations:
         return False
-    # Unknown authority narrowing cannot be ignored. These conventional keys are
-    # reserved for future accepted workflow-scope vocabulary and therefore fail closed.
     if any(key in intent for key in ("targets", "scope", "constraints", "selectors")):
         return False
     return True
@@ -164,7 +162,6 @@ def advance_auto_proposal(
         operation_class = descriptor["operation_class"]
         current_state = descriptor["current_state"]
 
-        # G5 ordering invariant 1: D3 precedes delegation/grant decisions.
         d3 = mutation.revalidate_proposal(proposal, current_state)
         if d3["classification"] != "APPLICABLE":
             return _result("STOPPED", f"PROPOSAL_{d3['classification']}", revalidation=d3)
@@ -198,6 +195,11 @@ def advance_auto_proposal(
             if check["classification"] == "WITHIN_GRANT":
                 candidates.append((grant_ref, check))
 
+        # Scope is a workflow boundary, not absence of approval authority. Discovery
+        # still ran first so adapters cannot use scope failure to bypass grant rules.
+        if not in_scope:
+            return _result("STOPPED", "WORKFLOW_SCOPE_BOUNDARY", operation_class=operation_class, revalidation=d3)
+
         if not candidates:
             return _result(
                 "STOPPED",
@@ -207,9 +209,6 @@ def advance_auto_proposal(
                 revalidation=d3,
             )
 
-        # R17 allows a tie-break only when no normative/audit/consumption consequence
-        # can differ. Distinct v1 grant identities necessarily differ in revocation or
-        # attribution history, so the conservative deterministic rule is to stop.
         if len(candidates) > 1:
             return _result(
                 "STOPPED",
@@ -219,8 +218,6 @@ def advance_auto_proposal(
                 revalidation=d3,
             )
 
-        # G5 ordering invariant 2: workflow/materiality boundary is evaluated after
-        # deterministic grant discovery/containment and before issuance.
         if definition["payload"]["execution_mode"] != "auto-advance":
             return _result("STOPPED", "CONTINUATION_REQUIRED", operation_class=operation_class)
         if projection["lifecycle"] != "OPEN":
@@ -229,8 +226,6 @@ def advance_auto_proposal(
             return _result("STOPPED", "MATERIALITY_PAUSE", materiality_pause=projection["materiality_pause"])
         if projection["condition"] not in {"READY", "AWAITING_APPROVAL"}:
             return _result("STOPPED", projection["condition"], operation_class=operation_class)
-        if not in_scope:
-            return _result("STOPPED", "WORKFLOW_SCOPE_BOUNDARY", operation_class=operation_class)
 
         grant_ref = candidates[0][0]
         grant_projection = grants.project_grant(grant_store, grant_ref, workflow_lifecycle=projection["lifecycle"])
@@ -247,7 +242,6 @@ def advance_auto_proposal(
         )
         approval = issue["approval"]
 
-        # Apply primitives independently perform apply-time proposal/state validation.
         applied = descriptor["apply"](project_root, grant_store, proposal, approval)
         if applied.get("status") != "PASS":
             try:
