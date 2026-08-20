@@ -52,6 +52,25 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
     overlap = excluded.intersection(roots)
     if overlap:
         raise ValueError(f"managed/excluded root overlap: {sorted(overlap)}")
+
+    ignored = config.get("ignored_generated_artifacts", {})
+    if not isinstance(ignored, dict) or set(ignored) != {"directory_names", "suffixes"}:
+        raise ValueError("ignored_generated_artifacts requires exactly directory_names and suffixes")
+    directory_names = ignored["directory_names"]
+    suffixes = ignored["suffixes"]
+    if not isinstance(directory_names, list) or not directory_names or directory_names != sorted(directory_names):
+        raise ValueError("ignored generated directory_names must be a non-empty sorted list")
+    if not isinstance(suffixes, list) or not suffixes or suffixes != sorted(suffixes):
+        raise ValueError("ignored generated suffixes must be a non-empty sorted list")
+    if len(set(directory_names)) != len(directory_names) or len(set(suffixes)) != len(suffixes):
+        raise ValueError("duplicate ignored generated artifact rule")
+    for name in directory_names:
+        if not isinstance(name, str) or not name or "/" in name or name in {".", ".."}:
+            raise ValueError("ignored generated directory name must be a safe path component")
+    for suffix in suffixes:
+        if not isinstance(suffix, str) or not suffix.startswith(".") or "/" in suffix:
+            raise ValueError("ignored generated suffix must be a dot-prefixed file suffix")
+
     if config.get("mode_policy", {}).get("default") not in {"0644", "0755"}:
         raise ValueError("mode_policy.default must be 0644 or 0755")
     return config
@@ -70,6 +89,13 @@ def assert_safe_source_tree(root: Path, config: dict) -> None:
             raise ValueError(f"excluded root selected for package: {excluded}")
 
 
+def is_ignored_generated_artifact(rel: PurePosixPath, config: dict) -> bool:
+    ignored = config["ignored_generated_artifacts"]
+    if any(part in ignored["directory_names"] for part in rel.parts):
+        return True
+    return any(rel.name.endswith(suffix) for suffix in ignored["suffixes"])
+
+
 def collect_files(root: Path, config: dict) -> list[dict]:
     mode = config["mode_policy"]["default"]
     items: list[dict] = []
@@ -78,21 +104,24 @@ def collect_files(root: Path, config: dict) -> list[dict]:
     for managed_root in config["managed_roots"]:
         source_root = root / managed_root
         for path in sorted(source_root.rglob("*"), key=lambda p: p.as_posix()):
+            rel_text = path.relative_to(root).as_posix()
+            rel = PurePosixPath(rel_text)
             if path.is_symlink():
-                raise ValueError(f"symlink forbidden in package source: {path.relative_to(root).as_posix()}")
+                raise ValueError(f"symlink forbidden in package source: {rel_text}")
             if path.is_dir():
                 continue
             if not path.is_file():
-                raise ValueError(f"unsupported source node: {path.relative_to(root).as_posix()}")
-            rel = path.relative_to(root).as_posix()
-            rd.validate_rel_path(rel, "file")
-            folded = rel.casefold()
+                raise ValueError(f"unsupported source node: {rel_text}")
+            if is_ignored_generated_artifact(rel, config):
+                continue
+            rd.validate_rel_path(rel_text, "file")
+            folded = rel_text.casefold()
             if folded in seen_casefold:
-                raise ValueError(f"case-fold collision in package source: {rel}")
+                raise ValueError(f"case-fold collision in package source: {rel_text}")
             seen_casefold.add(folded)
             data = path.read_bytes()
             items.append({
-                "path": rel,
+                "path": rel_text,
                 "mode": mode,
                 "sha256": sha256_bytes(data),
                 "data": data,
