@@ -1,0 +1,159 @@
+name: Apply governed ingestion source typing
+
+on:
+  push:
+    branches: [feature/ingest-governed-source-typing]
+    paths:
+      - '.github/workflows/tmp-source-typing-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/ingest-governed-source-typing
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply source typing patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('runtime/rd_distill.py')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one runtime match, found {count}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'RESERVED_EVIDENCE_ROOTS = frozenset({".git", ".reasoning-distiller", "project-knowledge"})\nINVOCATION_ID_RE',
+              'RESERVED_EVIDENCE_ROOTS = frozenset({".git", ".reasoning-distiller", "project-knowledge"})\nINGEST_SOURCE_TYPES = frozenset({"repository_file", "governed_artifact"})\nINVOCATION_ID_RE',
+          )
+
+          marker = '''    return sorted(locators)\n\n\ndef build_sources(\n'''
+          helper = '''    return sorted(locators)\n\n\ndef expand_typed_evidence_specs(\n    project_root: Path,\n    specs: list[str],\n    governed_specs: list[str],\n) -> tuple[list[str], dict[str, str]]:\n    if not specs and not governed_specs:\n        raise fail(\n            "preflight",\n            "EVIDENCE_REQUIRED",\n            "at least one evidence or governed-evidence selection is required",\n            EXIT_PREFLIGHT,\n        )\n    repository_locators = expand_evidence_specs(project_root, specs) if specs else []\n    governed_locators = (\n        expand_evidence_specs(project_root, governed_specs) if governed_specs else []\n    )\n    overlap = sorted(set(repository_locators) & set(governed_locators))\n    if overlap:\n        raise fail(\n            "preflight",\n            "EVIDENCE_SOURCE_TYPE_CONFLICT",\n            f"evidence selected with multiple source types: {overlap}",\n            EXIT_PREFLIGHT,\n        )\n    source_types = {locator: "repository_file" for locator in repository_locators}\n    source_types.update(\n        {locator: "governed_artifact" for locator in governed_locators}\n    )\n    return sorted(source_types), source_types\n\n\ndef build_sources(\n'''
+          replace_once(marker, helper)
+
+          old = '''def build_sources(\n    project_root: Path,\n    locators: list[str],\n) -> list[dict[str, Any]]:\n    sources: list[dict[str, Any]] = []\n    seen_ids: set[str] = set()\n    for locator in sorted(locators):\n        path = resolve_within(project_root, locator, "evidence")\n        if path.is_symlink() or not path.is_file():\n            raise fail(\n                "preflight",\n                "EVIDENCE_UNRESOLVED",\n                f"evidence is not a regular file: {locator}",\n                EXIT_PREFLIGHT,\n            )\n        source_id = "src:file:" + sha256_bytes(locator.encode("utf-8"))[:24]\n        if source_id in seen_ids:\n            raise fail(\n                "preflight",\n                "SOURCE_ID_COLLISION",\n                f"deterministic source id collision for {locator}",\n                EXIT_PREFLIGHT,\n            )\n        seen_ids.add(source_id)\n        sources.append(\n            {\n                "source_id": source_id,\n                "type": "repository_file",\n                "locator": locator,\n                "digest": "sha256:" + sha256_bytes(path.read_bytes()),\n            }\n        )\n    return sources\n'''
+          new = '''def build_sources(\n    project_root: Path,\n    locators: list[str],\n    source_types: dict[str, str] | None = None,\n) -> list[dict[str, Any]]:\n    sources: list[dict[str, Any]] = []\n    seen_ids: set[str] = set()\n    types = source_types or {}\n    for locator in sorted(locators):\n        path = resolve_within(project_root, locator, "evidence")\n        if path.is_symlink() or not path.is_file():\n            raise fail(\n                "preflight",\n                "EVIDENCE_UNRESOLVED",\n                f"evidence is not a regular file: {locator}",\n                EXIT_PREFLIGHT,\n            )\n        source_type = types.get(locator, "repository_file")\n        if source_type not in INGEST_SOURCE_TYPES:\n            raise fail(\n                "preflight",\n                "EVIDENCE_SOURCE_TYPE_INVALID",\n                f"unsupported ingestion source type for {locator}: {source_type}",\n                EXIT_PREFLIGHT,\n            )\n        source_prefix = "file" if source_type == "repository_file" else "governed"\n        source_id = (\n            f"src:{source_prefix}:" + sha256_bytes(locator.encode("utf-8"))[:24]\n        )\n        if source_id in seen_ids:\n            raise fail(\n                "preflight",\n                "SOURCE_ID_COLLISION",\n                f"deterministic source id collision for {locator}",\n                EXIT_PREFLIGHT,\n            )\n        seen_ids.add(source_id)\n        sources.append(\n            {\n                "source_id": source_id,\n                "type": source_type,\n                "locator": locator,\n                "digest": "sha256:" + sha256_bytes(path.read_bytes()),\n            }\n        )\n    return sources\n'''
+          replace_once(old, new)
+
+          replace_once(
+              '''    specs: list[str],\n    context: str | None,\n    refs: list[str],\n    write: bool = True,\n) -> dict[str, Any]:\n    locators = expand_evidence_specs(project_root, specs)\n    sources = build_sources(project_root, locators)\n''',
+              '''    specs: list[str],\n    governed_specs: list[str] | None = None,\n    context: str | None,\n    refs: list[str],\n    write: bool = True,\n) -> dict[str, Any]:\n    locators, source_types = expand_typed_evidence_specs(\n        project_root, specs, list(governed_specs or [])\n    )\n    sources = build_sources(project_root, locators, source_types)\n''',
+          )
+
+          old = '''def collect_interactive_inputs(\n    *,\n    input_fn=input,\n    output: TextIO = sys.stderr,\n) -> tuple[list[str], str, str, str | None, list[str]]:\n    print("Reasoning Distiller ingestion", file=output)\n    print("", file=output)\n    specs: list[str] = []\n    while True:\n        print("Evidence source:", file=output)\n        print("  [1] Add file", file=output)\n        print("  [2] Add directory", file=output)\n        print("  [3] Add glob", file=output)\n        print("  [4] Done", file=output)\n        choice = input_fn("> ").strip()\n        if choice in {"1", "2", "3"}:\n            label = {"1": "File", "2": "Directory", "3": "Glob"}[choice]\n            value = _prompt(label, input_fn=input_fn)\n            if value:\n                specs.append(value)\n        elif choice == "4":\n            if specs:\n                break\n            print("Add at least one evidence source.", file=output)\n        else:\n            print("Choose 1, 2, 3, or 4.", file=output)\n'''
+          new = '''def collect_interactive_inputs(\n    *,\n    input_fn=input,\n    output: TextIO = sys.stderr,\n) -> tuple[list[str], list[str], str, str, str | None, list[str]]:\n    print("Reasoning Distiller ingestion", file=output)\n    print("", file=output)\n    specs: list[str] = []\n    governed_specs: list[str] = []\n    while True:\n        print("Evidence source:", file=output)\n        print("  [1] Add file", file=output)\n        print("  [2] Add directory", file=output)\n        print("  [3] Add glob", file=output)\n        print("  [4] Done", file=output)\n        choice = input_fn("> ").strip()\n        if choice in {"1", "2", "3"}:\n            label = {"1": "File", "2": "Directory", "3": "Glob"}[choice]\n            value = _prompt(label, input_fn=input_fn)\n            if value:\n                source_type = _prompt(\n                    "Source type",\n                    default="repository_file",\n                    input_fn=input_fn,\n                )\n                if source_type not in INGEST_SOURCE_TYPES:\n                    print(\n                        "Source type must be repository_file or governed_artifact.",\n                        file=output,\n                    )\n                    continue\n                (governed_specs if source_type == "governed_artifact" else specs).append(value)\n        elif choice == "4":\n            if specs or governed_specs:\n                break\n            print("Add at least one evidence source.", file=output)\n        else:\n            print("Choose 1, 2, 3, or 4.", file=output)\n'''
+          replace_once(old, new)
+          replace_once(
+              '    return specs, invocation_id, created_at, context_value or None, refs\n',
+              '    return specs, governed_specs, invocation_id, created_at, context_value or None, refs\n',
+          )
+          replace_once(
+              '        print(f"  {locator}  {digest}", file=output)\n',
+              '        print(f"  [{by_locator[locator][\'type\']}] {locator}  {digest}", file=output)\n',
+          )
+
+          replace_once(
+              '''        if args.evidence:\n            specs = list(args.evidence)\n            if not args.invocation_id:\n''',
+              '''        if args.evidence or args.governed_evidence:\n            specs = list(args.evidence or [])\n            governed_specs = list(args.governed_evidence or [])\n            if not args.invocation_id:\n''',
+          )
+          replace_once(
+              '"--invocation-id is required when --evidence is supplied "\n                        "non-interactively"',
+              '"--invocation-id is required when --evidence or "\n                        "--governed-evidence is supplied non-interactively"',
+          )
+          replace_once(
+              '''            specs, default_id, default_created, default_context, default_refs = (\n                collect_interactive_inputs()\n            )\n''',
+              '''            (\n                specs,\n                governed_specs,\n                default_id,\n                default_created,\n                default_context,\n                default_refs,\n            ) = collect_interactive_inputs()\n''',
+          )
+          replace_once(
+              '"no --evidence arguments were supplied and stdin is not "\n                        "interactive"',
+              '"no --evidence or --governed-evidence arguments were supplied "\n                        "and stdin is not interactive"',
+          )
+          replace_once(
+              '''        locators = expand_evidence_specs(project_root, specs)\n        sources = build_sources(project_root, locators)\n''',
+              '''        locators, source_types = expand_typed_evidence_specs(\n            project_root, specs, governed_specs\n        )\n        sources = build_sources(project_root, locators, source_types)\n''',
+          )
+          replace_once(
+              '''            specs=specs,\n            context=context,\n''',
+              '''            specs=specs,\n            governed_specs=governed_specs,\n            context=context,\n''',
+          )
+          replace_once(
+              '''    ingest.add_argument("--invocation-id")\n''',
+              '''    ingest.add_argument(\n        "--governed-evidence",\n        action="append",\n        help=(\n            "evidence file, directory, or glob explicitly typed as a "\n            "governed_artifact; repeat for multiple selections"\n        ),\n    )\n    ingest.add_argument("--invocation-id")\n''',
+          )
+          path.write_text(text, encoding='utf-8')
+
+          test_path = Path('tests/test_distill_ingest.py')
+          tests = test_path.read_text(encoding='utf-8')
+
+          def treplace(old, new):
+              global tests
+              count = tests.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one test match, found {count}: {old[:80]!r}')
+              tests = tests.replace(old, new, 1)
+
+          treplace(
+              '''    def build(self, specs=None, invocation_id="baseline"):\n''',
+              '''    def build(self, specs=None, governed_specs=None, invocation_id="baseline"):\n''',
+          )
+          treplace(
+              '''            specs=specs or ["docs/*.md"],\n            context="first baseline",\n''',
+              '''            specs=specs if specs is not None else ["docs/*.md"],\n            governed_specs=governed_specs or [],\n            context="first baseline",\n''',
+          )
+          insert_after = '''        self.assertEqual(source["source_id"], expected_id)\n        self.assertEqual(source["digest"], expected_digest)\n'''
+          addition = insert_after + '''\n    def test_governed_evidence_is_explicit_and_stable(self):\n        result = self.build(\n            specs=["docs/a.md"],\n            governed_specs=["docs/b.md"],\n            invocation_id="typed",\n        )\n        by_locator = {item["locator"]: item for item in result["request"]["evidence"]}\n        self.assertEqual(by_locator["docs/a.md"]["type"], "repository_file")\n        self.assertEqual(by_locator["docs/b.md"]["type"], "governed_artifact")\n        expected = "src:governed:" + hashlib.sha256(b"docs/b.md").hexdigest()[:24]\n        self.assertEqual(by_locator["docs/b.md"]["source_id"], expected)\n\n    def test_filename_never_infers_governed_authority(self):\n        path = self.project / "docs" / "NORMATIVE_CONTRACT.md"\n        path.write_text("normative by name only\\n", encoding="utf-8")\n        result = self.build(specs=["docs/NORMATIVE_CONTRACT.md"], invocation_id="named")\n        self.assertEqual(result["request"]["evidence"][0]["type"], "repository_file")\n\n    def test_conflicting_source_types_fail_closed(self):\n        config = rd.load_project_config(self.project)\n        with self.assertRaises(rd.InvocationFailure) as caught:\n            rd.create_ingestion_artifacts(\n                project_root=self.project,\n                project_config=config,\n                invocation_id="conflict",\n                created_at="2026-08-20T09:37:00-07:00",\n                specs=["docs/a.md"],\n                governed_specs=["docs/a.md"],\n                context=None,\n                refs=[],\n            )\n        self.assertEqual(caught.exception.reason_code, "EVIDENCE_SOURCE_TYPE_CONFLICT")\n'''
+          treplace(insert_after, addition)
+
+          treplace(
+              '''                "1", "docs/a.md",\n                "2", "docs",\n                "3", "docs/*.md",\n                "4",\n''',
+              '''                "1", "docs/a.md", "repository_file",\n                "2", "docs", "governed_artifact",\n                "3", "docs/*.md", "repository_file",\n                "4",\n''',
+          )
+          treplace(
+              '''        specs, invocation_id, created_at, context, refs = rd.collect_interactive_inputs(\n            input_fn=lambda _: next(answers),\n        )\n        self.assertEqual(specs, ["docs/a.md", "docs", "docs/*.md"])\n''',
+              '''        (\n            specs,\n            governed_specs,\n            invocation_id,\n            created_at,\n            context,\n            refs,\n        ) = rd.collect_interactive_inputs(input_fn=lambda _: next(answers))\n        self.assertEqual(specs, ["docs/a.md", "docs/*.md"])\n        self.assertEqual(governed_specs, ["docs"])\n''',
+          )
+
+          marker = '''    def test_scriptable_mode_requires_invocation_id(self):\n'''
+          cli_test = '''    def test_scriptable_cli_supports_governed_evidence(self):\n        completed = subprocess.run(\n            [\n                sys.executable,\n                str(RUNTIME_PATH),\n                "ingest",\n                "--project-root",\n                str(self.project),\n                "--evidence",\n                "docs/a.md",\n                "--governed-evidence",\n                "docs/b.md",\n                "--invocation-id",\n                "cli-governed",\n                "--created-at",\n                "2026-08-20T09:37:00-07:00",\n            ],\n            cwd=self.project,\n            capture_output=True,\n            text=True,\n            check=False,\n        )\n        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)\n        request = json.loads(\n            (self.project / "project-knowledge/invocations/cli-governed.request.json").read_text(encoding="utf-8")\n        )\n        by_locator = {item["locator"]: item for item in request["evidence"]}\n        self.assertEqual(by_locator["docs/a.md"]["type"], "repository_file")\n        self.assertEqual(by_locator["docs/b.md"]["type"], "governed_artifact")\n\n'''
+          treplace(marker, cli_test + marker)
+          test_path.write_text(tests, encoding='utf-8')
+
+          doc = Path('docs/operations/DISTILLATION_INGESTION.md')
+          dtext = doc.read_text(encoding='utf-8')
+          anchor = '''Directories are expanded recursively. Globs and resulting files are sorted\nbefore source construction. Source IDs and SHA-256 digests are generated\nautomatically.\n'''
+          replacement = anchor + '''\n### Explicit governed evidence\n\n`--evidence` always creates `repository_file` sources. Accepted normative files\nmay be explicitly marked as authority-bearing governed artifacts with\n`--governed-evidence`:\n\n```bash\npython .reasoning-distiller/runtime/rd_distill.py ingest \\\n  --governed-evidence docs/design/RIL_CLI_DESIGN_CONTRACT.md \\\n  --evidence notes/background.md \\\n  --invocation-id reviewed-baseline\n```\n\nThe wizard never infers governed authority from a filename, path, heading, or\nprose such as `normative` or `accepted`. A locator selected through both source\ntypes fails closed. Interactive mode asks for the source type and defaults to\n`repository_file`.\n'''
+          if dtext.count(anchor) != 1:
+              raise SystemExit('documentation anchor mismatch')
+          doc.write_text(dtext.replace(anchor, replacement, 1), encoding='utf-8')
+          PY
+      - name: Validate correction
+        run: |
+          python -m unittest tests.test_distill_ingest tests.test_production_invocation
+          python runtime/rd_distill.py ingest --help | grep -q -- '--governed-evidence'
+          python -m unittest discover -s tests -p 'test_*.py'
+      - name: Commit product correction and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -- .github/workflows/tmp-source-typing-fix.yml
+          git add -- runtime/rd_distill.py tests/test_distill_ingest.py docs/operations/DISTILLATION_INGESTION.md
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: add explicit governed ingestion evidence'
+          git push origin HEAD:feature/ingest-governed-source-typing
