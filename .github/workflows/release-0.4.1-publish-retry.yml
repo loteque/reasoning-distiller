@@ -1,0 +1,117 @@
+name: Publish Reasoning Distiller 0.4.1 Retry
+
+on:
+  push:
+    branches: [release-0.4.1-rc-package]
+    paths:
+      - '.github/workflows/release-0.4.1-publish-retry.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reasoning-distiller-0.4.1-release
+  cancel-in-progress: false
+
+env:
+  RELEASE_VERSION: '0.4.1'
+  RELEASE_TAG: 'v0.4.1'
+  SOURCE_SHA: '3f6211f2003a3875f8e0c19739616cdf8ced1f6b'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:9d5fcd82629dc4c696ec11336af0a7bbbdd3f30e0536dd227d202039ce28a9bb'
+  EXPECTED_TRANSPORT_SHA256: '1ff471c9f6b26152a1dd0052d7a0a996616854955a676137e1c6720bb1bc172e'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release-0.4.1-rc-package
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/checkout@v4
+        with:
+          repository: loteque/reasoning-distiller
+          ref: ${{ env.SOURCE_SHA }}
+          path: release-source
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+      - name: Rebuild, verify, and publish or verify existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e release-source/.reasoning-distiller
+          ! git -C release-source ls-files | grep -q '^\.reasoning-distiller/'
+          cd release-source
+          python packaging/build_release_package.py --version "$RELEASE_VERSION" --source-commit "$SOURCE_SHA" --output-dir /tmp/rd-release
+          python packaging/validate_install_package_contract.py --manifest "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          cd ..
+          manifest="/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          detached="/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.sha256"
+          content_identity="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["content_identity"])' "$manifest")"
+          transport_sha="$(awk '{print $1}' "$detached")"
+          test "$content_identity" = "$EXPECTED_CONTENT_IDENTITY"
+          test "$transport_sha" = "$EXPECTED_TRANSPORT_SHA256"
+          cp release-source/packaging/rd_install.py /tmp/rd-release/rd_install.py
+          cp release-source/packaging/validate_install_package_contract.py /tmp/rd-release/validate_install_package_contract.py
+          cp release-source/schemas/install-package-manifest.schema.json /tmp/rd-release/install-package-manifest.schema.json
+          cp release-source/schemas/installation-record.schema.json /tmp/rd-release/installation-record.schema.json
+          assets=(
+            "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.tar.gz"
+            "$manifest"
+            "$detached"
+            "/tmp/rd-release/rd_install.py"
+            "/tmp/rd-release/validate_install_package_contract.py"
+            "/tmp/rd-release/install-package-manifest.schema.json"
+            "/tmp/rd-release/installation-record.schema.json"
+          )
+          tag_sha="$(git ls-remote --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+          if [ -n "$tag_sha" ] && [ "$tag_sha" != "$SOURCE_SHA" ]; then
+            echo "tag points to $tag_sha, expected $SOURCE_SHA" >&2
+            exit 1
+          fi
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            if [ -n "$tag_sha" ]; then
+              gh release create "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --title "Reasoning Distiller ${RELEASE_VERSION}" --notes "Reasoning Distiller ${RELEASE_VERSION}. Adds the first-class distillation ingestion wizard. Source: ${SOURCE_SHA}. Content identity: ${EXPECTED_CONTENT_IDENTITY}. Transport SHA-256: ${EXPECTED_TRANSPORT_SHA256}."
+            else
+              gh release create "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" --title "Reasoning Distiller ${RELEASE_VERSION}" --notes "Reasoning Distiller ${RELEASE_VERSION}. Adds the first-class distillation ingestion wizard. Source: ${SOURCE_SHA}. Content identity: ${EXPECTED_CONTENT_IDENTITY}. Transport SHA-256: ${EXPECTED_TRANSPORT_SHA256}."
+            fi
+          fi
+          tag_sha="$(git ls-remote --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+          test "$tag_sha" = "$SOURCE_SHA"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort > /tmp/actual-assets.txt
+          printf '%s\n' install-package-manifest.schema.json installation-record.schema.json rd_install.py "reasoning-distiller-${RELEASE_VERSION}.manifest.json" "reasoning-distiller-${RELEASE_VERSION}.sha256" "reasoning-distiller-${RELEASE_VERSION}.tar.gz" validate_install_package_contract.py | sort > /tmp/expected-assets.txt
+          diff -u /tmp/expected-assets.txt /tmp/actual-assets.txt
+      - name: Persist PASS evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-candidate
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          status = {
+              'contract': 'reasoning-distiller-release-publication-status/1',
+              'status': 'PASS',
+              'release_version': os.environ['RELEASE_VERSION'],
+              'release_tag': os.environ['RELEASE_TAG'],
+              'source_commit': os.environ['SOURCE_SHA'],
+              'content_identity': os.environ['EXPECTED_CONTENT_IDENTITY'],
+              'transport_sha256': os.environ['EXPECTED_TRANSPORT_SHA256'],
+              'asset_count': 7,
+              'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }
+          Path('release-candidate/0.4.1-published.json').write_text(json.dumps(status, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin release-0.4.1-rc-package
+          git add -- release-candidate/0.4.1-published.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'release: record published Reasoning Distiller 0.4.1'
+          git push origin HEAD:release-0.4.1-rc-package
