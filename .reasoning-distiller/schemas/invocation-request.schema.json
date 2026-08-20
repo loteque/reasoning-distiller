@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/invocation-request.schema.json",
+  "title": "Reasoning Distiller Invocation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "invocation_id", "created_at", "project_root", "evidence", "source_registry", "output"],
+  "properties": {
+    "contract": {"const": "reasoning-distiller-invocation/1"},
+    "invocation_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "minLength": 1},
+    "project_root": {"$ref": "#/$defs/path"},
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/source"}
+    },
+    "source_registry": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/source"}
+    },
+    "source_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "summary": {"type": "string"},
+        "refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_candidate_path", "submission_path"],
+      "properties": {
+        "raw_candidate_path": {"$ref": "#/$defs/path"},
+        "submission_path": {"$ref": "#/$defs/path"}
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "type", "locator"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "type": {"type": "string", "minLength": 1},
+        "locator": {"$ref": "#/$defs/path"},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

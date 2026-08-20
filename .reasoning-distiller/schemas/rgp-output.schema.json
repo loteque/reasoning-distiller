@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/distiller.schema.json",
+  "title": "Reasoning Distiller Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["records"],
+  "properties": {
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/record"}
+    },
+    "relations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/relation"}
+    }
+  },
+  "$defs": {
+    "sourceList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "primary": {"$ref": "#/$defs/sourceList"},
+        "corroborating": {"$ref": "#/$defs/sourceList"},
+        "context": {"$ref": "#/$defs/sourceList"}
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["temp_id", "kind", "statement"],
+      "properties": {
+        "temp_id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["observation", "decision", "assumption", "uncertainty", "claim"]},
+        "statement": {"type": "string", "minLength": 1},
+        "premise": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "provenance": {"$ref": "#/$defs/provenance"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"kind": {"const": "observation"}},
+            "required": ["kind"],
+            "not": {"required": ["premise"]}
+          },
+          "then": {
+            "required": ["provenance"],
+            "properties": {"provenance": {"required": ["primary"]}}
+          }
+        }
+      ]
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "type", "to"],
+      "properties": {
+        "from": {"type": "string", "minLength": 1},
+        "type": {"enum": ["supports", "contradicts", "depends_on", "supersedes"]},
+        "to": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    }
+  }
+}

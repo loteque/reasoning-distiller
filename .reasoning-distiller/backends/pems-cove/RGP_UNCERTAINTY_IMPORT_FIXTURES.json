@@ -1,0 +1,109 @@
+{
+  "contract": "pems/2-rgp/1-uncertainty-import/1",
+  "cases": [
+    {
+      "id": "basic-uncertainty",
+      "input": {
+        "rgp_version": "rgp/1",
+        "kind": "uncertainty",
+        "statement": "Whether the workflow preserves its guarantees for a novel non-no-op transaction."
+      },
+      "expected": {
+        "pems_kind": "unresolved_item",
+        "lifecycle": "current",
+        "summary": "Whether the workflow preserves its guarantees for a novel non-no-op transaction.",
+        "resolution_state": "open"
+      }
+    },
+    {
+      "id": "uncertainty-not-claim",
+      "input": {
+        "rgp_version": "rgp/1",
+        "kind": "uncertainty",
+        "statement": "Whether X holds."
+      },
+      "expected": {
+        "pems_kind": "unresolved_item",
+        "proposition_kind": null
+      }
+    },
+    {
+      "id": "uncertainty-premise",
+      "input": {
+        "rgp_version": "rgp/1",
+        "kind": "uncertainty",
+        "statement": "Whether X follows.",
+        "premise": [
+          "r1",
+          "r2"
+        ]
+      },
+      "expected": {
+        "pems_kind": "unresolved_item",
+        "premise_relation": "derived_from",
+        "premise_targets": [
+          "r1",
+          "r2"
+        ]
+      }
+    },
+    {
+      "id": "uncertainty-depends-on",
+      "input": {
+        "rgp_version": "rgp/1",
+        "relation": "depends_on"
+      },
+      "expected": {
+        "pems_kind": "depends_on",
+        "dependency_kind": "conditional_validity"
+      }
+    },
+    {
+      "id": "uncertainty-provenance-roles",
+      "input": {
+        "rgp_version": "rgp/1",
+        "kind": "uncertainty",
+        "provenance": {
+          "primary": [
+            "src-a"
+          ],
+          "context": [
+            "src-b"
+          ]
+        }
+      },
+      "expected": {
+        "preserve_roles": [
+          "context",
+          "primary"
+        ],
+        "canonical_source_resolution_required": true
+      }
+    },
+    {
+      "id": "uncertainty-no-blocked-inference",
+      "input": {
+        "rgp_version": "rgp/1",
+        "kind": "uncertainty",
+        "statement": "Whether X is blocked."
+      },
+      "expected": {
+        "resolution_state": "open",
+        "infer_blocked": false,
+        "infer_deferred": false
+      }
+    },
+    {
+      "id": "unknown-rgp-major",
+      "input": {
+        "rgp_version": "rgp/2",
+        "kind": "uncertainty",
+        "statement": "Whether X holds."
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "unsupported_rgp_major"
+      }
+    }
+  ]
+}
