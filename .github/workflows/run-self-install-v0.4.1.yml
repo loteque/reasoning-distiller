@@ -55,6 +55,9 @@ jobs:
             validate_install_package_contract.py; do
             test -f "/tmp/rd-release/$name"
           done
+          rm -rf /tmp/schemas && mkdir -p /tmp/schemas
+          cp /tmp/rd-release/install-package-manifest.schema.json /tmp/schemas/install-package-manifest.schema.json
+          cp /tmp/rd-release/installation-record.schema.json /tmp/schemas/installation-record.schema.json
 
       - name: Verify release identity
         shell: bash
