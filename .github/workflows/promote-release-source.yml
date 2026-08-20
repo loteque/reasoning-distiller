@@ -1,0 +1,108 @@
+name: Promote Clean Release Source
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_promotion:
+        description: Confirm promotion of default-branch source without installed state
+        required: true
+        type: choice
+        options:
+          - PROMOTE_CLEAN_SOURCE
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reasoning-distiller-release-source-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require default-branch dispatch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$DEFAULT_BRANCH" || {
+            echo "Dispatch this workflow from $DEFAULT_BRANCH only" >&2
+            exit 1
+          }
+
+      - name: Checkout development source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: development-source
+          fetch-depth: 0
+
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: release-source
+          path: release-source
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Mirror source without installed framework
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$GITHUB_WORKSPACE/development-source"
+          TARGET="$GITHUB_WORKSPACE/release-source"
+
+          base_sha="$(git -C "$TARGET" rev-parse HEAD)"
+          source_sha="$(git -C "$SOURCE" rev-parse HEAD)"
+          echo "RELEASE_SOURCE_BASE=$base_sha" >> "$GITHUB_ENV"
+          echo "PROMOTED_SOURCE_SHA=$source_sha" >> "$GITHUB_ENV"
+
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '.reasoning-distiller/' \
+            "$SOURCE/" "$TARGET/"
+
+          rm -rf "$TARGET/.reasoning-distiller"
+
+          if [ -e "$TARGET/.reasoning-distiller" ]; then
+            echo '.reasoning-distiller survived promotion filtering' >&2
+            exit 1
+          fi
+          if git -C "$TARGET" ls-files | grep -q '^\.reasoning-distiller/'; then
+            git -C "$TARGET" rm -r --cached --ignore-unmatch .reasoning-distiller
+          fi
+
+      - name: Verify clean release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="$GITHUB_WORKSPACE/release-source"
+          test ! -e "$TARGET/.reasoning-distiller"
+          ! git -C "$TARGET" status --porcelain=v1 --untracked-files=all | grep -q 'reasoning-distiller/'
+
+      - name: Commit and push clean promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="$GITHUB_WORKSPACE/release-source"
+          git -C "$TARGET" add -A -- ':!/.reasoning-distiller' ':!/.reasoning-distiller/**'
+          git -C "$TARGET" diff --cached --check
+
+          if git -C "$TARGET" diff --cached --quiet; then
+            echo 'release-source already matches clean development source'
+            exit 0
+          fi
+
+          git -C "$TARGET" config user.name 'github-actions[bot]'
+          git -C "$TARGET" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$TARGET" commit -m "promote: clean source from ${PROMOTED_SOURCE_SHA}"
+
+          git -C "$TARGET" fetch origin release-source
+          test "$(git -C "$TARGET" rev-parse refs/remotes/origin/release-source)" = "$RELEASE_SOURCE_BASE" || {
+            echo 'release-source moved during promotion; refusing to overwrite' >&2
+            exit 1
+          }
+
+          git -C "$TARGET" push origin HEAD:release-source
