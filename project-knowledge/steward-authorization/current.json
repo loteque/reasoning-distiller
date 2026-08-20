@@ -1,1 +1,1 @@
-{"assignments":{"admission":null,"semantic_reconciliation":"steward:default"},"contract":"reasoning-distiller-steward-authorization-state/1"}
+{"assignments":{"admission":"steward:default","semantic_reconciliation":"steward:default"},"contract":"reasoning-distiller-steward-authorization-state/1"}
