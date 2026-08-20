@@ -39,6 +39,10 @@ PRIMITIVE_MAP = {
         "kind": "read",
         "primitive": "ril_operators.plan_initial_operator",
     },
+    "bind_protected_confirmation": {
+        "kind": "intent",
+        "primitive": "ril_human_confirmation.bind_exact_confirmation",
+    },
     "approve_initial_operator": {
         "kind": "authority",
         "primitive": "ril_operators.approve_initial_operator",
