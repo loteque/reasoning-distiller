@@ -1,0 +1,12 @@
+{
+  "artifact_name": "reasoning-distiller-0.4.1-rc2-package",
+  "cache_adversary": "PASS",
+  "content_identity": "sha256:bd51dfe217dcc250f352a053e18a37d43fba8294ef578a45187ce1f8041a8af7",
+  "contract": "reasoning-distiller-release-candidate-status/1",
+  "file_count": 47,
+  "release_version": "0.4.1",
+  "source_commit": "c66bbcd4371a5163af1f822906b471f58eb45452",
+  "status": "PASS",
+  "transport_sha256": "5068efcecea970ab0ef8c9bf46688faa30ff3e7aef51a668ee6e7de8a75e4ee5",
+  "workflow_run": "32397008370"
+}
