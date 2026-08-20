@@ -1,0 +1,62 @@
+name: Prepare Rupi reconciliation Steward on main
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/rupi-prepare-reconciliation-steward.yml'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact main baseline
+        uses: actions/checkout@v4
+        with:
+          ref: 5918ec37e2f10f7d78c7579c64919214d92c4c65
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Prepare protected reconciliation Steward proposal
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path('.').resolve()
+          runtime = root / '.reasoning-distiller' / 'runtime'
+          sys.path.insert(0, str(runtime))
+
+          import rupi_authority
+
+          result = rupi_authority.prepare_steward_authorization(
+              root,
+              scope='semantic_reconciliation',
+              role_id='steward:default',
+              requested_goal='authorize the default Steward for semantic reconciliation on main',
+          )
+          print(json.dumps(result, indent=2, sort_keys=True))
+          assert result['status'] == 'STOPPED', result
+          assert result['outcome'] == 'STEWARD_CONFIRMATION_REQUIRED', result
+          assert result['scope'] == 'semantic_reconciliation', result
+          assert result['role_id'] == 'steward:default', result
+          assert result['required_confirmation'] == 'STEWARD_AUTHORIZATION_CHANGE', result
+          assert result['proposal_reference'], result
+          PY
+
+      - name: Prove proposal preparation was read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
