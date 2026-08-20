@@ -30,11 +30,17 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install package-contract dependency
+        run: |
+          echo dependency > /tmp/rd-install-stage
+          python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
       - name: Retrieve exact release assets
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          echo retrieve > /tmp/rd-install-stage
           set -euo pipefail
           rm -rf /tmp/rd-release && mkdir -p /tmp/rd-release
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir /tmp/rd-release
@@ -53,12 +59,14 @@ jobs:
       - name: Verify release identity
         shell: bash
         run: |
+          echo release-identity > /tmp/rd-install-stage
           set -euo pipefail
           manifest="/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
           detached="/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.sha256"
           archive="/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.tar.gz"
           test "$(awk '{print $1}' "$detached")" = "$EXPECTED_TRANSPORT_SHA256"
           test "$(sha256sum "$archive" | awk '{print $1}')" = "$EXPECTED_TRANSPORT_SHA256"
+          python /tmp/rd-release/validate_install_package_contract.py --manifest "$manifest"
           python3 - "$manifest" <<'PY'
           import json, os, sys
           m=json.load(open(sys.argv[1], encoding='utf-8'))
@@ -73,6 +81,7 @@ jobs:
       - name: Install v0.4.1 over verified prior installation
         shell: bash
         run: |
+          echo install > /tmp/rd-install-stage
           set -euo pipefail
           python /tmp/rd-release/rd_install.py \
             --package "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
@@ -85,12 +94,12 @@ jobs:
       - name: Validate installed identity and ingestion wizard
         shell: bash
         run: |
+          echo installed-validation > /tmp/rd-install-stage
           set -euo pipefail
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          p=Path('.reasoning-distiller/.installation/INSTALLATION.json')
-          d=json.loads(p.read_text(encoding='utf-8'))
+          d=json.loads(Path('.reasoning-distiller/.installation/INSTALLATION.json').read_text(encoding='utf-8'))
           assert d['version'] == os.environ['RELEASE_VERSION']
           assert d['source_commit'] == os.environ['RELEASE_SOURCE_SHA']
           assert d['source_locator'] == os.environ['RELEASE_TAG']
@@ -109,16 +118,60 @@ jobs:
           test ! -e project-knowledge/invocations/install-smoke-v041.request.json
           test ! -e project-knowledge/invocations/install-smoke-v041.bundle.json
 
-      - name: Commit only installed managed tree
+      - name: Commit verified installed tree
         shell: bash
         run: |
+          echo commit > /tmp/rd-install-stage
           set -euo pipefail
-          git status --short
-          git add -- .reasoning-distiller
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          status={
+            'contract':'reasoning-distiller-self-install-status/1',
+            'status':'PASS',
+            'release_version':os.environ['RELEASE_VERSION'],
+            'release_tag':os.environ['RELEASE_TAG'],
+            'source_commit':os.environ['RELEASE_SOURCE_SHA'],
+            'content_identity':os.environ['EXPECTED_CONTENT_IDENTITY'],
+            'transport_sha256':os.environ['EXPECTED_TRANSPORT_SHA256'],
+            'ingest_smoke':'PASS',
+            'workflow_run':os.environ['GITHUB_RUN_ID'],
+          }
+          Path('.github/install-v0.4.1-status.json').write_text(json.dumps(status,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+          PY
+          git add -- .reasoning-distiller .github/install-v0.4.1-status.json
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
-          ! git diff --cached --name-only | grep -v '^\.reasoning-distiller/'
+          ! git diff --cached --name-only | grep -v -E '^(\.reasoning-distiller/|\.github/install-v0\.4\.1-status\.json$)'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'install: Reasoning Distiller v0.4.1'
           git push origin HEAD:install-v0.4.1
+
+      - name: Persist failure stage
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          stage="$(cat /tmp/rd-install-stage 2>/dev/null || echo setup)"
+          STAGE="$stage" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          status={
+            'contract':'reasoning-distiller-self-install-status/1',
+            'status':'FAIL',
+            'stage':os.environ['STAGE'],
+            'release_version':os.environ['RELEASE_VERSION'],
+            'release_tag':os.environ['RELEASE_TAG'],
+            'source_commit':os.environ['RELEASE_SOURCE_SHA'],
+            'content_identity':os.environ['EXPECTED_CONTENT_IDENTITY'],
+            'transport_sha256':os.environ['EXPECTED_TRANSPORT_SHA256'],
+            'workflow_run':os.environ['GITHUB_RUN_ID'],
+          }
+          Path('.github/install-v0.4.1-status.json').write_text(json.dumps(status,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/install-v0.4.1-status.json
+          git commit -m "install: record v0.4.1 failure at ${stage}" || true
+          git push origin HEAD:install-v0.4.1 || true
