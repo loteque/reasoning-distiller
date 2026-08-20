@@ -23,6 +23,10 @@
     "project-knowledge",
     "tests"
   ],
+  "ignored_generated_artifacts": {
+    "directory_names": ["__pycache__"],
+    "suffixes": [".pyc", ".pyo"]
+  },
   "mode_policy": {
     "default": "0644"
   }
