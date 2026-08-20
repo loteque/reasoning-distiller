@@ -1,0 +1,22 @@
+{
+  "asset_count": 7,
+  "content_identity": "sha256:848f41f8a1e4f0d2c6da885937e166f230c356d694a365fc5cbdffa3a5676a0c",
+  "contract": "reasoning-distiller-release-publication-receipt/1",
+  "dogfood_update_workflow_run": "32421398161",
+  "main_install_merge": "ea321c4e77de6e179d6afdb73b132141ac2e971d",
+  "release_assets": [
+    "install-package-manifest.schema.json",
+    "installation-record.schema.json",
+    "rd_install.py",
+    "reasoning-distiller-0.5.0.manifest.json",
+    "reasoning-distiller-0.5.0.sha256",
+    "reasoning-distiller-0.5.0.tar.gz",
+    "validate_install_package_contract.py"
+  ],
+  "release_tag": "v0.5.0",
+  "release_version": "0.5.0",
+  "source_commit": "9b68b4da5454a83992e6062c0b5ccb3d425284ce",
+  "status": "PASS",
+  "transport_sha256": "c385d9a1d52ada92db05b9bb747b9ccf17c18b4de727f40b762b166f5a5f0c50",
+  "workflow_run": "32422559254"
+}
