@@ -1,0 +1,74 @@
+name: First normative Reasoning Distiller ingestion
+
+on:
+  push:
+    branches: [distillation/first-normative-baseline]
+    paths:
+      - '.github/workflows/run-first-normative-ingest.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: distillation/first-normative-baseline
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build curated activation bundle through installed runtime
+        run: |
+          set -euo pipefail
+          python .reasoning-distiller/runtime/rd_distill.py ingest \
+            --evidence docs/design/RIL_HUMAN_AGENT_DESIGN_CONTRACT.md \
+            --evidence docs/design/RIL_CLI_DESIGN_CONTRACT.md \
+            --evidence docs/design/RIL_WORKFLOW_DESIGN_CONTRACT.md \
+            --evidence docs/design/RIL_R16_R18_IMPLEMENTATION_CONFORMANCE_PLAN.md \
+            --evidence docs/packaging/INSTALL_PACKAGE_CONTRACT.md \
+            --evidence docs/packaging/INSTALLER_RUNNER_CONTRACT.md \
+            --evidence docs/packaging/P3_DETERMINISTIC_INSTALLER.md \
+            --evidence docs/packaging/P8_RELEASE_BASELINE.md \
+            --invocation-id first-normative-baseline-20260820 \
+            --created-at 2026-08-20T10:44:00-07:00 \
+            --context 'First curated normative baseline for Reasoning Distiller' \
+            --ref baseline:first-distillation
+
+      - name: Verify generated artifacts and evidence boundary
+        run: |
+          set -euo pipefail
+          request='project-knowledge/invocations/first-normative-baseline-20260820.request.json'
+          bundle='project-knowledge/invocations/first-normative-baseline-20260820.bundle.json'
+          test -f "$request"
+          test -f "$bundle"
+          python3 - "$request" <<'PY'
+          import json, sys
+          d=json.load(open(sys.argv[1], encoding='utf-8'))
+          assert d['contract'] == 'reasoning-distiller-invocation/1'
+          assert d['invocation_id'] == 'first-normative-baseline-20260820'
+          assert len(d['evidence']) == 8
+          locators={e['locator'] for e in d['evidence']}
+          assert all(not x.startswith('.reasoning-distiller/') for x in locators)
+          assert all(not x.startswith('project-knowledge/') for x in locators)
+          assert all(not x.startswith('tests/') for x in locators)
+          print('PASS curated evidence boundary')
+          PY
+
+      - name: Commit request and activation bundle only
+        run: |
+          set -euo pipefail
+          git add -- \
+            project-knowledge/invocations/first-normative-baseline-20260820.request.json \
+            project-knowledge/invocations/first-normative-baseline-20260820.bundle.json
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'distill: build first normative activation bundle'
+          git push origin HEAD:distillation/first-normative-baseline
