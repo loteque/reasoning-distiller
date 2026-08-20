@@ -44,7 +44,7 @@ class G6FinalCliSurfaceTests(unittest.TestCase):
             root = Path(td)
             candidate = {"semantic": "rgp/1", "nodes": [], "edges": []}
             proposal = mut.make_proposal("x", "Y", {}, {"z": 1})
-            approval = mut.make_approval(proposal, "operator:a")
+            approval = mut.make_approval(proposal, "operator:a", {"method": "test-human"})
             self.write(root / "project-knowledge/submissions/candidate.json", candidate)
             self.write(root / "project-knowledge/evidence/proposal.json", proposal)
             self.write(root / "project-knowledge/evidence/approval.json", approval)
