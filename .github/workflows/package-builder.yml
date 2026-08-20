@@ -2,7 +2,7 @@ name: Reasoning Distiller Package Builder
 
 on:
   push:
-    branches: [main]
+    branches: [release-source]
     paths:
       - 'packaging/package-build.json'
       - 'packaging/build_release_package.py'
@@ -19,6 +19,7 @@ on:
       - 'validators/**'
       - '.github/workflows/package-builder.yml'
   pull_request:
+    branches: [release-source]
     paths:
       - 'packaging/package-build.json'
       - 'packaging/build_release_package.py'
@@ -44,6 +45,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Enforce clean release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .reasoning-distiller
+          ! git ls-files | grep -q '^\.reasoning-distiller/'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
