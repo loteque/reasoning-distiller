@@ -1,0 +1,69 @@
+name: Validate Distillation Ingestion Wizard
+
+on:
+  push:
+    branches: [feature/distill-ingest-wizard]
+    paths:
+      - '.github/workflows/validate-distill-ingest.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/distill-ingest-wizard
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1 PyYAML==6.0.2
+      - name: Validate implementation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          STATUS=.github/distill-ingest-validation.json
+          record() {
+            python - "$STATUS" "$1" "$2" <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          path,status,detail=sys.argv[1:]
+          Path(path).write_text(json.dumps({
+            'contract':'reasoning-distiller-ingest-validation/1',
+            'status':status,
+            'detail':detail,
+            'source_commit':os.environ['GITHUB_SHA'],
+            'workflow_run':os.environ['GITHUB_RUN_ID'],
+          },sort_keys=True,indent=2)+'\n',encoding='utf-8')
+          PY
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -- "$STATUS"
+            git commit -m "test: record ingestion wizard validation $1" || true
+            git push origin HEAD:feature/distill-ingest-wizard
+          }
+          fail() {
+            rc=$?
+            trap - ERR
+            record FAIL "validation exited with status $rc" || true
+            exit "$rc"
+          }
+          trap fail ERR
+
+          python -m py_compile runtime/rd_distill.py tests/test_distill_ingest.py
+          test "$(python runtime/rd_distill.py --version)" = 'reasoning-distiller-invocation/1'
+          python runtime/rd_distill.py ingest --help >/dev/null
+          python -m unittest -v tests/test_production_invocation.py tests/test_distill_ingest.py
+          python -m unittest discover -s tests -v
+          SHA="$(git rev-parse HEAD)"
+          rm -rf /tmp/rd-ingest-package
+          python packaging/build_release_package.py --version 0.4.0-ingest-ci --source-commit "$SHA" --output-dir /tmp/rd-ingest-package
+          tar -tzf /tmp/rd-ingest-package/reasoning-distiller-0.4.0-ingest-ci.tar.gz | grep -Fx runtime/rd_distill.py
+
+          trap - ERR
+          record PASS 'targeted tests, full unit suite, CLI smoke, and package inclusion passed'
