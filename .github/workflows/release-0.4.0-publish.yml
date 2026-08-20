@@ -25,6 +25,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout release evidence branch
+        uses: actions/checkout@v4
+        with:
+          ref: release-0.4.0-rc-package
+          fetch-depth: 0
+
       - name: Checkout exact release source
         uses: actions/checkout@v4
         with:
@@ -74,7 +80,7 @@ jobs:
           cp release-source/schemas/install-package-manifest.schema.json /tmp/rd-release/install-package-manifest.schema.json
           cp release-source/schemas/installation-record.schema.json /tmp/rd-release/installation-record.schema.json
 
-      - name: Create immutable tag and GitHub release
+      - name: Create or verify immutable tag and GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -93,16 +99,13 @@ jobs:
             "/tmp/rd-release/installation-record.schema.json"
           )
 
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "release $RELEASE_TAG already exists; refusing to overwrite" >&2
-            exit 1
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$SOURCE_SHA" \
+              --title "Reasoning Distiller ${RELEASE_VERSION}" \
+              --notes "Accepted Reasoning Distiller ${RELEASE_VERSION} deterministic release. Source: ${SOURCE_SHA}. Content identity: ${EXPECTED_CONTENT_IDENTITY}. Transport SHA-256: ${EXPECTED_TRANSPORT_SHA256}. Includes R16-R18 workflow, authority-grant, shared orchestration, CLI, and Human-Agent adapter conformance through G10."
           fi
-
-          gh release create "$RELEASE_TAG" "${assets[@]}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$SOURCE_SHA" \
-            --title "Reasoning Distiller ${RELEASE_VERSION}" \
-            --notes "Accepted Reasoning Distiller ${RELEASE_VERSION} deterministic release. Source: ${SOURCE_SHA}. Content identity: ${EXPECTED_CONTENT_IDENTITY}. Transport SHA-256: ${EXPECTED_TRANSPORT_SHA256}. Includes R16-R18 workflow, authority-grant, shared orchestration, CLI, and Human-Agent adapter conformance through G10."
 
           tag_sha="$(git ls-remote --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
           test "$tag_sha" = "$SOURCE_SHA" || { echo "tag points to $tag_sha, expected $SOURCE_SHA" >&2; exit 1; }
@@ -117,4 +120,36 @@ jobs:
             "reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
             "validate_install_package_contract.py" | sort > /tmp/expected-assets.txt
           diff -u /tmp/expected-assets.txt /tmp/actual-assets.txt
-          echo "PASS immutable v0.4.0 release published"
+          echo "PASS immutable v0.4.0 release available"
+
+      - name: Persist release publication PASS evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-candidate
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          status = {
+            'contract': 'reasoning-distiller-release-publication-status/1',
+            'status': 'PASS',
+            'release_version': os.environ['RELEASE_VERSION'],
+            'release_tag': os.environ['RELEASE_TAG'],
+            'source_commit': os.environ['SOURCE_SHA'],
+            'content_identity': os.environ['EXPECTED_CONTENT_IDENTITY'],
+            'transport_sha256': os.environ['EXPECTED_TRANSPORT_SHA256'],
+            'asset_count': 7,
+            'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }
+          Path('release-candidate/0.4.0-published.json').write_text(
+              json.dumps(status, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add release-candidate/0.4.0-published.json
+          if git diff --cached --quiet; then
+            echo 'publication evidence already current'
+          else
+            git commit -m 'release: record published Reasoning Distiller 0.4.0'
+            git push origin HEAD:release-0.4.0-rc-package
+          fi
