@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/invocation-result.schema.json",
+  "title": "Reasoning Distiller Invocation Result",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "invocation_id", "status", "submission_id", "raw_candidate_path", "submission_path"],
+      "properties": {
+        "contract": {"const": "reasoning-distiller-invocation-result/1"},
+        "invocation_id": {"type": "string", "minLength": 1},
+        "status": {"const": "PASS"},
+        "submission_id": {"type": "string", "minLength": 1},
+        "raw_candidate_path": {"type": "string", "minLength": 1},
+        "submission_path": {"type": "string", "minLength": 1}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "invocation_id", "status", "stage", "reason_code", "detail"],
+      "properties": {
+        "contract": {"const": "reasoning-distiller-invocation-result/1"},
+        "invocation_id": {"type": "string", "minLength": 1},
+        "status": {"const": "FAIL"},
+        "stage": {"enum": ["preflight", "activation", "parse", "validation", "persistence", "internal"]},
+        "reason_code": {"type": "string", "minLength": 1},
+        "detail": {"type": "string", "minLength": 1},
+        "raw_candidate_path": {"type": "string", "minLength": 1}
+      }
+    }
+  ]
+}

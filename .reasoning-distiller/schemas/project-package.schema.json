@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/project-package.schema.json",
+  "title": "Project Knowledge Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "project", "framework", "locations"],
+  "properties": {
+    "contract": {"const": "project-knowledge-package/1"},
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1}
+      }
+    },
+    "framework": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compatible_contracts"],
+      "properties": {
+        "compatible_contracts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "canonical_backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "config"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1},
+        "config": {"type": "string", "minLength": 1}
+      }
+    },
+    "locations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sources", "rules", "roles", "authority", "evidence", "transactions", "dispositions", "adapters"],
+      "properties": {
+        "sources": {"$ref": "#/$defs/path"},
+        "rules": {"$ref": "#/$defs/path"},
+        "roles": {"$ref": "#/$defs/path"},
+        "authority": {"$ref": "#/$defs/path"},
+        "evidence": {"$ref": "#/$defs/path"},
+        "canonical": {"$ref": "#/$defs/path"},
+        "transactions": {"$ref": "#/$defs/path"},
+        "dispositions": {"$ref": "#/$defs/path"},
+        "adapters": {"$ref": "#/$defs/path"},
+        "policy": {"$ref": "#/$defs/path"}
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    }
+  }
+}
