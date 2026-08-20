@@ -89,8 +89,8 @@ jobs:
           assert not Path('.rd-install-backup').exists(), 'installer backup residue'
           print(f'PASS {len(expected)} manifest files plus exact installation metadata')
           PY
-          git diff --check main...HEAD
-          unexpected="$(git diff --name-only main...HEAD | grep -vE '^(\.reasoning-distiller/|\.github/workflows/install-v0\.4\.0-gates\.yml$|\.github/install-v0\.4\.0-gate-status\.json$)' || true)"
+          git diff --check origin/main...HEAD
+          unexpected="$(git diff --name-only origin/main...HEAD | grep -vE '^(\.reasoning-distiller/|\.github/workflows/install-v0\.4\.0-gates\.yml$|\.github/install-v0\.4\.0-gate-status\.json$)' || true)"
           test -z "$unexpected" || { echo "Unexpected branch changes:"; echo "$unexpected"; exit 1; }
 
           CURRENT_GATE=3; CURRENT_NAME='runtime-isolation'
