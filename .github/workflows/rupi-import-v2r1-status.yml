@@ -1,0 +1,62 @@
+name: Verify imported V2R1 RIL candidate status
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact imported candidate state
+        uses: actions/checkout@v4
+        with:
+          ref: 43999651e0193b4a0e28e49b559a5a51c6d8a778
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify authoritative lifecycle boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path('.').resolve()
+          sys.path.insert(0, str(root / '.reasoning-distiller' / 'runtime'))
+          import ril_status
+
+          status = ril_status.classify_status(root)
+          print(json.dumps(status, indent=2, sort_keys=True))
+          assert status['status'] == 'PASS', status
+          dims = status['dimensions']
+          assert dims['installation'] == 'VALID', status
+          assert dims['project_bootstrap'] == 'VALID', status
+          assert dims['operator'] == 'VALID', status
+          assert dims['reconciliation_authority'] == 'AVAILABLE', status
+          assert dims['admission_authority'] == 'AVAILABLE', status
+          assert dims['candidate'] == 'PENDING', status
+          assert dims['evidence'] == 'NONE', status
+          assert status['lifecycle'] == 'RECONCILIATION_REQUIRED', status
+          assert status['blocker']['code'] == 'ACTIVATION_EVIDENCE_REQUIRED', status
+          assert status['next_action'] == 'PROVIDE_ACTIVATION_EVIDENCE', status
+          PY
+
+      - name: Prove status inspection is read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
