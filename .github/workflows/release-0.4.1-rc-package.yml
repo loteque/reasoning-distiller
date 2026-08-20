@@ -1,0 +1,107 @@
+name: Reasoning Distiller 0.4.1 RC Package
+
+on:
+  push:
+    branches: [release-0.4.1-rc-package]
+    paths:
+      - '.github/workflows/release-0.4.1-rc-package.yml'
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_VERSION: '0.4.1'
+  SOURCE_SHA: '3f6211f2003a3875f8e0c19739616cdf8ced1f6b'
+  ARTIFACT_NAME: 'reasoning-distiller-0.4.1-rc-package'
+
+jobs:
+  build-release-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RC evidence branch
+        uses: actions/checkout@v4
+        with:
+          ref: release-0.4.1-rc-package
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Checkout exact clean release source
+        uses: actions/checkout@v4
+        with:
+          repository: loteque/reasoning-distiller
+          ref: ${{ env.SOURCE_SHA }}
+          path: release-source
+          fetch-depth: 1
+
+      - name: Enforce clean release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e release-source/.reasoning-distiller
+          ! git -C release-source ls-files | grep -q '^\.reasoning-distiller/'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1 PyYAML==6.0.2
+
+      - name: Run release-relevant tests
+        working-directory: release-source
+        run: |
+          python -m unittest -v tests/test_package_builder.py
+          python -m unittest -v tests/test_production_invocation.py tests/test_distill_ingest.py
+
+      - name: Build twice from exact source
+        working-directory: release-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python packaging/build_release_package.py --version "$RELEASE_VERSION" --source-commit "$SOURCE_SHA" --output-dir /tmp/rd-0.4.1-a
+          python packaging/build_release_package.py --version "$RELEASE_VERSION" --source-commit "$SOURCE_SHA" --output-dir /tmp/rd-0.4.1-b
+          cmp /tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.tar.gz /tmp/rd-0.4.1-b/reasoning-distiller-0.4.1.tar.gz
+          cmp /tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.manifest.json /tmp/rd-0.4.1-b/reasoning-distiller-0.4.1.manifest.json
+          cmp /tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.sha256 /tmp/rd-0.4.1-b/reasoning-distiller-0.4.1.sha256
+          python packaging/validate_install_package_contract.py --manifest /tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.manifest.json
+
+      - name: Upload release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: |
+            /tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.tar.gz
+            /tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.manifest.json
+            /tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Persist release candidate evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-candidate
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          manifest = json.loads(Path('/tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.manifest.json').read_text(encoding='utf-8'))
+          detached = Path('/tmp/rd-0.4.1-a/reasoning-distiller-0.4.1.sha256').read_text(encoding='utf-8').split()[0]
+          status = {
+              'contract': 'reasoning-distiller-release-candidate-status/1',
+              'status': 'PASS',
+              'release_version': os.environ['RELEASE_VERSION'],
+              'source_commit': os.environ['SOURCE_SHA'],
+              'content_identity': manifest['content_identity'],
+              'transport_sha256': detached,
+              'file_count': len(manifest['files']),
+              'artifact_name': os.environ['ARTIFACT_NAME'],
+              'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }
+          Path('release-candidate/0.4.1-status.json').write_text(json.dumps(status, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(status, sort_keys=True))
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- release-candidate/0.4.1-status.json
+          git commit -m 'build: record 0.4.1 release-candidate package'
+          git push origin HEAD:release-0.4.1-rc-package
