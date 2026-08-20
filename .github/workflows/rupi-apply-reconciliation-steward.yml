@@ -1,0 +1,86 @@
+name: Apply confirmed Rupi reconciliation Steward
+
+on:
+  push:
+    branches:
+      - rupi/apply-reconciliation-steward
+    paths:
+      - '.github/workflows/rupi-apply-reconciliation-steward.yml'
+
+permissions:
+  contents: write
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout authority branch
+        uses: actions/checkout@v4
+        with:
+          ref: rupi/apply-reconciliation-steward
+          fetch-depth: 1
+          persist-credentials: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply exact confirmed Steward proposal through Rupi
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path('.').resolve()
+          runtime = root / '.reasoning-distiller' / 'runtime'
+          sys.path.insert(0, str(runtime))
+
+          import rupi_authority
+
+          result = rupi_authority.confirm_steward_authorization(
+              root,
+              scope='semantic_reconciliation',
+              role_id='steward:default',
+              approving_operator_id='operator:loteque',
+              proposal_reference='proposal:5c5c38f9b1d60389f8f142021dc4454d97e0dd7c9f2679d5f6b55f7a0055b3a3',
+              confirmation='STEWARD_AUTHORIZATION_CHANGE',
+              requested_goal='authorize the default Steward for semantic reconciliation on main',
+          )
+          print(json.dumps(result, indent=2, sort_keys=True))
+          assert result['status'] == 'PASS', result
+          assert result['outcome'] == 'STEWARD_SCOPE_AUTHORIZED', result
+          status = result['checkpoint']['status']
+          assert status['dimensions']['operator'] == 'VALID', status
+          assert status['dimensions']['reconciliation_authority'] == 'AVAILABLE', status
+          assert status['dimensions']['admission_authority'] == 'UNASSIGNED', status
+          PY
+
+      - name: Verify mutation scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git status --porcelain=v1 | awk '{print $2}')"
+          test -n "$changed"
+          while IFS= read -r path; do
+            case "$path" in
+              project-knowledge/*) ;;
+              *) echo "unexpected Rupi authority mutation: $path" >&2; exit 1 ;;
+            esac
+          done <<< "$changed"
+
+      - name: Commit primitive-owned Steward authorization artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- project-knowledge
+          git diff --cached --check
+          git commit -m 'rupi: authorize default Steward for semantic reconciliation'
+          git push origin HEAD:rupi/apply-reconciliation-steward
