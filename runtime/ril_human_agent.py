@@ -51,7 +51,16 @@ def bind_contextual_intent(
     an authority primitive. A caller that detects a material modification must set
     `material_modification=True`, which converts the turn into a revision request.
     """
-    operations = [op for op in offered_operations if isinstance(op, str) and op]
+    if not isinstance(offered_operations, list) or any(
+        not isinstance(op, str) or not op for op in offered_operations
+    ):
+        return {
+            "contract": INTENT_CONTRACT,
+            "status": "STOPPED",
+            "outcome": "INVALID_CONTEXT",
+            "operations": [],
+        }
+    operations = list(offered_operations)
     normalized = _normalize_utterance(utterance)
 
     if material_modification:
@@ -145,15 +154,18 @@ def direct_approve(
     The current-state callback is invoked inside this function so adapters do not
     precompute applicability and later create an approval from stale validation.
     """
-    mutation.validate_proposal(proposal)
     current_state = current_state_loader()
     revalidation = mutation.revalidate_proposal(proposal, current_state, blocked_reasons=blocked_reasons)
     classification = revalidation["classification"]
     if classification != "APPLICABLE":
+        try:
+            proposal_ref = proposal_reference(proposal)
+        except Exception:
+            proposal_ref = None
         return _result(
             "STOPPED",
             f"PROPOSAL_{classification}",
-            proposal=proposal_reference(proposal),
+            proposal=proposal_ref,
             revalidation=revalidation,
         )
 
