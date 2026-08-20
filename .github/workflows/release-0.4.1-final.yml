@@ -1,0 +1,133 @@
+name: Publish Reasoning Distiller 0.4.1 Final
+
+on:
+  push:
+    branches: [release-0.4.1-final]
+    paths:
+      - '.github/workflows/release-0.4.1-final.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reasoning-distiller-0.4.1-final
+  cancel-in-progress: false
+
+env:
+  RELEASE_VERSION: '0.4.1'
+  RELEASE_TAG: 'v0.4.1'
+  SOURCE_SHA: 'c66bbcd4371a5163af1f822906b471f58eb45452'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:bd51dfe217dcc250f352a053e18a37d43fba8294ef578a45187ce1f8041a8af7'
+  EXPECTED_TRANSPORT_SHA256: '5068efcecea970ab0ef8c9bf46688faa30ff3e7aef51a668ee6e7de8a75e4ee5'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release-0.4.1-final
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/checkout@v4
+        with:
+          repository: loteque/reasoning-distiller
+          ref: ${{ env.SOURCE_SHA }}
+          path: release-source
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install package dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Rebuild accepted package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e release-source/.reasoning-distiller
+          ! git -C release-source ls-files | grep -q '^\.reasoning-distiller/'
+          cd release-source
+          python packaging/build_release_package.py \
+            --version "$RELEASE_VERSION" \
+            --source-commit "$SOURCE_SHA" \
+            --output-dir /tmp/rd-release
+          python packaging/validate_install_package_contract.py \
+            --manifest "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          cd ..
+          manifest="/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          detached="/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.sha256"
+          content_identity="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["content_identity"])' "$manifest")"
+          transport_sha="$(awk '{print $1}' "$detached")"
+          test "$content_identity" = "$EXPECTED_CONTENT_IDENTITY"
+          test "$transport_sha" = "$EXPECTED_TRANSPORT_SHA256"
+          cp release-source/packaging/rd_install.py /tmp/rd-release/rd_install.py
+          cp release-source/packaging/validate_install_package_contract.py /tmp/rd-release/validate_install_package_contract.py
+          cp release-source/schemas/install-package-manifest.schema.json /tmp/rd-release/install-package-manifest.schema.json
+          cp release-source/schemas/installation-record.schema.json /tmp/rd-release/installation-record.schema.json
+
+      - name: Create and verify immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git ls-remote --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG")"
+          gh release create "$RELEASE_TAG" \
+            "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
+            "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json" \
+            "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.sha256" \
+            /tmp/rd-release/rd_install.py \
+            /tmp/rd-release/validate_install_package_contract.py \
+            /tmp/rd-release/install-package-manifest.schema.json \
+            /tmp/rd-release/installation-record.schema.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "Reasoning Distiller ${RELEASE_VERSION}" \
+            --notes "Reasoning Distiller ${RELEASE_VERSION}. Adds the first-class distillation ingestion wizard and hardens deterministic packaging against generated Python cache artifacts. Source: ${SOURCE_SHA}. Content identity: ${EXPECTED_CONTENT_IDENTITY}. Transport SHA-256: ${EXPECTED_TRANSPORT_SHA256}."
+
+          tag_sha="$(git ls-remote --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+          test "$tag_sha" = "$SOURCE_SHA"
+
+          mkdir -p /tmp/rd-downloaded
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir /tmp/rd-downloaded
+          cmp "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.tar.gz" "/tmp/rd-downloaded/reasoning-distiller-${RELEASE_VERSION}.tar.gz"
+          cmp "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.manifest.json" "/tmp/rd-downloaded/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          cmp "/tmp/rd-release/reasoning-distiller-${RELEASE_VERSION}.sha256" "/tmp/rd-downloaded/reasoning-distiller-${RELEASE_VERSION}.sha256"
+          cmp /tmp/rd-release/rd_install.py /tmp/rd-downloaded/rd_install.py
+          cmp /tmp/rd-release/validate_install_package_contract.py /tmp/rd-downloaded/validate_install_package_contract.py
+          cmp /tmp/rd-release/install-package-manifest.schema.json /tmp/rd-downloaded/install-package-manifest.schema.json
+          cmp /tmp/rd-release/installation-record.schema.json /tmp/rd-downloaded/installation-record.schema.json
+
+      - name: Persist final publication PASS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-candidate
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          status = {
+              'contract': 'reasoning-distiller-release-publication-status/1',
+              'status': 'PASS',
+              'release_version': os.environ['RELEASE_VERSION'],
+              'release_tag': os.environ['RELEASE_TAG'],
+              'source_commit': os.environ['SOURCE_SHA'],
+              'content_identity': os.environ['EXPECTED_CONTENT_IDENTITY'],
+              'transport_sha256': os.environ['EXPECTED_TRANSPORT_SHA256'],
+              'asset_count': 7,
+              'download_reverification': 'PASS',
+              'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }
+          Path('release-candidate/0.4.1-final-published.json').write_text(json.dumps(status, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(status, sort_keys=True))
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- release-candidate/0.4.1-final-published.json
+          git commit -m 'release: record published Reasoning Distiller 0.4.1'
+          git push origin HEAD:release-0.4.1-final
