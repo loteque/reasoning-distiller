@@ -34,6 +34,10 @@ class G7HumanAgentAdapterTests(unittest.TestCase):
         revised = human.bind_contextual_intent("yes", ["approve proposal:a"], material_modification=True)
         self.assertEqual(revised["outcome"], "REVISION_REQUEST")
 
+        malformed = human.bind_contextual_intent("yes", ["approve proposal:a", ""])
+        self.assertEqual(malformed["status"], "STOPPED")
+        self.assertEqual(malformed["outcome"], "INVALID_CONTEXT")
+
     def test_proposal_presentation_exposes_exact_immutable_reference(self):
         state = {"value": 1}
         proposal = mutation.make_proposal("example", "CHANGE", state, {"value": 2})
@@ -89,6 +93,17 @@ class G7HumanAgentAdapterTests(unittest.TestCase):
         )
         self.assertEqual(blocked["outcome"], "PROPOSAL_BLOCKED")
         self.assertNotIn("approval", blocked)
+
+        invalid = human.direct_approve(
+            {"contract": mutation.PROPOSAL_CONTRACT},
+            "operator:alice",
+            {"method": "test"},
+            lambda: state,
+        )
+        self.assertEqual(invalid["status"], "STOPPED")
+        self.assertEqual(invalid["outcome"], "PROPOSAL_INVALID")
+        self.assertIsNone(invalid["proposal"])
+        self.assertNotIn("approval", invalid)
 
     def test_auto_advance_is_a_thin_g5_peer_adapter(self):
         original = human.shared.advance_auto_proposal
