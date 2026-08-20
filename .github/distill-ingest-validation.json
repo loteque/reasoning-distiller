@@ -1,7 +1,0 @@
-{
-  "contract": "reasoning-distiller-ingest-validation/1",
-  "detail": "targeted tests, full unit suite, CLI smoke, and package inclusion passed",
-  "source_commit": "d9d3686de5d24f5b8a30b446e5daa8cfa295a813",
-  "status": "PASS",
-  "workflow_run": "32393755067"
-}
