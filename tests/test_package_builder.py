@@ -91,6 +91,27 @@ class PackageBuilderTests(unittest.TestCase):
             m2 = json.loads(two["manifest"].read_text(encoding="utf-8"))
             self.assertEqual(m1["files"], m2["files"])
 
+    def test_generated_python_cache_does_not_change_package(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "source"
+            self.make_minimal_source(root)
+            first = builder.build(VERSION, SOURCE_COMMIT, Path(td) / "before", root=root)
+
+            cache = root / "runtime" / "__pycache__"
+            cache.mkdir()
+            (cache / "rd_distill.cpython-312.pyc").write_bytes(b"generated-bytecode")
+            (root / "validators" / "loose.pyc").write_bytes(b"generated-bytecode")
+            (root / "agents" / "optimized.pyo").write_bytes(b"generated-bytecode")
+
+            second = builder.build(VERSION, SOURCE_COMMIT, Path(td) / "after", root=root)
+            self.assertEqual(first["content_identity"], second["content_identity"])
+            self.assertEqual(first["transport_sha256"], second["transport_sha256"])
+            self.assertEqual(first["archive"].read_bytes(), second["archive"].read_bytes())
+            manifest = json.loads(second["manifest"].read_text(encoding="utf-8"))
+            paths = {item["path"] for item in manifest["files"]}
+            self.assertFalse(any("__pycache__" in path for path in paths))
+            self.assertFalse(any(path.endswith((".pyc", ".pyo")) for path in paths))
+
     def test_invalid_source_commit_and_version_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             with self.assertRaises(ValueError):
