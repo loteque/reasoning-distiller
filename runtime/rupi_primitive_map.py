@@ -29,7 +29,7 @@ PRIMITIVE_MAP = {
     },
     "recover_install_transaction": {
         "kind": "mutation",
-        "primitive": "rd_install.recover_interrupted_transaction",
+        "primitive": "rd_install_recovery.recover_install_transaction",
     },
     "bootstrap_project": {
         "kind": "mutation",
