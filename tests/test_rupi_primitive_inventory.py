@@ -29,6 +29,7 @@ class RupiPrimitiveInventoryTests(unittest.TestCase):
             "recover_install_transaction",
             "bootstrap_project",
             "plan_initial_operator",
+            "bind_protected_confirmation",
             "approve_initial_operator",
             "apply_initial_operator",
             "plan_steward_authorization",
@@ -52,6 +53,12 @@ class RupiPrimitiveInventoryTests(unittest.TestCase):
             self.assertIsInstance(spec["primitive"], str)
             self.assertIn(".", spec["primitive"])
             self.assertNotEqual(spec["primitive"].split(".", 1)[0], "rupi", action)
+
+    def test_protected_confirmation_is_a_distinct_primitive(self):
+        protected = rupi_map.PRIMITIVE_MAP["bind_protected_confirmation"]
+        contextual = rupi_map.PRIMITIVE_MAP["bind_contextual_intent"]
+        self.assertEqual(protected["primitive"], "ril_human_confirmation.bind_exact_confirmation")
+        self.assertNotEqual(protected["primitive"], contextual["primitive"])
 
     def test_rupi_does_not_route_authority_through_legacy_steward_setup(self):
         mapped = {spec["primitive"] for spec in rupi_map.PRIMITIVE_MAP.values()}
