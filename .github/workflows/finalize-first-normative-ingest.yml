@@ -1,0 +1,62 @@
+name: Finalize first normative Reasoning Distiller ingestion
+
+on:
+  push:
+    branches: [distillation/first-normative-baseline]
+    paths:
+      - '.github/workflows/finalize-first-normative-ingest.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: distillation/first-normative-baseline
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1 PyYAML==6.0.2
+
+      - name: Finalize candidate through installed runtime
+        run: |
+          set -euo pipefail
+          request='project-knowledge/invocations/first-normative-baseline-20260820.request.json'
+          raw='project-knowledge/invocations/first-normative-baseline-20260820.raw.json'
+          submission='project-knowledge/submissions/first-normative-baseline-20260820.json'
+          before="$(sha256sum "$raw" | awk '{print $1}')"
+          python .reasoning-distiller/runtime/rd_distill.py finalize \
+            --request "$request" \
+            --raw-candidate "$raw"
+          after="$(sha256sum "$raw" | awk '{print $1}')"
+          test "$before" = "$after"
+          test -f "$submission"
+          python3 - "$submission" <<'PY'
+          import json, sys
+          d=json.load(open(sys.argv[1], encoding='utf-8'))
+          assert isinstance(d, dict)
+          print('PASS finalized submission')
+          PY
+
+      - name: Commit durable ingestion artifacts and remove runners
+        run: |
+          set -euo pipefail
+          git add -- project-knowledge/submissions/first-normative-baseline-20260820.json
+          git rm -- \
+            .github/workflows/run-first-normative-ingest.yml \
+            .github/workflows/finalize-first-normative-ingest.yml
+          git diff --cached --check
+          unexpected="$(git diff --cached --name-only | grep -v -E '^(project-knowledge/submissions/first-normative-baseline-20260820\.json|\.github/workflows/(run-first-normative-ingest|finalize-first-normative-ingest)\.yml)$' || true)"
+          test -z "$unexpected"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'distill: finalize first normative candidate submission'
+          git push origin HEAD:distillation/first-normative-baseline
