@@ -149,7 +149,12 @@ class ProductionInvocationTests(unittest.TestCase):
 
     def test_07_isolated_installed_runtime_has_no_source_repo_fallback(self):
         installed = self.project / ".reasoning-distiller"
-        for rel in ("runtime/rd_distill.py", "agents/distiller/DIRECTIVE.md", "validators/rgp_validator.py"):
+        for rel in (
+            "runtime/rd_distill.py",
+            "runtime/rd_distill_core.py",
+            "agents/distiller/DIRECTIVE.md",
+            "validators/rgp_validator.py",
+        ):
             source = ROOT / rel
             dest = installed / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
