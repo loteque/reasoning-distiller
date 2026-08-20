@@ -4,19 +4,28 @@ on:
   push:
     branches:
       - release-0.4.0-rc-package
+    paths:
+      - '.github/workflows/release-0.4.0-rc-package.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   RELEASE_VERSION: '0.4.0'
   SOURCE_SHA: '6259324d030822ac78da902f9288f18e8f071b84'
+  ARTIFACT_NAME: 'reasoning-distiller-0.4.0-rc-package'
 
 jobs:
   build-release-candidate:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout RC evidence branch
+        uses: actions/checkout@v4
+        with:
+          ref: release-0.4.0-rc-package
+          fetch-depth: 1
+
       - name: Checkout exact verified source
         uses: actions/checkout@v4
         with:
@@ -58,28 +67,44 @@ jobs:
         working-directory: release-source
         run: python packaging/validate_install_package_contract.py --manifest /tmp/rd-0.4.0-a/reasoning-distiller-0.4.0.manifest.json
 
-      - name: Print package identities
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          manifest = json.loads(Path('/tmp/rd-0.4.0-a/reasoning-distiller-0.4.0.manifest.json').read_text())
-          print('VERSION=' + manifest['version'])
-          print('SOURCE_COMMIT=' + manifest['source_commit'])
-          print('CONTENT_IDENTITY=' + manifest['content_identity'])
-          print('TRANSPORT_SHA256=' + manifest['transport_sha256'])
-          print('FILE_COUNT=' + str(len(manifest['files'])))
-          PY
-
       - name: Upload release-candidate package
         uses: actions/upload-artifact@v4
         with:
-          name: reasoning-distiller-0.4.0-rc-package
+          name: ${{ env.ARTIFACT_NAME }}
           path: |
             /tmp/rd-0.4.0-a/reasoning-distiller-0.4.0.tar.gz
             /tmp/rd-0.4.0-a/reasoning-distiller-0.4.0.manifest.json
             /tmp/rd-0.4.0-a/reasoning-distiller-0.4.0.sha256
           if-no-files-found: error
           retention-days: 7
+
+      - name: Persist release-candidate PASS evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-candidate
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          manifest = json.loads(Path('/tmp/rd-0.4.0-a/reasoning-distiller-0.4.0.manifest.json').read_text(encoding='utf-8'))
+          status = {
+              'contract': 'reasoning-distiller-release-candidate-status/1',
+              'status': 'PASS',
+              'release_version': os.environ['RELEASE_VERSION'],
+              'source_commit': os.environ['SOURCE_SHA'],
+              'content_identity': manifest['content_identity'],
+              'transport_sha256': manifest['transport_sha256'],
+              'file_count': len(manifest['files']),
+              'artifact_name': os.environ['ARTIFACT_NAME'],
+              'workflow_run': os.environ['GITHUB_RUN_ID'],
+          }
+          Path('release-candidate/0.4.0-status.json').write_text(
+              json.dumps(status, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(status, sort_keys=True))
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- release-candidate/0.4.0-status.json
+          git commit -m 'build: record 0.4.0 release-candidate package'
+          git push origin HEAD:release-0.4.0-rc-package
