@@ -1,6 +1,6 @@
 # R16–R18 — Implementation and Conformance Gate Plan
 
-Status: **Non-authoritative implementation plan — design-complete; implementation authorization required**
+Status: **Completed — G1–G10 passed; R16–R18 implementation conformant on `main`**
 
 Depends on: accepted R1–R18, including R16A CLI, R16B Human↔Agent interaction, D1 durable workflows, D2 provenance, D3 proposal revalidation, R17 authority grants, and R18 operation delegability classification.
 
@@ -224,8 +224,24 @@ Implementation must stop for design review if any gate discovers that accepted b
 
 R16–R18 implementation is conformant only when G1–G10 all pass and the produced evidence demonstrates that ordinary grant-covered automation proceeds without redundant human approval while the three accepted human boundaries remain impossible to bypass.
 
-## Current gate
+## Completion record
 
-Design integration through R18 is complete. The next actionable gate is **G1 — Shared artifact and validation substrate**.
+The implementation sequence completed in dependency order through G10. Cumulative verification preserved R1–R15 compatibility while adding the R16–R18 surfaces and authority semantics described above.
 
-Starting G1 is implementation work and therefore requires explicit implementation authorization beyond acceptance of this planning document.
+Recorded gate evidence:
+
+- **G1–G7:** implemented and retained under subsequent cumulative verification.
+- **G8 — Cross-adapter parity:** `Phase 3 G8 Verification`, run `32336297645`, exact head `bed456d59067ea48235d532c50218deac6a78375`, 283 tests, `OK`.
+- **G9 — Automation-boundary adversarial suite:** `Phase 3 G9 Verification`, run `32336794905`, exact head `08f017dd719897289cd61cd2ad2282249cbd3474`, 295 tests, `OK`.
+- **G10 — End-to-end autonomous workflow proof:** `Phase 3 G10 Verification`, run `32337711171`, exact head `b3930ec3f67c6a410498dfb6707a7f25037a57f5`, 299 tests, `OK`.
+- **Integration to `main`:** PR `#11` merged the verified G10 tree into merge commit `d1573f326a62f81ce725b62e13824d6d31f81aaf`.
+- **Post-merge canonical verification:** `RIL Test Suite`, run `32338053624`, exact `main` SHA `d1573f326a62f81ce725b62e13824d6d31f81aaf`, 299 tests in 8.414s, `OK`.
+- **Post-merge package verification:** `Reasoning Distiller Package Builder`, run `32338053648`, exact `main` SHA `d1573f326a62f81ce725b62e13824d6d31f81aaf`, `success`.
+
+The completion condition is therefore satisfied. Ordinary grant-covered automation proceeds without redundant proposal-specific human approval, while materiality, scope/authority expansion, and non-delegable protected authority remain explicit fail-closed interruption boundaries.
+
+## Current state
+
+**Phase 3 / R16–R18 implementation is complete and conformant.**
+
+The stable implementation baseline is the verified `main` merge commit `d1573f326a62f81ce725b62e13824d6d31f81aaf`. Future work must treat the accepted R1–R18 design contracts and the conformance behavior recorded here as the baseline unless a later accepted design explicitly supersedes them.
