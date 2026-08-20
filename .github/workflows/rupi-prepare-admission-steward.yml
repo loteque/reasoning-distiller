@@ -6,6 +6,11 @@ on:
       - rupi/prepare-admission-steward
     paths:
       - '.github/workflows/rupi-prepare-admission-steward.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/rupi-prepare-admission-steward.yml'
 
 permissions:
   contents: read
@@ -55,7 +60,7 @@ jobs:
           assert result['scope'] == 'admission', result
           assert result['role_id'] == 'steward:default', result
           assert result['required_confirmation'] == 'STEWARD_AUTHORIZATION_CHANGE', result
-          assert result['proposal_reference'], result
+          assert result['proposal_reference'] == 'proposal:c2650b963fb99633fba103e7b9b6874dd0b64fdaa22fda7a383f107321a17da2', result
           status = result['checkpoint']['status']
           assert status['dimensions']['operator'] == 'VALID', status
           assert status['dimensions']['reconciliation_authority'] == 'AVAILABLE', status
