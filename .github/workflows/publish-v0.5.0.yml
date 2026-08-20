@@ -1,0 +1,176 @@
+name: Publish Reasoning Distiller v0.5.0
+
+on:
+  push:
+    branches:
+      - release/publish-v0.5.0
+    paths:
+      - '.github/workflows/publish-v0.5.0.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-reasoning-distiller-v0.5.0
+  cancel-in-progress: false
+
+env:
+  RELEASE_VERSION: '0.5.0'
+  RELEASE_TAG: 'v0.5.0'
+  SOURCE_SHA: '9b68b4da5454a83992e6062c0b5ccb3d425284ce'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:848f41f8a1e4f0d2c6da885937e166f230c356d694a365fc5cbdffa3a5676a0c'
+  EXPECTED_TRANSPORT_SHA256: 'c385d9a1d52ada92db05b9bb747b9ccf17c18b4de727f40b762b166f5a5f0c50'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout publication branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Checkout exact clean release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: release-source-clean
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install package validator dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Rebuild exact package twice and verify identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd release-source-clean
+            python packaging/build_release_package.py \
+              --version "$RELEASE_VERSION" \
+              --source-commit "$SOURCE_SHA" \
+              --output-dir /tmp/rd-release-a
+            python packaging/build_release_package.py \
+              --version "$RELEASE_VERSION" \
+              --source-commit "$SOURCE_SHA" \
+              --output-dir /tmp/rd-release-b
+            python packaging/validate_install_package_contract.py \
+              --manifest "/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          )
+
+          cmp "/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
+              "/tmp/rd-release-b/reasoning-distiller-${RELEASE_VERSION}.tar.gz"
+          cmp "/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.manifest.json" \
+              "/tmp/rd-release-b/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          cmp "/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.sha256" \
+              "/tmp/rd-release-b/reasoning-distiller-${RELEASE_VERSION}.sha256"
+
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          version = os.environ['RELEASE_VERSION']
+          manifest = json.loads(Path(f'/tmp/rd-release-a/reasoning-distiller-{version}.manifest.json').read_text(encoding='utf-8'))
+          transport = Path(f'/tmp/rd-release-a/reasoning-distiller-{version}.sha256').read_text(encoding='utf-8').split()[0]
+          assert manifest['version'] == version
+          assert manifest['source_commit'] == os.environ['SOURCE_SHA']
+          assert manifest['content_identity'] == os.environ['EXPECTED_CONTENT_IDENTITY'], manifest['content_identity']
+          assert manifest['transport_sha256'] == os.environ['EXPECTED_TRANSPORT_SHA256'], manifest['transport_sha256']
+          assert transport == os.environ['EXPECTED_TRANSPORT_SHA256'], transport
+          paths = {item['path'] for item in manifest['files']}
+          required = {
+              'runtime/rupi.py',
+              'runtime/rupi_lifecycle.py',
+              'runtime/rupi_authority.py',
+              'runtime/rupi_primitive_map.py',
+              'runtime/rd_install_recovery.py',
+              'runtime/ril_human_confirmation.py',
+          }
+          missing = sorted(required - paths)
+          assert not missing, f'missing Rupi release payload: {missing}'
+          print('PASS exact v0.5.0 package identity and Rupi payload verified')
+          print('CONTENT_IDENTITY=' + manifest['content_identity'])
+          print('TRANSPORT_SHA256=' + transport)
+          PY
+
+      - name: Stage canonical seven release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp release-source-clean/packaging/rd_install.py /tmp/rd-release-a/rd_install.py
+          cp release-source-clean/packaging/validate_install_package_contract.py /tmp/rd-release-a/validate_install_package_contract.py
+          cp release-source-clean/schemas/install-package-manifest.schema.json /tmp/rd-release-a/install-package-manifest.schema.json
+          cp release-source-clean/schemas/installation-record.schema.json /tmp/rd-release-a/installation-record.schema.json
+
+      - name: Publish or verify immutable v0.5.0 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.tar.gz"
+          manifest="/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          detached="/tmp/rd-release-a/reasoning-distiller-${RELEASE_VERSION}.sha256"
+          assets=(
+            "$archive"
+            "$manifest"
+            "$detached"
+            "/tmp/rd-release-a/rd_install.py"
+            "/tmp/rd-release-a/validate_install_package_contract.py"
+            "/tmp/rd-release-a/install-package-manifest.schema.json"
+            "/tmp/rd-release-a/installation-record.schema.json"
+          )
+
+          existing_tag_sha="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+          if [ -n "$existing_tag_sha" ] && [ "$existing_tag_sha" != "$SOURCE_SHA" ]; then
+            echo "tag $RELEASE_TAG points to $existing_tag_sha, expected $SOURCE_SHA" >&2
+            exit 1
+          fi
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release already exists; verifying immutable identity"
+          elif [ -n "$existing_tag_sha" ]; then
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --title "Reasoning Distiller ${RELEASE_VERSION}" \
+              --notes "Reasoning Distiller ${RELEASE_VERSION} introduces Rupi, the primitive-bound lifecycle helper for verified installation, update, recovery, readiness, and protected authority handoff. Source: ${SOURCE_SHA}. Content identity: ${EXPECTED_CONTENT_IDENTITY}. Transport SHA-256: ${EXPECTED_TRANSPORT_SHA256}. Dogfood update evidence: GitHub Actions run 32421398161."
+          else
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$SOURCE_SHA" \
+              --title "Reasoning Distiller ${RELEASE_VERSION}" \
+              --notes "Reasoning Distiller ${RELEASE_VERSION} introduces Rupi, the primitive-bound lifecycle helper for verified installation, update, recovery, readiness, and protected authority handoff. Source: ${SOURCE_SHA}. Content identity: ${EXPECTED_CONTENT_IDENTITY}. Transport SHA-256: ${EXPECTED_TRANSPORT_SHA256}. Dogfood update evidence: GitHub Actions run 32421398161."
+          fi
+
+          tag_sha="$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+          test "$tag_sha" = "$SOURCE_SHA" || { echo "release tag points to $tag_sha, expected $SOURCE_SHA" >&2; exit 1; }
+
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort > /tmp/actual-assets.txt
+          printf '%s\n' \
+            "install-package-manifest.schema.json" \
+            "installation-record.schema.json" \
+            "rd_install.py" \
+            "reasoning-distiller-${RELEASE_VERSION}.manifest.json" \
+            "reasoning-distiller-${RELEASE_VERSION}.sha256" \
+            "reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
+            "validate_install_package_contract.py" | sort > /tmp/expected-assets.txt
+          diff -u /tmp/expected-assets.txt /tmp/actual-assets.txt
+
+          echo "PASS v0.5.0 release published with exact seven assets"
+
+      - name: Upload publication evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: reasoning-distiller-v0.5.0-publication-evidence
+          path: |
+            /tmp/rd-release-a/reasoning-distiller-0.5.0.tar.gz
+            /tmp/rd-release-a/reasoning-distiller-0.5.0.manifest.json
+            /tmp/rd-release-a/reasoning-distiller-0.5.0.sha256
+            /tmp/actual-assets.txt
+          if-no-files-found: error
