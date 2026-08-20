@@ -15,9 +15,30 @@ canonical_json_bytes = _mut.canonical_json_bytes
 digest = _mut.digest
 PROVENANCE_CONTRACT = "reasoning-distiller-provenance/1"
 
+# Fail-closed registry. Absence means non-delegable. Constraint entries publish
+# supported narrowing predicates; required_constraints names the subset that
+# must be present for every grant covering that operation class.
 DELEGATION_REGISTRY: dict[str, dict[str, Any]] = {
-    "role-registry.change": {"delegable": True, "target_fields": ["role_id"], "selectors": {"role_id": ["exact", "one-of"]}},
-    "operator-registry.disable": {"delegable": True, "target_fields": ["operator_id"], "selectors": {"operator_id": ["exact", "one-of"]}, "constraints": {"operation": ["eq"]}},
+    "role-registry.change": {
+        "delegable": True,
+        "grantor_capability": "rd:role_registry",
+        "target_fields": ["role_id"],
+        "selectors": {"role_id": ["exact", "one-of"]},
+        "constraints": {
+            "mutation_kinds": ["subset-of"],
+            "role_ids": ["max-count"],
+            "submission_mode": ["eq", "one-of"],
+        },
+        "required_constraints": [],
+    },
+    "operator-registry.disable": {
+        "delegable": True,
+        "grantor_capability": "rd:operator_management",
+        "target_fields": ["operator_id"],
+        "selectors": {"operator_id": ["exact", "one-of"]},
+        "constraints": {"operation": ["eq"]},
+        "required_constraints": ["operation"],
+    },
 }
 
 # Accepted durable reference namespaces. Resolution functions are supplied by the
