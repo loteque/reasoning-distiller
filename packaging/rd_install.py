@@ -20,6 +20,8 @@ from pathlib import Path
 
 INSTALLER_CONTRACT = "reasoning-distiller-installer/1"
 TRANSACTION_CONTRACT = "reasoning-distiller-install-transaction/1"
+RELEASE_VERIFICATION_CONTRACT = "reasoning-distiller-release-verification/1"
+TRANSITION_PLAN_CONTRACT = "reasoning-distiller-install-transition-plan/1"
 DEFAULT_MANAGED_ROOT = ".reasoning-distiller"
 DEFAULT_INSTALLED_AT = "1970-01-01T00:00:00Z"
 JOURNAL_NAME = ".rd-install-transaction.json"
@@ -112,6 +114,45 @@ def inspect_archive(package: Path, manifest: dict) -> dict[str, bytes]:
                 raise ValueError(f"archive digest mismatch: {member.name}")
             payload[member.name] = data
     return payload
+
+
+def _verify_release_bundle_internal(
+    package: Path,
+    manifest_path: Path,
+    transport_sha256: str,
+) -> tuple[dict, dict[str, bytes], dict]:
+    package = package.resolve()
+    manifest_path = manifest_path.resolve()
+    if not package.is_file() or not manifest_path.is_file():
+        raise ValueError("package and manifest must be existing local files")
+    manifest = rd.validate_manifest(manifest_path)
+    validate_transport(package, transport_sha256, manifest)
+    payload = inspect_archive(package, manifest)
+    result = {
+        "contract": RELEASE_VERIFICATION_CONTRACT,
+        "status": "PASS",
+        "outcome": "VERIFIED",
+        "version": manifest["version"],
+        "source_commit": manifest["source_commit"],
+        "content_identity": manifest["content_identity"],
+        "transport_sha256": transport_sha256,
+        "file_count": len(manifest["files"]),
+    }
+    return manifest, payload, result
+
+
+def verify_release_bundle(package: Path, manifest_path: Path, transport_sha256: str) -> dict:
+    """Read-only verification of one exact local release bundle."""
+    try:
+        _, _, result = _verify_release_bundle_internal(package, manifest_path, transport_sha256)
+        return result
+    except Exception as exc:
+        return {
+            "contract": RELEASE_VERIFICATION_CONTRACT,
+            "status": "FAIL",
+            "outcome": "INVALID_RELEASE",
+            "detail": str(exc),
+        }
 
 
 def read_previous_manifest(managed: Path) -> dict | None:
@@ -259,6 +300,183 @@ def validate_journal(journal: dict, managed_root: str) -> None:
         raise ValueError("invalid installer recovery journal previous_exists")
 
 
+def _transition_result(outcome: str, incoming: dict, **extra: object) -> dict:
+    result = {
+        "contract": TRANSITION_PLAN_CONTRACT,
+        "status": "PASS",
+        "outcome": outcome,
+        "incoming_version": incoming["version"],
+        "incoming_content_identity": incoming["content_identity"],
+    }
+    result.update(extra)
+    return result
+
+
+def _plan_installation_transition_internal(
+    manifest: dict,
+    target: Path,
+    *,
+    managed_root: str = DEFAULT_MANAGED_ROOT,
+    project_package: Path | None = None,
+    allow_downgrade: bool = False,
+) -> dict:
+    target = target.resolve()
+    if not target.is_dir():
+        raise ValueError("target must be an existing project directory")
+
+    journal_path, backup = journal_paths(target)
+    if journal_path.exists():
+        if not journal_path.is_file() or journal_path.is_symlink():
+            return _transition_result(
+                "INCOMPATIBLE",
+                manifest,
+                reason_code="RECOVERY_STATE_INVALID",
+                detail="installer recovery journal is not a regular file",
+            )
+        try:
+            journal = load_json(journal_path)
+            validate_journal(journal, managed_root)
+        except Exception as exc:
+            return _transition_result(
+                "INCOMPATIBLE",
+                manifest,
+                reason_code="RECOVERY_STATE_INVALID",
+                detail=str(exc),
+            )
+        return _transition_result(
+            "RECOVERY_REQUIRED",
+            manifest,
+            journal_state=journal["state"],
+            previous_content_identity=journal["previous_content_identity"],
+        )
+    if backup.exists():
+        return _transition_result(
+            "INCOMPATIBLE",
+            manifest,
+            reason_code="ORPHAN_BACKUP",
+            detail="orphan installer backup exists without recovery journal",
+        )
+
+    if project_package is not None:
+        try:
+            validate_project_compatibility(project_package.resolve(), manifest)
+        except Exception as exc:
+            return _transition_result(
+                "INCOMPATIBLE",
+                manifest,
+                reason_code="PROJECT_INCOMPATIBLE",
+                detail=str(exc),
+            )
+
+    managed = resolve_managed_root(target, managed_root)
+    try:
+        previous = read_previous_manifest(managed)
+    except Exception as exc:
+        return _transition_result(
+            "INCOMPATIBLE",
+            manifest,
+            reason_code="MANAGED_STATE_INVALID",
+            detail=str(exc),
+        )
+
+    drift = detect_drift(managed, previous)
+    if drift:
+        return _transition_result(
+            "MANAGED_DRIFT",
+            manifest,
+            previous_version=previous["version"] if previous else None,
+            drift=drift,
+        )
+
+    if previous is None:
+        return _transition_result("FRESH_INSTALL", manifest, previous_version=None)
+
+    previous_version = previous["version"]
+    previous_identity = previous["content_identity"]
+    if previous_version == manifest["version"]:
+        if previous_identity != manifest["content_identity"]:
+            return _transition_result(
+                "IDENTITY_COLLISION",
+                manifest,
+                previous_version=previous_version,
+                previous_content_identity=previous_identity,
+            )
+        return _transition_result(
+            "NO_CHANGE",
+            manifest,
+            previous_version=previous_version,
+            previous_content_identity=previous_identity,
+        )
+
+    old = numeric_version(previous_version)
+    new = numeric_version(manifest["version"])
+    if old is not None and new is not None and new < old:
+        if not allow_downgrade:
+            return _transition_result(
+                "DOWNGRADE_REQUIRES_AUTHORIZATION",
+                manifest,
+                previous_version=previous_version,
+                previous_content_identity=previous_identity,
+            )
+        return _transition_result(
+            "DOWNGRADE",
+            manifest,
+            previous_version=previous_version,
+            previous_content_identity=previous_identity,
+        )
+
+    return _transition_result(
+        "UPDATE",
+        manifest,
+        previous_version=previous_version,
+        previous_content_identity=previous_identity,
+    )
+
+
+def plan_installation_transition(
+    manifest_path: Path,
+    target: Path,
+    *,
+    managed_root: str = DEFAULT_MANAGED_ROOT,
+    project_package: Path | None = None,
+    allow_downgrade: bool = False,
+) -> dict:
+    """Read-only target transition classification for one locally pinned manifest."""
+    try:
+        manifest_path = manifest_path.resolve()
+        if not manifest_path.is_file():
+            raise ValueError("manifest must be an existing local file")
+        manifest = rd.validate_manifest(manifest_path)
+        return _plan_installation_transition_internal(
+            manifest,
+            target,
+            managed_root=managed_root,
+            project_package=project_package,
+            allow_downgrade=allow_downgrade,
+        )
+    except Exception as exc:
+        return {
+            "contract": TRANSITION_PLAN_CONTRACT,
+            "status": "FAIL",
+            "outcome": "INVALID_INPUT",
+            "detail": str(exc),
+        }
+
+
+def _raise_for_blocked_transition(plan: dict) -> None:
+    outcome = plan["outcome"]
+    if outcome == "MANAGED_DRIFT":
+        raise ValueError("managed-file drift detected: " + ", ".join(plan["drift"]))
+    if outcome == "IDENTITY_COLLISION":
+        raise ValueError("same release version has different content identity")
+    if outcome == "DOWNGRADE_REQUIRES_AUTHORIZATION":
+        raise ValueError("downgrade rejected; pass --allow-downgrade for an explicit downgrade")
+    if outcome == "INCOMPATIBLE":
+        raise ValueError(plan.get("detail", "installation target is incompatible"))
+    if outcome == "RECOVERY_REQUIRED":
+        raise ValueError("installer recovery required before install")
+
+
 def recover_interrupted_transaction(target: Path, managed_root: str = DEFAULT_MANAGED_ROOT) -> dict:
     """Recover any durable P4 journal before a new install may proceed."""
     target = target.resolve()
@@ -334,18 +552,21 @@ def install(package: Path, manifest_path: Path, transport_sha256: str, target: P
     if not target.is_dir():
         raise ValueError("target must be an existing project directory")
 
+    # Recovery remains a distinct mutation primitive. Preserve P4 behavior by
+    # resolving transaction residue first, then independently verify and re-plan.
     recovery = recover_interrupted_transaction(target, managed_root)
-    manifest = rd.validate_manifest(manifest_path)
-    validate_transport(package, transport_sha256, manifest)
-    payload = inspect_archive(package, manifest)
-    validate_project_compatibility(project_package.resolve() if project_package else None, manifest)
+    manifest, payload, _ = _verify_release_bundle_internal(package, manifest_path, transport_sha256)
+    plan = _plan_installation_transition_internal(
+        manifest,
+        target,
+        managed_root=managed_root,
+        project_package=project_package,
+        allow_downgrade=allow_downgrade,
+    )
+    _raise_for_blocked_transition(plan)
 
     managed = resolve_managed_root(target, managed_root)
     previous = read_previous_manifest(managed)
-    drift = detect_drift(managed, previous)
-    if drift:
-        raise ValueError("managed-file drift detected: " + ", ".join(drift))
-    compare_release_identity(previous, manifest, allow_downgrade)
     installation = make_installation_record(manifest, transport_sha256, managed_root, installed_at,
                                             runner_id, source_repository, source_locator, update_locator)
 
