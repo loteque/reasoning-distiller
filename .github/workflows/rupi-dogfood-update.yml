@@ -1,0 +1,241 @@
+name: Rupi Dogfood Update v0.5.0
+
+on:
+  push:
+    branches:
+      - dogfood/rupi-v0.5.0-update
+    paths:
+      - '.github/workflows/rupi-dogfood-update.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rupi-dogfood-v0.5.0
+  cancel-in-progress: false
+
+env:
+  RELEASE_SOURCE_SHA: '9b68b4da5454a83992e6062c0b5ccb3d425284ce'
+  PACKAGE_VERSION: '0.5.0'
+
+jobs:
+  dogfood-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dogfood target
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Checkout exact clean release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SOURCE_SHA }}
+          path: release-source-clean
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install package validator dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Build deterministic v0.5.0 package twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd release-source-clean
+            python packaging/build_release_package.py \
+              --version "$PACKAGE_VERSION" \
+              --source-commit "$RELEASE_SOURCE_SHA" \
+              --output-dir /tmp/rd-rupi-dogfood-a
+            python packaging/build_release_package.py \
+              --version "$PACKAGE_VERSION" \
+              --source-commit "$RELEASE_SOURCE_SHA" \
+              --output-dir /tmp/rd-rupi-dogfood-b
+            python packaging/validate_install_package_contract.py \
+              --manifest "/tmp/rd-rupi-dogfood-a/reasoning-distiller-${PACKAGE_VERSION}.manifest.json"
+          )
+          cmp "/tmp/rd-rupi-dogfood-a/reasoning-distiller-${PACKAGE_VERSION}.tar.gz" \
+              "/tmp/rd-rupi-dogfood-b/reasoning-distiller-${PACKAGE_VERSION}.tar.gz"
+          cmp "/tmp/rd-rupi-dogfood-a/reasoning-distiller-${PACKAGE_VERSION}.manifest.json" \
+              "/tmp/rd-rupi-dogfood-b/reasoning-distiller-${PACKAGE_VERSION}.manifest.json"
+          cmp "/tmp/rd-rupi-dogfood-a/reasoning-distiller-${PACKAGE_VERSION}.sha256" \
+              "/tmp/rd-rupi-dogfood-b/reasoning-distiller-${PACKAGE_VERSION}.sha256"
+
+      - name: Verify package contains Rupi lifecycle runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="/tmp/rd-rupi-dogfood-a/reasoning-distiller-${PACKAGE_VERSION}.tar.gz"
+          tar -tzf "$archive" | sort > /tmp/package-members.txt
+          for path in \
+            runtime/rupi.py \
+            runtime/rupi_lifecycle.py \
+            runtime/rupi_authority.py \
+            runtime/rupi_primitive_map.py \
+            runtime/ril_human_confirmation.py \
+            runtime/rd_install_recovery.py
+          do
+            grep -Fxq "$path" /tmp/package-members.txt
+          done
+
+      - name: Snapshot project-owned bytes before Rupi
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['GITHUB_WORKSPACE'])
+          excluded = ('.git', '.reasoning-distiller', 'release-source-clean')
+          out = {}
+          for path in sorted(root.rglob('*')):
+              rel = path.relative_to(root).as_posix()
+              if any(rel == prefix or rel.startswith(prefix + '/') for prefix in excluded):
+                  continue
+              if path.is_file():
+                  out[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+          Path('/tmp/project-owned-before.json').write_text(json.dumps(out, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+
+      - name: Update installed framework through Rupi
+        env:
+          SOURCE_REPOSITORY: loteque/reasoning-distiller
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          root = Path(os.environ['GITHUB_WORKSPACE'])
+          release = root / 'release-source-clean'
+          runtime = release / 'runtime'
+          sys.path.insert(0, str(runtime))
+
+          spec = importlib.util.spec_from_file_location('rd_install_dogfood', release / 'packaging/rd_install.py')
+          installer = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(installer)
+
+          import ril_human_agent
+          import rupi_lifecycle
+
+          version = os.environ['PACKAGE_VERSION']
+          artifacts = Path('/tmp/rd-rupi-dogfood-a')
+          archive = artifacts / f'reasoning-distiller-{version}.tar.gz'
+          manifest = artifacts / f'reasoning-distiller-{version}.manifest.json'
+          transport = (artifacts / f'reasoning-distiller-{version}.sha256').read_text(encoding='utf-8').split()[0]
+
+          intent = ril_human_agent.bind_contextual_intent('yes', ['install_or_update'])
+          assert intent['status'] == 'PASS', intent
+
+          result = rupi_lifecycle.run_update_recovery_handoff(
+              installer=installer,
+              package=archive,
+              manifest_path=manifest,
+              transport_sha256=transport,
+              target=root,
+              bound_intent=intent,
+              requested_goal='dogfood update Reasoning Distiller to 0.5.0',
+              installed_at='2026-08-20T21:45:00Z',
+              runner_id=f"github-actions:{os.environ['GITHUB_RUN_ID']}",
+              source_repository=os.environ['SOURCE_REPOSITORY'],
+              source_locator=f"release-source:{os.environ['RELEASE_SOURCE_SHA']}",
+              update_locator=f"github-actions-run:{os.environ['GITHUB_RUN_ID']}",
+          )
+          Path('/tmp/rupi-result.json').write_text(json.dumps(result, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(result, indent=2, sort_keys=True))
+          assert result['status'] == 'PASS', result
+          assert result['outcome'] == 'UPDATED', result
+          PY
+
+      - name: Verify installed identity and Rupi payload
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['GITHUB_WORKSPACE'])
+          manifest = json.loads((root / '.reasoning-distiller/.installation/MANIFEST.json').read_text(encoding='utf-8'))
+          installation = json.loads((root / '.reasoning-distiller/.installation/INSTALLATION.json').read_text(encoding='utf-8'))
+          assert manifest['version'] == os.environ['PACKAGE_VERSION']
+          assert installation['version'] == os.environ['PACKAGE_VERSION']
+          assert manifest['source_commit'] == os.environ['RELEASE_SOURCE_SHA']
+          assert installation['source_commit'] == os.environ['RELEASE_SOURCE_SHA']
+          assert manifest['content_identity'] == installation['content_identity']
+          for rel in (
+              'runtime/rupi.py',
+              'runtime/rupi_lifecycle.py',
+              'runtime/rupi_authority.py',
+              'runtime/rupi_primitive_map.py',
+              'runtime/ril_human_confirmation.py',
+              'runtime/rd_install_recovery.py',
+          ):
+              assert (root / '.reasoning-distiller' / rel).is_file(), rel
+          print('CONTENT_IDENTITY=' + manifest['content_identity'])
+          print('TRANSPORT_SHA256=' + manifest['transport_sha256'])
+          PY
+
+      - name: Prove project-owned bytes are unchanged
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['GITHUB_WORKSPACE'])
+          excluded = ('.git', '.reasoning-distiller', 'release-source-clean')
+          after = {}
+          for path in sorted(root.rglob('*')):
+              rel = path.relative_to(root).as_posix()
+              if any(rel == prefix or rel.startswith(prefix + '/') for prefix in excluded):
+                  continue
+              if path.is_file():
+                  after[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+          before = json.loads(Path('/tmp/project-owned-before.json').read_text(encoding='utf-8'))
+          assert before == after, {'before_only': sorted(set(before)-set(after)), 'after_only': sorted(set(after)-set(before))}
+          PY
+
+      - name: Ensure Rupi changed only installer-owned tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf release-source-clean
+          python - <<'PY'
+          import subprocess
+          lines = subprocess.check_output(['git', 'status', '--porcelain=v1'], text=True).splitlines()
+          bad = []
+          for line in lines:
+              path = line[3:]
+              if ' -> ' in path:
+                  path = path.split(' -> ', 1)[1]
+              if not (path == '.reasoning-distiller' or path.startswith('.reasoning-distiller/')):
+                  bad.append(line)
+          assert lines, 'expected an installation update diff'
+          assert not bad, bad
+          PY
+          git diff --check
+
+      - name: Commit Rupi-managed installation update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .reasoning-distiller
+          git diff --cached --check
+          git commit -m "install: update Reasoning Distiller to 0.5.0 via Rupi"
+          git push origin HEAD:dogfood/rupi-v0.5.0-update
+
+      - name: Upload package and Rupi evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: rupi-v0.5.0-dogfood-evidence
+          path: |
+            /tmp/rd-rupi-dogfood-a/reasoning-distiller-0.5.0.tar.gz
+            /tmp/rd-rupi-dogfood-a/reasoning-distiller-0.5.0.manifest.json
+            /tmp/rd-rupi-dogfood-a/reasoning-distiller-0.5.0.sha256
+            /tmp/rupi-result.json
+          if-no-files-found: error
