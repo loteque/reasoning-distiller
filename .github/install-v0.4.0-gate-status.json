@@ -1,15 +1,15 @@
 {
   "content_identity": "sha256:f947fa0f4554a4bc46275a78b8e03f8dcaa8959324557243422400b49d1a7869",
   "contract": "reasoning-distiller-self-install-gates/1",
-  "detail": "gate exited with status 128",
-  "gate": 2,
-  "gate_name": "managed-tree-integrity",
+  "detail": "gate exited with status 1",
+  "gate": 5,
+  "gate_name": "self-host-source-collision",
   "install_branch": "install-v0.4.0",
-  "install_head_at_start": "0457321a095b6040c77f418bc4a29ef7889ffc04",
+  "install_head_at_start": "fda168be725cea3c59e59c3328c60700a5779b49",
   "release_source_commit": "6259324d030822ac78da902f9288f18e8f071b84",
   "release_tag": "v0.4.0",
   "release_version": "0.4.0",
   "status": "FAIL",
   "transport_sha256": "2ce8a58d1b4278d906f560ccce07c568573be1f87f667976330fac3e92369d54",
-  "workflow_run": "32391034590"
+  "workflow_run": "32391318216"
 }
