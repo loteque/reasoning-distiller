@@ -4,8 +4,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
+import ril_authority_grant as grants
 import ril_mutation as mutation
 import ril_shared_orchestration as shared
+import ril_workflow as workflows
 
 ADAPTER_CONTRACT = "reasoning-distiller-ril-human-agent-adapter/1"
 INTENT_CONTRACT = "reasoning-distiller-ril-human-agent-intent/1"
@@ -180,6 +182,111 @@ def direct_approve(
     )
 
 
+def create_durable_workflow(
+    workflow_store: Path,
+    definition: dict[str, Any],
+    *,
+    persistence_disclosed: bool,
+) -> dict[str, Any]:
+    """Create durable intent only when persistence was prospectively disclosed."""
+    if not persistence_disclosed:
+        return _result("STOPPED", "WORKFLOW_PERSISTENCE_DISCLOSURE_REQUIRED")
+    ref = workflows.create_workflow(workflow_store, definition)
+    return _result("PASS", "WORKFLOW_CREATED", workflow=ref)
+
+
+def cancel_durable_workflow(
+    workflow_store: Path,
+    workflow_ref: str,
+    operator_id: str,
+    authentication: dict[str, Any],
+    *,
+    protected_root: bool = False,
+) -> str:
+    return workflows.cancel_workflow(
+        workflow_store,
+        workflow_ref,
+        operator_id,
+        authentication,
+        protected_root=protected_root,
+    )
+
+
+def revise_durable_workflow(
+    workflow_store: Path,
+    predecessor_ref: str,
+    successor: dict[str, Any],
+    *,
+    expected_normative_head: str | None,
+) -> str:
+    return workflows.revise_workflow(
+        workflow_store,
+        predecessor_ref,
+        successor,
+        expected_normative_head=expected_normative_head,
+    )
+
+
+def acknowledge_workflow_materiality(
+    workflow_store: Path,
+    workflow_ref: str,
+    pause_ref: str,
+    operator_id: str,
+    authentication: dict[str, Any],
+    *,
+    protected_root: bool = False,
+) -> str:
+    return workflows.acknowledge_materiality(
+        workflow_store,
+        workflow_ref,
+        pause_ref,
+        operator_id,
+        authentication,
+        protected_root=protected_root,
+    )
+
+
+def create_authority_grant(
+    project_root: Path,
+    grant_store: Path,
+    definition: dict[str, Any],
+    *,
+    workflow_scope_confirmed: bool,
+    prospective_delegation_disclosed: bool,
+) -> dict[str, Any]:
+    """Create bounded prospective authority only from explicit disclosed scope."""
+    if not prospective_delegation_disclosed:
+        return _result("STOPPED", "GRANT_PROSPECTIVE_DELEGATION_DISCLOSURE_REQUIRED")
+    if not workflow_scope_confirmed:
+        return _result("STOPPED", "GRANT_WORKFLOW_SCOPE_CONFIRMATION_REQUIRED")
+    ref = shared.g4.create_authorized_grant(
+        project_root,
+        grant_store,
+        definition,
+        workflow_contains_grant_scope=True,
+    )
+    return _result("PASS", "AUTHORITY_GRANT_CREATED", grant=ref)
+
+
+def revoke_authority_grant(
+    grant_store: Path,
+    grant_ref: str,
+    operator_id: str,
+    authentication: dict[str, Any],
+    *,
+    protected_root: bool = False,
+    expected_normative_head: str | None,
+) -> str:
+    return grants.revoke_grant(
+        grant_store,
+        grant_ref,
+        operator_id,
+        authentication,
+        protected_root=protected_root,
+        expected_normative_head=expected_normative_head,
+    )
+
+
 def continue_auto_workflow(
     project_root: Path,
     workflow_store: Path,
@@ -197,6 +304,20 @@ def continue_auto_workflow(
         proposal,
         **kwargs,
     )
+
+
+def apply_delegable_proposal(
+    project_root: Path,
+    grant_store: Path,
+    proposal: dict[str, Any],
+    approval: dict[str, Any],
+) -> dict[str, Any]:
+    """Apply the delegable operation through the exact shared G4 primitive."""
+    descriptor = shared._descriptor(project_root, proposal)
+    apply = descriptor.get("apply")
+    if apply is None:
+        return mutation.operation_result("FAIL", "NON_DELEGABLE")
+    return apply(project_root, grant_store, proposal, approval)
 
 
 def resume_proposal(
