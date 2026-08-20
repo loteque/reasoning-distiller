@@ -8,7 +8,9 @@ on:
       - 'schemas/invocation-request.schema.json'
       - 'schemas/invocation-result.schema.json'
       - 'tests/test_production_invocation.py'
+      - 'tests/test_distill_ingest.py'
       - 'docs/operations/PRODUCTION_INVOCATION_CONTRACT.md'
+      - 'docs/operations/DISTILLATION_INGESTION.md'
       - 'packaging/package-build.json'
       - '.github/workflows/production-invocation.yml'
   pull_request:
@@ -17,7 +19,9 @@ on:
       - 'schemas/invocation-request.schema.json'
       - 'schemas/invocation-result.schema.json'
       - 'tests/test_production_invocation.py'
+      - 'tests/test_distill_ingest.py'
       - 'docs/operations/PRODUCTION_INVOCATION_CONTRACT.md'
+      - 'docs/operations/DISTILLATION_INGESTION.md'
       - 'packaging/package-build.json'
       - '.github/workflows/production-invocation.yml'
   workflow_dispatch:
@@ -49,7 +53,7 @@ jobs:
       - name: Verify reference adapter identity
         run: test "$(python runtime/rd_distill.py --version)" = "reasoning-distiller-invocation/1"
       - name: Run production invocation conformance suite
-        run: python -m unittest -v tests/test_production_invocation.py
+        run: python -m unittest -v tests/test_production_invocation.py tests/test_distill_ingest.py
       - name: Prove package includes runtime adapter and invocation schemas
         run: |
           set -euo pipefail
