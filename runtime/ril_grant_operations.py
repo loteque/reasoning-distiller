@@ -11,10 +11,21 @@ import ril_operator_management as operators
 import ril_roles as roles
 from ril_operators import EMPTY_OPERATOR_STATE, operator_paths
 
-ContractError = mutation.ContractError
+# G3 deliberately loads its mutation substrate under an isolated module name.
+# G4 is the integration boundary, so expose one stable exception identity here
+# and normalize lower-layer contract failures into it.
+ContractError = grants.ContractError
 
 ROLE_OPERATION_CLASS = "role-registry.change"
 OPERATOR_DISABLE_OPERATION_CLASS = "operator-registry.disable"
+
+
+def _normalize_contract_error(exc: Exception) -> ContractError:
+    if isinstance(exc, ContractError):
+        return exc
+    code = getattr(exc, "code", "CONTRACT_ERROR")
+    detail = getattr(exc, "detail", str(exc))
+    return ContractError(code, detail)
 
 
 def _load_authoritative_operator_state(project_root: Path) -> dict[str, Any]:
@@ -81,7 +92,12 @@ def role_authority_fields(proposal: dict[str, Any]) -> dict[str, Any]:
 
 
 def operator_disable_authority_fields(proposal: dict[str, Any]) -> dict[str, Any]:
-    operation = operators._validate_ordinary_proposal(proposal)
+    try:
+        operation = operators._validate_ordinary_proposal(proposal)
+    except Exception as exc:
+        if hasattr(exc, "code"):
+            raise _normalize_contract_error(exc) from exc
+        raise
     if operation != "DISABLE_OPERATOR":
         raise ContractError("NON_DELEGABLE", f"{operation} is not grant-delegable")
     return {
@@ -102,11 +118,14 @@ def issue_role_grant_approval(
     workflow_contains_proposal: bool,
     expected_grant_head: str | None,
 ) -> dict[str, Any]:
-    state, _ = roles._load_role_state(project_root)
-    roles._validate_proposal_semantics(state, proposal)
-    # Operator history/projection health remains independently required even
-    # though current grant use does not require the grantor to remain enabled.
-    _load_authoritative_operator_state(project_root)
+    try:
+        state, _ = roles._load_role_state(project_root)
+        roles._validate_proposal_semantics(state, proposal)
+        _load_authoritative_operator_state(project_root)
+    except Exception as exc:
+        if hasattr(exc, "code"):
+            raise _normalize_contract_error(exc) from exc
+        raise
     return grants.issue_approval(
         grant_store,
         grant_ref,
@@ -134,13 +153,16 @@ def issue_operator_disable_grant_approval(
     workflow_contains_proposal: bool,
     expected_grant_head: str | None,
 ) -> dict[str, Any]:
-    state, _ = operators._load_registry(project_root)
-    operation = operators._validate_ordinary_proposal(proposal)
-    if operation != "DISABLE_OPERATOR":
-        raise ContractError("NON_DELEGABLE", f"{operation} is not grant-delegable")
-    # This independently proves the exact target is not protected root and the
-    # transition is valid against authoritative current operator state.
-    operators._ordinary_transition(state, operation, proposal["change"])
+    try:
+        state, _ = operators._load_registry(project_root)
+        operation = operators._validate_ordinary_proposal(proposal)
+        if operation != "DISABLE_OPERATOR":
+            raise ContractError("NON_DELEGABLE", f"{operation} is not grant-delegable")
+        operators._ordinary_transition(state, operation, proposal["change"])
+    except Exception as exc:
+        if hasattr(exc, "code"):
+            raise _normalize_contract_error(exc) from exc
+        raise
     return grants.issue_approval(
         grant_store,
         grant_ref,
@@ -205,8 +227,11 @@ def apply_role_submission_with_authority(
             transition=roles._transition,
             initial_state=roles.DEFAULT_ROLE_STATE,
         )
-    except ContractError as exc:
-        return mutation.operation_result("FAIL", exc.code, exc.detail)
+    except Exception as exc:
+        if not hasattr(exc, "code"):
+            raise
+        normalized = _normalize_contract_error(exc)
+        return mutation.operation_result("FAIL", normalized.code, normalized.detail)
 
 
 def apply_operator_change_with_authority(
@@ -246,5 +271,8 @@ def apply_operator_change_with_authority(
             transition=lambda current, change: operators._ordinary_transition(current, operation, change),
             initial_state=EMPTY_OPERATOR_STATE,
         )
-    except ContractError as exc:
-        return mutation.operation_result("FAIL", exc.code, exc.detail)
+    except Exception as exc:
+        if not hasattr(exc, "code"):
+            raise
+        normalized = _normalize_contract_error(exc)
+        return mutation.operation_result("FAIL", normalized.code, normalized.detail)
