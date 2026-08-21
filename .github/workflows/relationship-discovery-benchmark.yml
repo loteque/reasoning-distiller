@@ -5,8 +5,9 @@ on:
     paths:
       - ".github/workflows/relationship-discovery-benchmark.yml"
       - "evaluation/relationship_discovery_benchmark.py"
+      - "evaluation/relationship_analysis_result.py"
       - "evaluation/relationship-discovery/**"
-      - "tests/test_relationship_discovery_benchmark.py"
+      - "tests/test_relationship*.py"
       - "project-knowledge/canonical/pems2.jcs.json"
   workflow_dispatch:
 
@@ -20,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run focused benchmark tests
-        run: python -m unittest discover -s tests -p 'test_relationship_discovery_benchmark.py' -v
+        run: python -m unittest discover -s tests -p 'test_relationship*.py' -v
 
       - name: Freeze A0 coverage and materialize semantic batches
         run: |
@@ -56,6 +57,19 @@ jobs:
               raise SystemExit(f'expected 78 materialized batches, found {len(batch_files)}')
           print(f'PASS materialized {len(batch_files)} A0 batches')
           PY
+
+      - name: Validate persisted semantic batch results
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          results=(evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/batches/*.result.json)
+          for result in "${results[@]}"; do
+            name="$(basename "$result" .result.json)"
+            python evaluation/relationship_analysis_result.py \
+              --batch "/tmp/relationship-discovery-a0/batches/${name}.json" \
+              --result "$result"
+          done
+          echo "PASS validated ${#results[@]} persisted A0 semantic batch result(s)"
 
       - name: Upload immutable A0 analysis inputs
         uses: actions/upload-artifact@v4
