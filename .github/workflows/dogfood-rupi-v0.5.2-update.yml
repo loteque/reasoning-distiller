@@ -1,0 +1,182 @@
+name: Dogfood Rupi v0.5.2 Update
+
+on:
+  push:
+    branches:
+      - dogfood/rupi-v0.5.2-update
+    paths:
+      - '.github/workflows/dogfood-rupi-v0.5.2-update.yml'
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: 'v0.5.2'
+  RELEASE_VERSION: '0.5.2'
+  SOURCE_SHA: '90bc23ed90f12f06d41d019c79994747709ab326'
+  EXPECTED_CONTENT_IDENTITY: 'sha256:db4afb76e9cf1ae6abcc837a74bb26aa290528672bbfee5a9fa6839f48121c24'
+  EXPECTED_TRANSPORT_SHA256: 'e83814c2ff050fb63f609c1738e1d8ebdf1adbf196e32f2dd8d17796f7bb3ca3'
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install local validator dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Snapshot all non-managed project bytes
+        shell: bash
+        run: |
+          python - <<'PY' > /tmp/project-before.sha256
+          import hashlib
+          from pathlib import Path
+          root=Path('.')
+          h=hashlib.sha256()
+          for path in sorted((p for p in root.rglob('*') if p.is_file() and '.git' not in p.parts and '.reasoning-distiller' not in p.parts), key=lambda p:p.as_posix()):
+              rel=path.as_posix().encode()
+              data=path.read_bytes()
+              h.update(len(rel).to_bytes(8,'big')); h.update(rel)
+              h.update(len(data).to_bytes(8,'big')); h.update(data)
+          print(h.hexdigest())
+          PY
+
+      - name: Retrieve exact public v0.5.2 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/release /tmp/runner/packaging /tmp/runner/schemas
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir /tmp/release \
+            --pattern "reasoning-distiller-${RELEASE_VERSION}.tar.gz" \
+            --pattern "reasoning-distiller-${RELEASE_VERSION}.manifest.json" \
+            --pattern "reasoning-distiller-${RELEASE_VERSION}.sha256" \
+            --pattern 'rd_install.py' \
+            --pattern 'validate_install_package_contract.py' \
+            --pattern 'install-package-manifest.schema.json' \
+            --pattern 'installation-record.schema.json'
+          test "$(find /tmp/release -maxdepth 1 -type f | wc -l)" -eq 7
+          cp /tmp/release/rd_install.py /tmp/runner/packaging/rd_install.py
+          cp /tmp/release/validate_install_package_contract.py /tmp/runner/packaging/validate_install_package_contract.py
+          cp /tmp/release/install-package-manifest.schema.json /tmp/runner/schemas/install-package-manifest.schema.json
+          cp /tmp/release/installation-record.schema.json /tmp/runner/schemas/installation-record.schema.json
+
+      - name: Verify pinned release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          detached="$(awk '{print $1}' "/tmp/release/reasoning-distiller-${RELEASE_VERSION}.sha256")"
+          test "$detached" = "$EXPECTED_TRANSPORT_SHA256"
+          actual="$(sha256sum "/tmp/release/reasoning-distiller-${RELEASE_VERSION}.tar.gz" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_TRANSPORT_SHA256"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          m=json.loads(Path(f"/tmp/release/reasoning-distiller-{os.environ['RELEASE_VERSION']}.manifest.json").read_text())
+          assert m['version']==os.environ['RELEASE_VERSION']
+          assert m['source_commit']==os.environ['SOURCE_SHA']
+          assert m['content_identity']==os.environ['EXPECTED_CONTENT_IDENTITY']
+          assert m['transport_sha256']==os.environ['EXPECTED_TRANSPORT_SHA256']
+          print('PASS public release identity')
+          PY
+
+      - name: Run Rupi update handoff
+        shell: bash
+        run: |
+          python - <<'PY'
+          import importlib.util, json, os, sys
+          from pathlib import Path
+          root=Path('.').resolve()
+          runtime=root/'.reasoning-distiller/runtime'
+          sys.path.insert(0,str(runtime))
+          import ril_human_agent
+          import rupi_lifecycle
+
+          spec=importlib.util.spec_from_file_location('rd_install_external','/tmp/runner/packaging/rd_install.py')
+          installer=importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(installer)
+
+          intent=ril_human_agent.bind_contextual_intent('proceed',['install_or_update'])
+          assert intent['status']=='PASS' and intent['operations']==['install_or_update'], intent
+          result=rupi_lifecycle.run_update_recovery_handoff(
+              installer=installer,
+              package=Path(f"/tmp/release/reasoning-distiller-{os.environ['RELEASE_VERSION']}.tar.gz"),
+              manifest_path=Path(f"/tmp/release/reasoning-distiller-{os.environ['RELEASE_VERSION']}.manifest.json"),
+              transport_sha256=os.environ['EXPECTED_TRANSPORT_SHA256'],
+              target=root,
+              bound_intent=intent,
+              requested_goal='update Reasoning Distiller to v0.5.2',
+              installed_at='2026-08-21T01:35:00Z',
+              runner_id=f"github-actions:{os.environ['GITHUB_RUN_ID']}",
+              source_repository='loteque/reasoning-distiller',
+              source_locator=f"release-source:{os.environ['SOURCE_SHA']}",
+              update_locator=f"github-actions-run:{os.environ['GITHUB_RUN_ID']}",
+          )
+          print(json.dumps(result,indent=2,sort_keys=True))
+          assert result['status']=='PASS', result
+          assert result['outcome']=='UPDATED', result
+          PY
+
+      - name: Verify installed identity and mutation boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path('.reasoning-distiller/.installation/INSTALLATION.json')
+          value=json.loads(p.read_text())
+          assert value['version']==os.environ['RELEASE_VERSION']
+          assert value['source_commit']==os.environ['SOURCE_SHA']
+          assert value['content_identity']==os.environ['EXPECTED_CONTENT_IDENTITY']
+          assert value['transport_sha256']==os.environ['EXPECTED_TRANSPORT_SHA256']
+          print('PASS installed v0.5.2 identity')
+          PY
+
+          python - <<'PY' > /tmp/project-after.sha256
+          import hashlib
+          from pathlib import Path
+          root=Path('.')
+          h=hashlib.sha256()
+          for path in sorted((p for p in root.rglob('*') if p.is_file() and '.git' not in p.parts and '.reasoning-distiller' not in p.parts), key=lambda p:p.as_posix()):
+              rel=path.as_posix().encode(); data=path.read_bytes()
+              h.update(len(rel).to_bytes(8,'big')); h.update(rel)
+              h.update(len(data).to_bytes(8,'big')); h.update(data)
+          print(h.hexdigest())
+          PY
+          cmp /tmp/project-before.sha256 /tmp/project-after.sha256
+
+          python - <<'PY'
+          import subprocess
+          lines=subprocess.check_output(['git','status','--porcelain=v1','--untracked-files=all'],text=True).splitlines()
+          bad=[]
+          for line in lines:
+              path=line[3:]
+              if ' -> ' in path:
+                  path=path.split(' -> ',1)[1]
+              if not (path=='.reasoning-distiller' or path.startswith('.reasoning-distiller/')):
+                  bad.append(line)
+          assert not bad, f'non-managed mutation: {bad}'
+          print('PASS only .reasoning-distiller changed')
+          PY
+
+      - name: Commit installer-owned update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A .reasoning-distiller
+          git diff --cached --quiet && { echo 'expected installer-owned update'; exit 1; }
+          git commit -m 'Install Reasoning Distiller v0.5.2 via Rupi'
+          git push origin HEAD:dogfood/rupi-v0.5.2-update
