@@ -1,0 +1,88 @@
+name: Full Repository Distillation Evidence Export (one-shot)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/full-repo-distillation-export-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EVIDENCE_COMMIT: eb25ed17b11fcf346b329c6280abcaf389100c2c
+
+jobs:
+  export-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact admitted main snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVIDENCE_COMMIT }}
+          path: evidence
+
+      - name: Verify exact evidence commit
+        run: |
+          set -euo pipefail
+          test "$(git -C evidence rev-parse HEAD)" = "$EVIDENCE_COMMIT"
+
+      - name: Build admissible repository evidence snapshot
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, tarfile
+          from pathlib import Path
+
+          root = Path('evidence').resolve()
+          excluded_roots = {'.git', '.reasoning-distiller', 'project-knowledge'}
+          files = []
+          total_bytes = 0
+
+          for path in sorted(root.rglob('*')):
+              if not path.is_file():
+                  continue
+              rel = path.relative_to(root).as_posix()
+              first = rel.split('/', 1)[0]
+              if first in excluded_roots:
+                  continue
+              if path.is_symlink():
+                  raise SystemExit(f'symlink evidence rejected: {rel}')
+              data = path.read_bytes()
+              digest = hashlib.sha256(data).hexdigest()
+              files.append({'path': rel, 'bytes': len(data), 'sha256': digest})
+              total_bytes += len(data)
+
+          manifest = {
+              'contract': 'reasoning-distiller-repository-evidence-export/1',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'commit': os.environ['EVIDENCE_COMMIT'],
+              'excluded_roots': sorted(excluded_roots),
+              'file_count': len(files),
+              'total_bytes': total_bytes,
+              'files': files,
+          }
+          out = Path('/tmp/full-repo-evidence')
+          out.mkdir(parents=True, exist_ok=True)
+          (out / 'manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+
+          with tarfile.open(out / 'evidence.tar.gz', 'w:gz', format=tarfile.PAX_FORMAT) as tf:
+              for item in files:
+                  p = root / item['path']
+                  tf.add(p, arcname=item['path'], recursive=False)
+
+          print(json.dumps({
+              'commit': manifest['commit'],
+              'file_count': manifest['file_count'],
+              'total_bytes': manifest['total_bytes'],
+          }, sort_keys=True))
+          PY
+
+      - name: Upload fixed evidence snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-repo-distillation-evidence-${{ github.run_id }}
+          path: /tmp/full-repo-evidence
+          if-no-files-found: error
+          retention-days: 7
