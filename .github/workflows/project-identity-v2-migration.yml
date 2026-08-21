@@ -22,6 +22,7 @@ concurrency:
 env:
   EXPECTED_BASE_SHA: '29f25cde8fbef6ac62a3bac2c6844fa2dedfecaf'
   MIGRATION_BRANCH: 'migrate/project-identity-v2'
+  PYTHONDONTWRITEBYTECODE: '1'
 
 jobs:
   migrate:
