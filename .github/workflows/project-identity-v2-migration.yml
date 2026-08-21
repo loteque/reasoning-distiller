@@ -1,0 +1,119 @@
+name: Migrate Project Identity v2
+
+on:
+  push:
+    branches:
+      - migrate/project-identity-v2
+    paths:
+      - '.github/workflows/project-identity-v2-migration.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reasoning-distiller-project-identity-v2-migration
+  cancel-in-progress: false
+
+env:
+  EXPECTED_BASE_SHA: '29f25cde8fbef6ac62a3bac2c6844fa2dedfecaf'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact migration branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Require exact base and legacy project config
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          python - <<'PY'
+          from pathlib import Path
+          expected = b'{"contract":"reasoning-distiller-project/1","paths":{"evidence":"project-knowledge/evidence","invocations":"project-knowledge/invocations","submissions":"project-knowledge/submissions"}}\n'
+          actual = Path('project-knowledge/project.json').read_bytes()
+          assert actual == expected, actual
+          PY
+
+      - name: Establish explicit project identity through installed bootstrap primitive
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(python .reasoning-distiller/runtime/rd_bootstrap.py \
+            --target "$GITHUB_WORKSPACE" \
+            --project-id 'reasoning-distiller' \
+            --project-name 'Reasoning Distiller' \
+            --repository 'loteque/reasoning-distiller' \
+            --summary 'Standalone knowledge-system framework extracted from loteque/gdscript-voxel-engine under the Steward-approved Phase 6.0 extraction plan.')"
+          printf '%s\n' "$result"
+          MIGRATION_RESULT="$result" python - <<'PY'
+          import json, os
+          value = json.loads(os.environ['MIGRATION_RESULT'])
+          assert value['status'] == 'PASS', value
+          assert value['outcome'] == 'PROJECT_IDENTITY_ESTABLISHED', value
+          assert value['project_contract'] == 'reasoning-distiller-project/2', value
+          assert value['created'] == [], value
+          assert value['updated'] == ['project-knowledge/project.json'], value
+          PY
+
+      - name: Verify exact project identity and installed status
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          expected = {
+              'contract': 'reasoning-distiller-project/2',
+              'paths': {
+                  'evidence': 'project-knowledge/evidence',
+                  'invocations': 'project-knowledge/invocations',
+                  'submissions': 'project-knowledge/submissions',
+              },
+              'project': {
+                  'id': 'reasoning-distiller',
+                  'name': 'Reasoning Distiller',
+                  'repository': 'loteque/reasoning-distiller',
+                  'summary': 'Standalone knowledge-system framework extracted from loteque/gdscript-voxel-engine under the Steward-approved Phase 6.0 extraction plan.',
+              },
+          }
+          expected_bytes = (json.dumps(expected, sort_keys=True, separators=(',', ':'), ensure_ascii=False) + '\n').encode()
+          assert Path('project-knowledge/project.json').read_bytes() == expected_bytes
+          PY
+          status="$(python .reasoning-distiller/runtime/ril_status.py "$GITHUB_WORKSPACE")"
+          printf '%s\n' "$status"
+          STATUS_RESULT="$status" python - <<'PY'
+          import json, os
+          value = json.loads(os.environ['STATUS_RESULT'])
+          assert value['status'] == 'PASS', value
+          assert value['dimensions']['installation'] == 'VALID', value
+          assert value['dimensions']['project_bootstrap'] == 'VALID', value
+          PY
+
+      - name: Require migration changed only project identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --porcelain=v1 | sed 's/^...//' | sort)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = 'project-knowledge/project.json'
+          git diff --check
+
+      - name: Commit durable migration and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- project-knowledge/project.json
+          git rm -- .github/workflows/project-identity-v2-migration.yml
+          git diff --cached --check
+          git commit -m 'project-knowledge: establish explicit project identity'
+          git fetch origin migrate/project-identity-v2
+          test "$(git rev-parse refs/remotes/origin/migrate/project-identity-v2)" = "$(git rev-parse HEAD^)"
+          git push origin HEAD:migrate/project-identity-v2
