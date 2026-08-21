@@ -65,7 +65,7 @@ jobs:
           assert value['status'] == 'PASS', value
           assert value['outcome'] == 'PROJECT_IDENTITY_ESTABLISHED', value
           assert value['project_contract'] == 'reasoning-distiller-project/2', value
-          assert value['created'] == [], value
+          assert value['created'] == ['project-knowledge/evidence'], value
           assert value['updated'] == ['project-knowledge/project.json'], value
           PY
 
