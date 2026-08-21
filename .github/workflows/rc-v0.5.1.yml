@@ -1,0 +1,75 @@
+name: Reasoning Distiller v0.5.1 RC
+
+on:
+  push:
+    branches:
+      - release/rc-v0.5.1
+    paths:
+      - '.github/workflows/rc-v0.5.1.yml'
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_VERSION: '0.5.1'
+  SOURCE_SHA: '2d1a957b2bf61c1797793afad0b3a5588be5d54e'
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install validator dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Prove clean source and deterministic package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e source/.reasoning-distiller
+          (
+            cd source
+            python packaging/build_release_package.py --version "$RELEASE_VERSION" --source-commit "$SOURCE_SHA" --output-dir /tmp/rd-a
+            python packaging/build_release_package.py --version "$RELEASE_VERSION" --source-commit "$SOURCE_SHA" --output-dir /tmp/rd-b
+            python packaging/validate_install_package_contract.py --manifest "/tmp/rd-a/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          )
+          cmp "/tmp/rd-a/reasoning-distiller-${RELEASE_VERSION}.tar.gz" "/tmp/rd-b/reasoning-distiller-${RELEASE_VERSION}.tar.gz"
+          cmp "/tmp/rd-a/reasoning-distiller-${RELEASE_VERSION}.manifest.json" "/tmp/rd-b/reasoning-distiller-${RELEASE_VERSION}.manifest.json"
+          cmp "/tmp/rd-a/reasoning-distiller-${RELEASE_VERSION}.sha256" "/tmp/rd-b/reasoning-distiller-${RELEASE_VERSION}.sha256"
+
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          version=os.environ['RELEASE_VERSION']
+          m=json.loads(Path(f'/tmp/rd-a/reasoning-distiller-{version}.manifest.json').read_text())
+          t=Path(f'/tmp/rd-a/reasoning-distiller-{version}.sha256').read_text().split()[0]
+          assert m['version']==version
+          assert m['source_commit']==os.environ['SOURCE_SHA']
+          assert m['transport_sha256']==t
+          paths={x['path'] for x in m['files']}
+          required={'runtime/rd_bootstrap.py','runtime/ril_admission.py','runtime/ril_status.py','runtime/rupi.py'}
+          assert not (required-paths), sorted(required-paths)
+          print('PASS v0.5.1 deterministic package proof')
+          print('FILE_COUNT='+str(len(m['files'])))
+          print('CONTENT_IDENTITY='+m['content_identity'])
+          print('TRANSPORT_SHA256='+t)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reasoning-distiller-v0.5.1-rc
+          path: |
+            /tmp/rd-a/reasoning-distiller-0.5.1.tar.gz
+            /tmp/rd-a/reasoning-distiller-0.5.1.manifest.json
+            /tmp/rd-a/reasoning-distiller-0.5.1.sha256
+          if-no-files-found: error
