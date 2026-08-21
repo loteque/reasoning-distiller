@@ -8,7 +8,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
 
 jobs:
   test:
@@ -18,27 +21,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Export exact repository scan snapshot
-        if: github.event_name == 'pull_request' && github.head_ref == 'scan/repository-wide-v1'
-        shell: bash
-        run: |
-          set -euo pipefail
-          BASE_SHA='8ce7e745f017d20ef90af043519c7379736dbc9d'
-          git cat-file -e "${BASE_SHA}^{commit}"
-          git archive --format=tar.gz --output=/tmp/reasoning-distiller-scan-base.tar.gz "$BASE_SHA"
-          sha256sum /tmp/reasoning-distiller-scan-base.tar.gz | tee /tmp/reasoning-distiller-scan-base.sha256
-
-      - name: Upload exact repository scan snapshot
-        if: github.event_name == 'pull_request' && github.head_ref == 'scan/repository-wide-v1'
-        uses: actions/upload-artifact@v4
-        with:
-          name: reasoning-distiller-scan-base-8ce7e745
-          path: |
-            /tmp/reasoning-distiller-scan-base.tar.gz
-            /tmp/reasoning-distiller-scan-base.sha256
-          if-no-files-found: error
-          retention-days: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -50,3 +32,73 @@ jobs:
 
       - name: Run unit test suite
         run: python -m unittest discover -s tests -v
+
+      - name: Persist validated repository-wide candidate payload
+        if: github.event_name == 'pull_request' && github.head_ref == 'scan/repository-wide-v1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA='8ce7e745f017d20ef90af043519c7379736dbc9d'
+          TARGET_BRANCH='scan/repository-wide-v1-candidates'
+          PAYLOAD_SHA='8be6f675677ed9db2ac4d6b5899dd4860fba36afefb7770bf7be7987faa4766a'
+
+          cat .scan/repository-wide-v1-candidates.part*.b64 | base64 -d > /tmp/candidates.tar.xz
+          test "$(sha256sum /tmp/candidates.tar.xz | awk '{print $1}')" = "$PAYLOAD_SHA"
+
+          python - <<'PY'
+          import tarfile
+          from pathlib import PurePosixPath
+
+          with tarfile.open('/tmp/candidates.tar.xz', 'r:xz') as tf:
+              files = [member for member in tf.getmembers() if member.isfile()]
+              assert len(files) == 33, len(files)
+              for member in files:
+                  path = PurePosixPath(member.name)
+                  assert '..' not in path.parts
+                  assert not path.is_absolute()
+                  assert len(path.parts) == 3
+                  assert path.parts[0] == 'project-knowledge'
+                  assert path.parts[1] in {'invocations', 'submissions'}
+                  assert path.name.startswith('repository-wide-v1-')
+                  assert path.suffix == '.json'
+                  if path.parts[1] == 'invocations':
+                      assert path.name.endswith('.request.json') or path.name.endswith('.raw.json')
+                  else:
+                      assert not path.name.endswith('.request.json')
+                      assert not path.name.endswith('.raw.json')
+          print('PASS candidate payload paths')
+          PY
+
+          git fetch origin "$TARGET_BRANCH"
+          test "$(git rev-parse "origin/$TARGET_BRANCH")" = "$BASE_SHA" || {
+            echo 'candidate branch moved before persistence' >&2
+            exit 1
+          }
+
+          git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          tar -xJf /tmp/candidates.tar.xz
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+
+          python - <<'PY'
+          import subprocess
+          lines = subprocess.check_output(
+              ['git', 'status', '--porcelain=v1', '--untracked-files=all'],
+              text=True,
+          ).splitlines()
+          assert len(lines) == 33, lines
+          for line in lines:
+              path = line[3:]
+              assert (
+                  path.startswith('project-knowledge/invocations/repository-wide-v1-')
+                  or path.startswith('project-knowledge/submissions/repository-wide-v1-')
+              ), line
+          print('PASS candidate mutation boundary')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add project-knowledge/invocations/repository-wide-v1-* project-knowledge/submissions/repository-wide-v1-*
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 33
+          git commit -m 'project-knowledge: persist repository-wide RGP candidates'
+          git push origin HEAD:"$TARGET_BRANCH"
