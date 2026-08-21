@@ -1,0 +1,176 @@
+name: Repository-wide admission transport
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  persist:
+    if: github.head_ref == 'admission/repository-wide-v1-transport'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact transport head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip jsonschema
+
+      - name: Run unit test suite
+        run: python -m unittest discover -s tests -v
+
+      - name: Persist exact admitted state to clean target
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=62941f16c975c8d0bc22c2f9f390e53969e12119
+          TARGET=ril/admit-repository-wide-v1
+          PAYLOAD_SHA=544c56d26adfa87ec7640edf7d11189230c2df084169112c21e64458774e09c7
+          INITIAL_PEMS=7ccc930af2df4e4c6b044b813c3fa5019bd525a08dd0bb6304890edb9803812a
+          FINAL_PEMS=217eaedc614420a904b1ccc637b46a7cefce5c4b54b98ae9d39615ad1af5be0e
+          FINAL_COVE=3e7326f1a1c6e35bc9c615f92ff9808922fff7a02609e0e3569f6042522b5925
+          ACTIVATION=96e1b6d98f3a0a57677509a3b6eaa01684bb8834917849ca487b6b573fe706d9
+
+          cat .admission/repository-wide-v1.part*.b64 | base64 --decode > /tmp/admission.tar.xz
+          echo "$PAYLOAD_SHA  /tmp/admission.tar.xz" | sha256sum -c -
+
+          cat > /tmp/expected-paths.txt <<'EOF'
+          project-knowledge/admission/activation-evidence/96e1b6d98f3a0a57677509a3b6eaa01684bb8834917849ca487b6b573fe706d9.json
+          project-knowledge/admission/plans/1ae95e382e1316f7422dbfa1bbb08165cfbbb2e3dcb353866826830f52a022a7.json
+          project-knowledge/admission/plans/37cd2c87b2a282540468b832f4a4a4c71c5140c2d5ab050b97d1c2414bff5edc.json
+          project-knowledge/admission/plans/6c6dad9c2b185d54a7f069b8dfd42b653fbd056f615125d26c5875bde6d35ac0.json
+          project-knowledge/admission/plans/734f44d27bcd3126b48dda58be87fd0f2d41c90c8fa90dcc930a332a807659b8.json
+          project-knowledge/admission/plans/8aa56d0a65b2f0f7c346d43d340d74d62ba0d80e7dea53b9c9ad838d6671fa88.json
+          project-knowledge/admission/plans/8c19001ad2832e384fb753e67c9d79e2c531108682443903e681a6a8fbb52590.json
+          project-knowledge/admission/plans/a4d939e29365fd63a50303b3cb726579eff91c2da2111b9f6a3b4e4a35b423c3.json
+          project-knowledge/admission/plans/af1b1296604e0cb30ea9ab99d771b22dff11c275cc06b91f9b75021d0a7feadd.json
+          project-knowledge/admission/plans/c79e25f1c839cd286dca6047b209f4e0941de032362629fc186866ff1e064581.json
+          project-knowledge/admission/plans/e1d46c36536358671316f16268a1415a2338f2d8f4965a2672dbea24bb749d3d.json
+          project-knowledge/admission/plans/e98b82319538071a1b1f00fb1dd49e77c88355d35814094f7c4564eb2d9fb7c1.json
+          project-knowledge/admission/receipts/08ea3f48fb20549a0e8cd2a529290da06a854af393eba20b19f61dc665d82c25.json
+          project-knowledge/admission/receipts/32a2ac27473ce3a5579e05649e6e85fa922022ca8ac71fb75026871a9547edc6.json
+          project-knowledge/admission/receipts/3407d89f4c5059d493239f62304558af84d1c33368dac2006a64180d8c44f199.json
+          project-knowledge/admission/receipts/406c7b7c7dadf6f41f3e0a57ed42d44a0c012bff09b6fff833278bf0de862b8d.json
+          project-knowledge/admission/receipts/63966719e606de6d737a0025f33366241a84d8d02ada1d99f23c942d1563f077.json
+          project-knowledge/admission/receipts/88a366cefe01333ae68b4153c1c8fabf32314b7f8f32bb8af7d96e282b3ac84b.json
+          project-knowledge/admission/receipts/95e5d15fd35100bb3aea1dede6cfd5513ec48240f654677cc01c5bcf1fe7539a.json
+          project-knowledge/admission/receipts/b43c9791a1452209dde12478fea7d37efe0d4afbf9a1261b0dc699d39706e3ed.json
+          project-knowledge/admission/receipts/c7ab1e37ed59f83998b21593e4b17a54317817a0f340776395e6d00b49f96930.json
+          project-knowledge/admission/receipts/e1f7992bcc1107f00bea54bcd9146a338af9b66c827a23bc1bf64e6bb3559245.json
+          project-knowledge/admission/receipts/f67ddb7e9ab1fc5ff88ba19ef2d704220b7fcc42ec31d00deae815c28837eb04.json
+          project-knowledge/canonical/cove1.jcs.json
+          project-knowledge/canonical/pems2.jcs.json
+          EOF
+          sed -i 's/^          //' /tmp/expected-paths.txt
+          sort -o /tmp/expected-paths.txt /tmp/expected-paths.txt
+          test "$(wc -l < /tmp/expected-paths.txt)" -eq 25
+
+          tar -tJf /tmp/admission.tar.xz | sort > /tmp/payload-paths.txt
+          test "$(wc -l < /tmp/payload-paths.txt)" -eq 25
+          ! grep -Eq '(^/|(^|/)\.\.(/|$))' /tmp/payload-paths.txt
+          diff -u /tmp/expected-paths.txt /tmp/payload-paths.txt
+
+          git fetch origin "$TARGET"
+          test "$(git rev-parse FETCH_HEAD)" = "$BASE"
+          git checkout -B "$TARGET" FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$BASE"
+          test "$(sha256sum project-knowledge/canonical/pems2.jcs.json | awk '{print $1}')" = "$INITIAL_PEMS"
+          cp project-knowledge/canonical/pems2.jcs.json /tmp/base-pems2.jcs.json
+
+          tar -xJf /tmp/admission.tar.xz
+
+          git status --porcelain | cut -c4- | sort > /tmp/status-paths.txt
+          diff -u /tmp/expected-paths.txt /tmp/status-paths.txt
+
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          root=Path('.').resolve()
+          sys.path.insert(0,str(root/'runtime'))
+          from ril_activation import validate_activation
+          from ril_admission import apply_plan, encode_cove, jcs, normalize_pems, sha256_bytes
+          from ril_mutation import digest, load_json
+          from ril_storage_verification import verify_storage
+
+          activation_hex='96e1b6d98f3a0a57677509a3b6eaa01684bb8834917849ca487b6b573fe706d9'
+          final_pems='217eaedc614420a904b1ccc637b46a7cefce5c4b54b98ae9d39615ad1af5be0e'
+          final_cove='3e7326f1a1c6e35bc9c615f92ff9808922fff7a02609e0e3569f6042522b5925'
+          activation=load_json(root/'project-knowledge/admission/activation-evidence'/f'{activation_hex}.json')
+          assert digest(activation)==f'sha256:{activation_hex}'
+          ar=validate_activation(root,'admission',activation)
+          assert ar['status']=='PASS' and ar['role_id']=='steward:default' and ar['invocation_id']=='admit-repository-wide-v1-20260820', ar
+
+          order=[
+            ('e1f7992bcc1107f00bea54bcd9146a338af9b66c827a23bc1bf64e6bb3559245','e98b82319538071a1b1f00fb1dd49e77c88355d35814094f7c4564eb2d9fb7c1'),
+            ('b43c9791a1452209dde12478fea7d37efe0d4afbf9a1261b0dc699d39706e3ed','8c19001ad2832e384fb753e67c9d79e2c531108682443903e681a6a8fbb52590'),
+            ('95e5d15fd35100bb3aea1dede6cfd5513ec48240f654677cc01c5bcf1fe7539a','6c6dad9c2b185d54a7f069b8dfd42b653fbd056f615125d26c5875bde6d35ac0'),
+            ('88a366cefe01333ae68b4153c1c8fabf32314b7f8f32bb8af7d96e282b3ac84b','1ae95e382e1316f7422dbfa1bbb08165cfbbb2e3dcb353866826830f52a022a7'),
+            ('32a2ac27473ce3a5579e05649e6e85fa922022ca8ac71fb75026871a9547edc6','734f44d27bcd3126b48dda58be87fd0f2d41c90c8fa90dcc930a332a807659b8'),
+            ('08ea3f48fb20549a0e8cd2a529290da06a854af393eba20b19f61dc665d82c25','37cd2c87b2a282540468b832f4a4a4c71c5140c2d5ab050b97d1c2414bff5edc'),
+            ('63966719e606de6d737a0025f33366241a84d8d02ada1d99f23c942d1563f077','c79e25f1c839cd286dca6047b209f4e0941de032362629fc186866ff1e064581'),
+            ('3407d89f4c5059d493239f62304558af84d1c33368dac2006a64180d8c44f199','a4d939e29365fd63a50303b3cb726579eff91c2da2111b9f6a3b4e4a35b423c3'),
+            ('f67ddb7e9ab1fc5ff88ba19ef2d704220b7fcc42ec31d00deae815c28837eb04','af1b1296604e0cb30ea9ab99d771b22dff11c275cc06b91f9b75021d0a7feadd'),
+            ('c7ab1e37ed59f83998b21593e4b17a54317817a0f340776395e6d00b49f96930','e1d46c36536358671316f16268a1415a2338f2d8f4965a2672dbea24bb749d3d'),
+            ('406c7b7c7dadf6f41f3e0a57ed42d44a0c012bff09b6fff833278bf0de862b8d','8aa56d0a65b2f0f7c346d43d340d74d62ba0d80e7dea53b9c9ad838d6671fa88'),
+          ]
+          base=normalize_pems(json.loads(Path('/tmp/base-pems2.jcs.json').read_text()))
+          total_new=total_reuse=total_updates=total_rel=0
+          for candidate_hex, plan_hex in order:
+              disposition=load_json(root/'project-knowledge/reconciliation/dispositions'/f'{candidate_hex}.json')
+              candidate=load_json(root/disposition['candidate_path'])
+              assert digest(candidate)==f'sha256:{candidate_hex}'
+              assert disposition['candidate_digest']==f'sha256:{candidate_hex}'
+              assert disposition['assessment']['semantic_status']=='COMPATIBLE'
+              assert disposition['assessment']['admission_recommendation']=='RECOMMEND'
+              plan=load_json(root/'project-knowledge/admission/plans'/f'{plan_hex}.json')
+              assert digest(plan)==f'sha256:{plan_hex}'
+              receipt=load_json(root/'project-knowledge/admission/receipts'/f'{candidate_hex}.json')
+              assert receipt['candidate_digest']==f'sha256:{candidate_hex}'
+              assert receipt['disposition_digest']==digest(disposition)
+              assert receipt['activation_digest']==f'sha256:{activation_hex}'
+              assert receipt['plan_digest']==f'sha256:{plan_hex}'
+              assert receipt['role_id']=='steward:default'
+              assert receipt['invocation_id']=='admit-repository-wide-v1-20260820'
+              before=sha256_bytes(jcs(base))
+              assert plan['expected_base_sha256']==before==receipt['base_pems_sha256']
+              base=apply_plan(base,plan)
+              psha=sha256_bytes(jcs(base)); csha=sha256_bytes(jcs(encode_cove(base)))
+              assert receipt['admitted_pems_sha256']==psha
+              assert receipt['admitted_cove_sha256']==csha
+              total_new += len(plan['new_records']); total_reuse += len(plan['reuse_record_ids'])
+              total_updates += len(plan['record_updates']); total_rel += len(plan['new_relations'])
+
+          actual=normalize_pems(json.loads((root/'project-knowledge/canonical/pems2.jcs.json').read_text()))
+          assert jcs(base)==jcs(actual)
+          assert sha256_bytes(jcs(actual))==final_pems
+          assert len(actual['records'])==802 and len(actual['relations'])==0
+          assert total_new==756 and total_reuse==5 and total_updates==0 and total_rel==0
+          v=verify_storage(root)
+          assert v['status']=='PASS' and v['outcome']=='VERIFIED', v
+          assert v['pems_sha256']==final_pems and v['cove_sha256']==final_cove
+          print(json.dumps({'status':'PASS','admissions':11,'new_records':total_new,'reuse_records':total_reuse,'final_records':802,'final_relations':0,'pems_sha256':final_pems,'cove_sha256':final_cove},sort_keys=True))
+          PY
+
+          while IFS= read -r p; do git add -- "$p"; done < /tmp/expected-paths.txt
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 25
+          git diff --cached --name-only | sort > /tmp/staged-paths.txt
+          diff -u /tmp/expected-paths.txt /tmp/staged-paths.txt
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'project-knowledge: admit repository-wide RGP candidates'
+          git push origin HEAD:"$TARGET"
