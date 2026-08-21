@@ -1,0 +1,1 @@
+{"contract":"reasoning-distiller-operator-registry/1","operators":{"operator:loteque":{"capabilities":["rd:operator_management","rd:role_registry","rd:steward_authorization"],"protected_root":true,"status":"active"}},"root_operator_id":"operator:loteque"}

@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy, hashlib, json, os
 from pathlib import Path
 from typing import Any
+from rd_bootstrap import validate_project_config
 from ril_activation import validate_activation
 from ril_mutation import ContractError, canonical_json_bytes, digest, load_json
 from ril_reconciliation import DISPOSITION_CONTRACT
@@ -29,6 +30,14 @@ def normalize_pems(d:dict[str,Any])->dict[str,Any]:
     try:x["records"]=sorted(x["records"],key=lambda r:r["id"]); x["relations"]=sorted(x["relations"],key=lambda r:r["id"])
     except Exception as e:raise ContractError("INVALID_PEMS","all records and relations require IDs") from e
     return x
+
+def first_admission_base(project_root:Path)->dict[str,Any]:
+    config_path=project_root/"project-knowledge/project.json"
+    if not config_path.exists() or config_path.is_symlink() or not config_path.is_file():raise ContractError("PROJECT_IDENTITY_REQUIRED","project-knowledge/project.json with explicit project identity is required")
+    config=load_json(config_path)
+    if not validate_project_config(config):raise ContractError("PROJECT_IDENTITY_REQUIRED","reasoning-distiller-project/2 identity is required before first admission")
+    project=config["project"]
+    return normalize_pems({"semantic":PROFILE,"project_id":project["id"],"records":[{"id":project["id"],"kind":"project","lifecycle":"current","data":{"name":project["name"],"repository":project["repository"],"summary":project["summary"]}}],"relations":[]})
 
 def _validate_graph(d:dict[str,Any])->None:
     rs=[r.get("id") for r in d["records"]]; ls=[r.get("id") for r in d["relations"]]
@@ -163,7 +172,7 @@ def admit(project_root:Path,disposition_path:Path,activation:dict[str,Any],plan:
             if rec.get("contract")!=RECEIPT_CONTRACT or rec.get("candidate_digest")!=disposition["candidate_digest"] or rec.get("disposition_digest")!=digest(disposition) or rec.get("activation_digest")!=activation_digest or rec.get("plan_digest")!=plan_digest:raise ContractError("ADMISSION_CONFLICT","candidate already admitted under different evidence")
             if not pems_path.exists() or not cove_path.exists() or sha256_bytes(pems_path.read_bytes())!=rec.get("admitted_pems_sha256") or sha256_bytes(cove_path.read_bytes())!=rec.get("admitted_cove_sha256"):raise ContractError("CANONICAL_STATE_CONFLICT","receipt does not match canonical bytes")
             return _result("PASS","NO_CHANGE",receipt_path=receipt_path.relative_to(project_root).as_posix(),admitted_pems_sha256=rec["admitted_pems_sha256"])
-        base=normalize_pems(json.loads(pems_path.read_text("utf-8"))) if pems_path.exists() else copy.deepcopy(EMPTY_PEMS); candidate=apply_plan(base,plan); pb=jcs(candidate); cove=encode_cove(candidate); cb=jcs(cove)
+        base=normalize_pems(json.loads(pems_path.read_text("utf-8"))) if pems_path.exists() else first_admission_base(project_root); candidate=apply_plan(base,plan); pb=jcs(candidate); cove=encode_cove(candidate); cb=jcs(cove)
         if _decode(cove["x"],cove["d"],cove["h"])!=candidate:raise ContractError("COVE_ROUNDTRIP_FAILED","COVE does not decode to PEMS")
         receipt={"contract":RECEIPT_CONTRACT,"candidate_digest":disposition["candidate_digest"],"disposition_digest":digest(disposition),"activation_digest":activation_digest,"plan_digest":plan_digest,"role_id":ar["role_id"],"invocation_id":ar["invocation_id"],"base_pems_sha256":sha256_bytes(jcs(base)),"admitted_pems_sha256":sha256_bytes(pb),"admitted_cove_sha256":sha256_bytes(cb)}
         _persist(admission/"activation-evidence"/f"{activation_digest.split(':',1)[1]}.json",activation,"ACTIVATION_EVIDENCE_CONFLICT");_persist(admission/"plans"/f"{plan_digest.split(':',1)[1]}.json",plan,"ADMISSION_PLAN_CONFLICT")
