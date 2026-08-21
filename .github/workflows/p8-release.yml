@@ -15,9 +15,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RELEASE_VERSION: '0.3.0'
-  RELEASE_TAG: 'v0.3.0'
-  SOURCE_SHA: '146f828efd258c5d964414f0118a64f2f77ed300'
+  RELEASE_VERSION: '0.5.2'
+  RELEASE_TAG: 'v0.5.2'
+  SOURCE_SHA: '90bc23ed90f12f06d41d019c79994747709ab326'
 
 jobs:
   accept-release:
@@ -169,7 +169,7 @@ jobs:
             'invocation_result_contract':'reasoning-distiller-invocation-result/1',
             'bootstrap_contract':'reasoning-distiller-project-bootstrap/1',
             'bootstrap_result_contract':'reasoning-distiller-project-bootstrap-result/1',
-            'project_contract':'reasoning-distiller-project/1',
+            'project_contract':'reasoning-distiller-project/2',
             'release_assets':[
               f"reasoning-distiller-{os.environ['RELEASE_VERSION']}.tar.gz",
               f"reasoning-distiller-{os.environ['RELEASE_VERSION']}.manifest.json",
