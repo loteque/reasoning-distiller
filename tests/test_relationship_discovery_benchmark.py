@@ -1,9 +1,11 @@
 import hashlib
 import importlib.util
+import json
 import unittest
 from pathlib import Path
 
-MODULE_PATH = Path(__file__).parents[1] / "evaluation" / "relationship_discovery_benchmark.py"
+ROOT = Path(__file__).parents[1]
+MODULE_PATH = ROOT / "evaluation" / "relationship_discovery_benchmark.py"
 spec = importlib.util.spec_from_file_location("relationship_discovery_benchmark", MODULE_PATH)
 bench = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
@@ -99,6 +101,36 @@ class RelationshipDiscoveryBenchmarkTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "hypothesis.algorithm_summary"):
             bench.validate_report(report)
+
+    def test_persisted_a0_report_is_bound_and_reproducible(self):
+        report_path = ROOT / "evaluation" / "relationship-discovery" / "benchmark-v1" / "baseline" / "A0-exhaustive" / "report.json"
+        markdown_path = report_path.with_suffix(".md")
+        benchmark_path = ROOT / "evaluation" / "relationship-discovery" / "benchmark-v1" / "benchmark.json"
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        bench.validate_report(report)
+        implementation_digest = "sha256:" + hashlib.sha256(MODULE_PATH.read_bytes()).hexdigest()
+        benchmark_digest = "sha256:" + hashlib.sha256(benchmark_path.read_bytes()).hexdigest()
+        self.assertEqual(implementation_digest, report["identity"]["implementation_digest"])
+        self.assertEqual(benchmark_digest, report["identity"]["benchmark_digest"])
+        self.assertEqual(bench.render_report(report), markdown_path.read_text(encoding="utf-8"))
+
+    def test_frozen_repository_corpus_matches_benchmark(self):
+        pems_path = ROOT / "project-knowledge" / "canonical" / "pems2.jcs.json"
+        if not pems_path.exists():
+            self.skipTest("full repository PEMS is not present in this isolated test copy")
+        benchmark_path = ROOT / "evaluation" / "relationship-discovery" / "benchmark-v1" / "benchmark.json"
+        benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+        coverage = bench.build_coverage(
+            pems_path.read_bytes(),
+            benchmark_id=benchmark["benchmark_id"],
+            repository_commit=benchmark["repository_commit"],
+            expected_pems_sha256=benchmark["pems_sha256"],
+            block_size=benchmark["a0"]["block_size"],
+        )
+        self.assertEqual(benchmark["expected"]["eligible_propositions"], coverage["eligible_propositions"])
+        self.assertEqual(benchmark["expected"]["unordered_pairs"], coverage["expected_pair_count"])
+        self.assertEqual(benchmark["expected"]["relationship_hypotheses"], coverage["expected_hypothesis_count"])
+        self.assertEqual(78, len(coverage["batches"]))
 
     def test_report_render_preserves_hypothesis(self):
         report = {
