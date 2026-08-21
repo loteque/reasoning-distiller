@@ -6,6 +6,11 @@ on:
       - migrate/project-identity-v2
     paths:
       - '.github/workflows/project-identity-v2-migration.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/project-identity-v2-migration.yml'
 
 permissions:
   contents: write
@@ -16,6 +21,7 @@ concurrency:
 
 env:
   EXPECTED_BASE_SHA: '29f25cde8fbef6ac62a3bac2c6844fa2dedfecaf'
+  MIGRATION_BRANCH: 'migrate/project-identity-v2'
 
 jobs:
   migrate:
@@ -24,6 +30,7 @@ jobs:
       - name: Checkout exact migration branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.MIGRATION_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
 
@@ -31,7 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          git fetch origin main
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_BASE_SHA"
+          test "$(git merge-base HEAD refs/remotes/origin/main)" = "$EXPECTED_BASE_SHA"
           python - <<'PY'
           from pathlib import Path
           expected = b'{"contract":"reasoning-distiller-project/1","paths":{"evidence":"project-knowledge/evidence","invocations":"project-knowledge/invocations","submissions":"project-knowledge/submissions"}}\n'
@@ -108,12 +117,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          remote_before="$(git rev-parse HEAD)"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- project-knowledge/project.json
           git rm -- .github/workflows/project-identity-v2-migration.yml
           git diff --cached --check
           git commit -m 'project-knowledge: establish explicit project identity'
-          git fetch origin migrate/project-identity-v2
-          test "$(git rev-parse refs/remotes/origin/migrate/project-identity-v2)" = "$(git rev-parse HEAD^)"
-          git push origin HEAD:migrate/project-identity-v2
+          git fetch origin "$MIGRATION_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/$MIGRATION_BRANCH)" = "$remote_before"
+          git push origin HEAD:"$MIGRATION_BRANCH"
