@@ -16,6 +16,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Export exact repository scan snapshot
+        if: github.event_name == 'pull_request' && github.head_ref == 'scan/repository-wide-v1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA='8ce7e745f017d20ef90af043519c7379736dbc9d'
+          git cat-file -e "${BASE_SHA}^{commit}"
+          git archive --format=tar.gz --output=/tmp/reasoning-distiller-scan-base.tar.gz "$BASE_SHA"
+          sha256sum /tmp/reasoning-distiller-scan-base.tar.gz | tee /tmp/reasoning-distiller-scan-base.sha256
+
+      - name: Upload exact repository scan snapshot
+        if: github.event_name == 'pull_request' && github.head_ref == 'scan/repository-wide-v1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: reasoning-distiller-scan-base-8ce7e745
+          path: |
+            /tmp/reasoning-distiller-scan-base.tar.gz
+            /tmp/reasoning-distiller-scan-base.sha256
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
