@@ -6,6 +6,11 @@ on:
       - release/rc-v0.5.1
     paths:
       - '.github/workflows/rc-v0.5.1.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/rc-v0.5.1.yml'
 
 permissions:
   contents: read
