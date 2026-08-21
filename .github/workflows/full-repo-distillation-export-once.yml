@@ -1,8 +1,9 @@
 name: Full Repository Distillation Evidence Export (one-shot)
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches:
+      - 'distill/full-repo-20260820'
     paths:
       - '.github/workflows/full-repo-distillation-export-once.yml'
   workflow_dispatch:
@@ -69,8 +70,7 @@ jobs:
 
           with tarfile.open(out / 'evidence.tar.gz', 'w:gz', format=tarfile.PAX_FORMAT) as tf:
               for item in files:
-                  p = root / item['path']
-                  tf.add(p, arcname=item['path'], recursive=False)
+                  tf.add(root / item['path'], arcname=item['path'], recursive=False)
 
           print(json.dumps({
               'commit': manifest['commit'],
