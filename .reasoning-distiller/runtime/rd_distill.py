@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Reasoning Distiller invocation adapter with explicit ingestion source typing.
 
-The proven v0.4.1 adapter is preserved byte-for-byte in ``rd_distill_core.py``.
-This compatibility entrypoint adds an explicit ``governed_artifact`` evidence
-selection path without inferring authority from filenames, paths, or prose.
+The proven v0.4.1 adapter is preserved in ``rd_distill_core.py``. This
+compatibility entrypoint adds explicit ``governed_artifact`` evidence selection
+and recognizes the accepted reasoning-distiller-project/2 identity contract
+without inferring authority or project identity.
 """
 from __future__ import annotations
 
@@ -26,6 +27,82 @@ for _name in dir(_core):
         globals().setdefault(_name, getattr(_core, _name))
 
 INGEST_SOURCE_TYPES = frozenset({"repository_file", "governed_artifact"})
+PROJECT_CONTRACT_V2 = "reasoning-distiller-project/2"
+
+
+def load_project_config(project_root: _Path) -> dict[str, _Any]:
+    """Load either the exact legacy v1 config or the accepted v2 identity config."""
+    path = _core.resolve_within(
+        project_root,
+        _core.PROJECT_CONFIG_PATH.as_posix(),
+        "project_config",
+    )
+    try:
+        document = _core.json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise _core.fail(
+            "preflight",
+            "PROJECT_NOT_BOOTSTRAPPED",
+            (
+                f"{_core.PROJECT_CONFIG_PATH.as_posix()} is missing; run "
+                ".reasoning-distiller/runtime/rd_bootstrap.py first"
+            ),
+            _core.EXIT_PREFLIGHT,
+        ) from exc
+    except (_core.OSError, _core.json.JSONDecodeError) as exc:
+        raise _core.fail(
+            "preflight",
+            "PROJECT_CONFIG_INVALID",
+            str(exc),
+            _core.EXIT_PREFLIGHT,
+        ) from exc
+
+    if isinstance(document, dict) and document.get("contract") == _core.PROJECT_CONTRACT:
+        return _core.load_project_config(project_root)
+
+    if (
+        not isinstance(document, dict)
+        or document.get("contract") != PROJECT_CONTRACT_V2
+        or set(document) != {"contract", "project", "paths"}
+    ):
+        raise _core.fail(
+            "preflight",
+            "PROJECT_CONFIG_INVALID",
+            f"expected {_core.PROJECT_CONTRACT} or {PROJECT_CONTRACT_V2}",
+            _core.EXIT_PREFLIGHT,
+        )
+
+    project = document.get("project")
+    identity_fields = {"id", "name", "repository", "summary"}
+    if not isinstance(project, dict) or set(project) != identity_fields:
+        raise _core.fail(
+            "preflight",
+            "PROJECT_CONFIG_INVALID",
+            "project identity requires exactly id, name, repository, summary",
+            _core.EXIT_PREFLIGHT,
+        )
+    for key in sorted(identity_fields):
+        if not isinstance(project.get(key), str) or not project[key].strip():
+            raise _core.fail(
+                "preflight",
+                "PROJECT_CONFIG_INVALID",
+                f"project identity {key} must be a non-empty string",
+                _core.EXIT_PREFLIGHT,
+            )
+
+    paths = document.get("paths")
+    required = {"evidence", "invocations", "submissions"}
+    if not isinstance(paths, dict) or set(paths) != required:
+        raise _core.fail(
+            "preflight",
+            "PROJECT_CONFIG_INVALID",
+            f"paths must contain exactly {sorted(required)}",
+            _core.EXIT_PREFLIGHT,
+        )
+    for name in sorted(required):
+        rel = _core._validate_rel_path(paths[name], f"project.paths.{name}")
+        _core.resolve_within(project_root, rel, f"project.paths.{name}")
+    return document
 
 
 def expand_typed_evidence_specs(
@@ -271,7 +348,7 @@ def print_typed_ingestion_preview(
 def ingest_command(args) -> int:
     try:
         project_root = _core._resolve_project_root(args.project_root)
-        project_config = _core.load_project_config(project_root)
+        project_config = load_project_config(project_root)
 
         if args.evidence or args.governed_evidence:
             specs = list(args.evidence or [])
