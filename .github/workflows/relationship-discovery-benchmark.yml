@@ -1,0 +1,66 @@
+name: Relationship Discovery Benchmark
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/relationship-discovery-benchmark.yml"
+      - "evaluation/relationship_discovery_benchmark.py"
+      - "evaluation/relationship-discovery/**"
+      - "tests/test_relationship_discovery_benchmark.py"
+      - "project-knowledge/canonical/pems2.jcs.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  a0-inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run focused benchmark tests
+        run: python -m unittest discover -s tests -p 'test_relationship_discovery_benchmark.py' -v
+
+      - name: Freeze A0 coverage and materialize semantic batches
+        run: |
+          set -euo pipefail
+          artifact=/tmp/relationship-discovery-a0
+          mkdir -p "$artifact/batches"
+          python evaluation/relationship_discovery_benchmark.py bootstrap \
+            --pems project-knowledge/canonical/pems2.jcs.json \
+            --benchmark evaluation/relationship-discovery/benchmark-v1/benchmark.json \
+            --coverage-out "$artifact/coverage.json"
+          python evaluation/relationship_discovery_benchmark.py verify-coverage "$artifact/coverage.json"
+          python - <<'PY'
+          import importlib.util
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          module_path = root / 'evaluation' / 'relationship_discovery_benchmark.py'
+          spec = importlib.util.spec_from_file_location('relationship_discovery_benchmark', module_path)
+          bench = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(bench)
+
+          artifact = Path('/tmp/relationship-discovery-a0')
+          coverage = json.loads((artifact / 'coverage.json').read_text(encoding='utf-8'))
+          pems_bytes = (root / 'project-knowledge' / 'canonical' / 'pems2.jcs.json').read_bytes()
+          for batch in coverage['batches']:
+              payload = bench.materialize_batch(pems_bytes, coverage, batch['batch_id'])
+              path = artifact / 'batches' / f"{batch['batch_id']}.json"
+              path.write_bytes(bench.canonical_json_bytes(payload) + b'\n')
+          batch_files = sorted((artifact / 'batches').glob('A0-B??-B??.json'))
+          if len(batch_files) != 78:
+              raise SystemExit(f'expected 78 materialized batches, found {len(batch_files)}')
+          print(f'PASS materialized {len(batch_files)} A0 batches')
+          PY
+
+      - name: Upload immutable A0 analysis inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: relationship-discovery-a0-inputs
+          path: /tmp/relationship-discovery-a0
+          if-no-files-found: error
+          retention-days: 14
