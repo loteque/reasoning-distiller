@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import importlib.util
 import json
 import tempfile
 import unittest
 from pathlib import Path
+
+import importlib.util
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("rd_bootstrap", ROOT / "runtime/rd_bootstrap.py")
@@ -21,6 +22,14 @@ class BootstrapConformance(unittest.TestCase):
         (root / ".reasoning-distiller").mkdir()
         return td, root
 
+    def identity(self) -> dict[str, str]:
+        return {
+            "id": "example-project",
+            "name": "Example Project",
+            "repository": "example/project",
+            "summary": "Example project used by bootstrap tests.",
+        }
+
     def test_creates_minimum_state_and_is_idempotent(self):
         td, root = self.project()
         self.addCleanup(td.cleanup)
@@ -34,6 +43,42 @@ class BootstrapConformance(unittest.TestCase):
         self.assertEqual(code2, 0)
         self.assertEqual(result2["outcome"], "ALREADY_BOOTSTRAPPED")
         self.assertEqual(result2["created"], [])
+        self.assertEqual(result2["updated"], [])
+
+    def test_explicit_identity_creates_v2_project_config(self):
+        td, root = self.project()
+        self.addCleanup(td.cleanup)
+        code, result = rd.bootstrap(root, self.identity())
+        self.assertEqual((code, result["outcome"]), (0, "CREATED"))
+        config = json.loads((root / "project-knowledge/project.json").read_text())
+        self.assertTrue(rd.validate_project_config(config))
+        self.assertEqual(config["project"], self.identity())
+        self.assertEqual(result["project_contract"], rd.PROJECT_CONTRACT)
+
+    def test_known_v1_config_can_be_migrated_with_explicit_identity(self):
+        td, root = self.project()
+        self.addCleanup(td.cleanup)
+        self.assertEqual(rd.bootstrap(root)[0], 0)
+        before = (root / "project-knowledge/project.json").read_bytes()
+        code, result = rd.bootstrap(root, self.identity())
+        self.assertEqual((code, result["outcome"]), (0, "PROJECT_IDENTITY_ESTABLISHED"))
+        self.assertEqual(result["updated"], [rd.CONFIG_PATH])
+        self.assertNotEqual((root / "project-knowledge/project.json").read_bytes(), before)
+        self.assertTrue(rd.validate_project_config(json.loads((root / "project-knowledge/project.json").read_text())))
+        code2, result2 = rd.bootstrap(root, self.identity())
+        self.assertEqual((code2, result2["outcome"]), (0, "ALREADY_BOOTSTRAPPED"))
+
+    def test_different_explicit_identity_conflicts_with_v2_config(self):
+        td, root = self.project()
+        self.addCleanup(td.cleanup)
+        self.assertEqual(rd.bootstrap(root, self.identity())[0], 0)
+        changed = dict(self.identity())
+        changed["id"] = "other-project"
+        before = (root / "project-knowledge/project.json").read_bytes()
+        code, result = rd.bootstrap(root, changed)
+        self.assertEqual(code, 2)
+        self.assertEqual(result["reason_code"], "PROJECT_CONFIG_CONFLICT")
+        self.assertEqual((root / "project-knowledge/project.json").read_bytes(), before)
 
     def test_completes_partial_compatible_state(self):
         td, root = self.project()
@@ -98,7 +143,7 @@ class BootstrapConformance(unittest.TestCase):
     def test_bootstrap_does_not_create_authority_or_canonical_state(self):
         td, root = self.project()
         self.addCleanup(td.cleanup)
-        code, _ = rd.bootstrap(root)
+        code, _ = rd.bootstrap(root, self.identity())
         self.assertEqual(code, 0)
         forbidden = [
             "project-knowledge/authority",
