@@ -32,9 +32,9 @@ Sort the frozen eligible proposition corpus by canonical record ID, divide it in
 | pair space reduction percent | 0.0 % (derived) |
 | relationship hypotheses retained | 472696 (derived) |
 | semantic analyses required | 67528 (derived) |
-| candidate generation runtime seconds | PENDING |
-| input tokens | PENDING |
-| output tokens | PENDING |
+| candidate generation runtime seconds | UNAVAILABLE |
+| input tokens | UNAVAILABLE |
+| output tokens | UNAVAILABLE |
 | monetary cost | UNAVAILABLE |
 | index storage bytes | 0 (derived) |
 
@@ -60,4 +60,8 @@ None recorded at this stage.
 
 **INCOMPLETE**
 
-Hypothesis recorded before semantic A0 results. A0 remains INCOMPLETE until all exhaustive semantic batches are complete and the resulting candidates receive fresh Steward semantic reconciliation.
+The pre-result hypothesis is preserved unchanged from the report template.
+
+All 78 exhaustive A0 semantic batches are COMPLETE and validated: 67528 unordered pairs, 472696 relationship hypotheses, and 1128 raw non-authoritative candidate relations.
+
+A0 remains INCOMPLETE pending fresh Steward semantic reconciliation; raw candidate count is not the baseline relation count.
