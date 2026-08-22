@@ -114,19 +114,24 @@ class RelationshipDiscoveryBenchmarkTests(unittest.TestCase):
         self.assertEqual(benchmark_digest, report["identity"]["benchmark_digest"])
         self.assertEqual(bench.render_report(report), markdown_path.read_text(encoding="utf-8"))
 
-    def test_frozen_repository_corpus_matches_benchmark(self):
-        pems_path = ROOT / "project-knowledge" / "canonical" / "pems2.jcs.json"
-        if not pems_path.exists():
-            self.skipTest("full repository PEMS is not present in this isolated test copy")
+    def test_frozen_benchmark_coverage_matches_contract(self):
         benchmark_path = ROOT / "evaluation" / "relationship-discovery" / "benchmark-v1" / "benchmark.json"
-        benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
-        coverage = bench.build_coverage(
-            pems_path.read_bytes(),
-            benchmark_id=benchmark["benchmark_id"],
-            repository_commit=benchmark["repository_commit"],
-            expected_pems_sha256=benchmark["pems_sha256"],
-            block_size=benchmark["a0"]["block_size"],
+        coverage_path = (
+            ROOT
+            / "evaluation"
+            / "relationship-discovery"
+            / "benchmark-v1"
+            / "baseline"
+            / "A0-exhaustive"
+            / "coverage.json"
         )
+        benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+        coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+        bench.verify_coverage(coverage)
+        self.assertEqual(benchmark["benchmark_id"], coverage["benchmark_id"])
+        self.assertEqual(benchmark["repository_commit"], coverage["repository_commit"])
+        self.assertEqual(f"sha256:{benchmark['pems_sha256']}", coverage["pems_sha256"])
+        self.assertEqual(benchmark["a0"]["block_size"], coverage["block_size"])
         self.assertEqual(benchmark["expected"]["eligible_propositions"], coverage["eligible_propositions"])
         self.assertEqual(benchmark["expected"]["unordered_pairs"], coverage["expected_pair_count"])
         self.assertEqual(benchmark["expected"]["relationship_hypotheses"], coverage["expected_hypothesis_count"])
