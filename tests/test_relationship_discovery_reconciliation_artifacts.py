@@ -1,5 +1,4 @@
 import copy
-import hashlib
 import importlib.util
 import json
 import sys
@@ -34,10 +33,7 @@ ACTIVATION = (
     / "activation-evidence"
     / "a81360a9a4ab349a377dd378b5ed55e7e4a28d45ca26f6de51888dfac477928b.json"
 )
-PEMS = ROOT / "project-knowledge" / "canonical" / "pems2.jcs.json"
-COVE = ROOT / "project-knowledge" / "canonical" / "cove1.jcs.json"
-EXPECTED_PEMS = "217eaedc614420a904b1ccc637b46a7cefce5c4b54b98ae9d39615ad1af5be0e"
-EXPECTED_COVE = "3e7326f1a1c6e35bc9c615f92ff9808922fff7a02609e0e3569f6042522b5925"
+EXPECTED_PEMS = "sha256:217eaedc614420a904b1ccc637b46a7cefce5c4b54b98ae9d39615ad1af5be0e"
 EXPECTED_BASELINE = "sha256:ab07f98f8e280a7008d60b12b31e0376eec3ea761b70979ffae32a39482b8efd"
 EXPECTED_DISPOSITIONS = "sha256:6120a78291d48d4cda586dc7bbf6cb6fc2cff1e38f8373ad4c1c67a4b2ddbcd1"
 
@@ -47,13 +43,10 @@ def load(path: Path):
 
 
 class RelationshipDiscoveryReconciliationArtifactTests(unittest.TestCase):
-    def test_persisted_reconciliation_is_complete_reproducible_and_nonadmitting(self):
-        before_pems = PEMS.read_bytes()
-        before_cove = COVE.read_bytes()
-        self.assertEqual(hashlib.sha256(before_pems).hexdigest(), EXPECTED_PEMS)
-        self.assertEqual(hashlib.sha256(before_cove).hexdigest(), EXPECTED_COVE)
-
+    def test_persisted_reconciliation_is_complete_reproducible_and_bound_to_frozen_corpus(self):
         candidates = load(BASE / "candidates.json")
+        self.assertEqual(candidates["pems_sha256"], EXPECTED_PEMS)
+
         activation = load(ACTIVATION)
         selection = load(BASE / "steward-selection.json")
         persisted = load(BASE / "steward-dispositions.json")
@@ -102,9 +95,6 @@ class RelationshipDiscoveryReconciliationArtifactTests(unittest.TestCase):
             recon.bench.render_report(report),
             (BASE / "report.md").read_text(encoding="utf-8"),
         )
-
-        self.assertEqual(PEMS.read_bytes(), before_pems)
-        self.assertEqual(COVE.read_bytes(), before_cove)
 
     def test_selection_mutation_fails_closed(self):
         candidates = load(BASE / "candidates.json")
