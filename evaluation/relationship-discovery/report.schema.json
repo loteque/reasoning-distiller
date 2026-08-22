@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/reasoning-distiller-relationship-algorithm-report.schema.json",
+  "title": "Reasoning Distiller Relationship Algorithm Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "identity", "hypothesis", "method", "metrics", "misses", "verdict"],
+  "properties": {
+    "contract": {"const": "reasoning-distiller-relationship-algorithm-report/1"},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm_id", "algorithm_version", "implementation_digest", "benchmark_id", "benchmark_digest", "execution_id"],
+      "properties": {
+        "algorithm_id": {"type": "string", "minLength": 1},
+        "algorithm_version": {"type": "string", "minLength": 1},
+        "implementation_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "benchmark_id": {"type": "string", "minLength": 1},
+        "benchmark_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "execution_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm_summary", "selection_rationale", "expected_behavior"],
+      "properties": {
+        "algorithm_summary": {"type": "string", "minLength": 1},
+        "selection_rationale": {"type": "string", "minLength": 1},
+        "expected_behavior": {"type": "string", "minLength": 1}
+      }
+    },
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary"],
+      "properties": {"summary": {"type": "string", "minLength": 1}}
+    },
+    "metrics": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/metric"}
+    },
+    "misses": {"type": "array", "items": {"type": "object"}},
+    "verdict": {"enum": ["PASS", "FAIL_LOSS", "FAIL_INVALID", "INCOMPLETE"]},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["measured", "derived", "unavailable", "pending"]},
+        "value": {"type": ["number", "integer", "string"]},
+        "unit": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"enum": ["measured", "derived"]}}}, "then": {"required": ["value"]}},
+        {"if": {"properties": {"status": {"enum": ["pending", "unavailable"]}}}, "then": {"not": {"required": ["value"]}}}
+      ]
+    }
+  }
+}
