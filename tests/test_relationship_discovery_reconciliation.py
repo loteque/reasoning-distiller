@@ -11,7 +11,7 @@ sys.path.insert(0, str(RUNTIME))
 import ril_activation  # noqa: E402
 
 
-ACTIVATION_DIGEST = "32e28aaee3d3ed0d22b858bd825643d2e557de85da519ab4ed9bd85d36b1b952"
+ACTIVATION_DIGEST = "a81360a9a4ab349a377dd378b5ed55e7e4a28d45ca26f6de51888dfac477928b"
 ACTIVATION_PATH = (
     ROOT
     / "project-knowledge"
@@ -41,7 +41,7 @@ class RelationshipDiscoveryReconciliationActivationTests(unittest.TestCase):
         after_cove = (ROOT / "project-knowledge" / "canonical" / "cove1.jcs.json").read_bytes()
 
         self.assertEqual(result["status"], "PASS")
-        self.assertEqual(result["code"], "ACTIVATION_ACCEPTED")
+        self.assertEqual(result["outcome"], "ACTIVATION_ACCEPTED")
         self.assertEqual(result["scope"], "semantic_reconciliation")
         self.assertEqual(result["role_id"], "steward:default")
         self.assertEqual(result["invocation_id"], INVOCATION_ID)
