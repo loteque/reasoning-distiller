@@ -1,33 +1,66 @@
-# ChatGPT Governed Workflow Efficiency — Implementation Plan
+# Interactive Model Host Governed Workflow Efficiency - Implementation Plan
 
 Status: **Proposed implementation plan**
 
 Evidence revision: `58b99891e116b5a06dd603810c2b98ea83e328c3`
 
-Operational scope: Knowledge Systems Architect planning for ChatGPT-hosted repository coordination.
+Operational scope: Knowledge Systems Architect planning for interactive model-hosted repository coordination.
 
-Authority posture: this document is a design/implementation-planning artifact only. It does not establish registered role identity, RIL activation, Steward authorization, implementation approval, reconciliation, admission, or canonical project knowledge. A branch, pull request, chat label, or user request does not change those boundaries.
+Authority posture: this document is a design and implementation-planning artifact only. It does not establish registered role identity, RIL activation, Steward authorization, implementation approval, reconciliation, admission, or canonical project knowledge. A branch, pull request, session label, model-host label, or user request does not change those boundaries.
 
 ## 1. Objective
 
-Reduce avoidable repository reads, prompt duplication, handoff size, and governance prose while preserving the safety properties already required by:
-
-- `agents/architect/DIRECTIVE.md`;
-- `docs/operations/CHATGPT_PROJECT_CONTRACT.md`;
-- `docs/operations/CHATGPT_PROJECT_CHAT_TRANSITION_AMENDMENT.md`;
-- task-specific governing contracts.
+Make governed interactive repository work faster, less repetitive, provider-neutral, and easier to improve over time without weakening repository-state, authority, activation, review-independence, production-evidence, reconciliation, admission, or canonical-memory boundaries.
 
 The target operating loop is:
 
 ```text
-Resolve -> Load -> Work -> Revalidate -> Persist
+Resolve -> Load -> Work -> Revalidate -> Persist -> Retro/Handoff
 ```
 
-The implementation must make the safe path cheaper than ad hoc repetition. Efficiency gains MUST come from better state tracking, immutable-source reuse, compact coordination metadata, and reusable pressure cases. They MUST NOT come from skipping authority checks, trusting ambient memory, broadening evidence sets, collapsing role boundaries, or hiding repository drift.
+The implementation must make the safe path cheaper than ad hoc repetition. Efficiency gains MUST come from better state tracking, immutable-source reuse, compact coordination metadata, provider-neutral contracts, reusable pressure cases, and standardized process retrospectives. They MUST NOT come from skipping authority checks, trusting ambient model memory, broadening evidence sets, collapsing role boundaries, hiding repository drift, or treating process metadata as project-semantic evidence.
 
-## 2. Scope boundary
+This plan adds two explicit requirements to the original efficiency work:
 
-This plan governs the interactive ChatGPT coordination layer around repository work.
+1. replace provider-specific `ChatGPT` terminology in the active repository surface with provider-neutral **Interactive Model Host** terminology;
+2. standardize a **Boundary Retro** at every meaningful interactive session boundary governed by the transition contract.
+
+## 2. Terminology
+
+### 2.1 Provider-neutral host term
+
+The normative generic term proposed by this plan is:
+
+- long form: **Interactive Model Host**;
+- short form: **Model Host**.
+
+An Interactive Model Host is the interactive environment that hosts a model-assisted repository workflow. Examples may include different commercial or local model products, but no particular provider is part of the generic semantic contract.
+
+The term separates three concepts that MUST remain distinct:
+
+```text
+model
+  != interactive model host
+  != repository authority / project knowledge system
+```
+
+A Model Host can supply conversational continuity and tools. Its memory, labels, summaries, or product-specific features do not thereby become repository authority or project evidence.
+
+### 2.2 Session and chat
+
+Provider-neutral contracts SHOULD use **interactive session** or **session** for the bounded conversational work surface.
+
+The phrase **chat retro** MAY remain as informal user-facing vocabulary, but the normative artifact and protocol name is **Boundary Retro**.
+
+### 2.3 Legacy names
+
+The current repository contains active files and contract identifiers using provider-specific `ChatGPT` terminology. Those names are normative at the inspected revision and therefore MUST NOT be silently reinterpreted or mechanically replaced without a migration contract.
+
+The target end state is zero provider-specific `ChatGPT` terminology in the active provider-neutral repository contract surface. Historical Git commits remain historical facts and are not rewritten.
+
+## 3. Scope boundary
+
+This plan governs the interactive Model Host coordination layer around repository work.
 
 It does not change:
 
@@ -40,39 +73,53 @@ It does not change:
 - `docs/governance/PROPOSAL_REVIEW_METHOD.md` stage independence;
 - the in-flight deterministic context-packaging Stage 1/Stage 2 design question.
 
-The context-packaging proposal may later inform or supersede parts of this coordination design. Until that review is complete, this work MUST remain outside production evidence preparation and MUST NOT define an alternate context-packaging protocol.
+The deterministic context-packaging proposal may later inform or supersede parts of this coordination design. Until that review is complete, this work MUST remain outside production evidence preparation and MUST NOT define an alternate context-packaging protocol.
 
-## 3. Problems to remove
+Provider-neutralization is a terminology and host-contract migration. It MUST NOT change authority semantics merely because a provider-specific noun changes.
 
-### P1 — Re-reading immutable evidence
+The Boundary Retro is coordination metadata. It MUST NOT become canonical knowledge, authority evidence, RIL activation evidence, reconciliation evidence, admission evidence, or implicit production Distiller evidence merely because it exists or is persisted.
+
+## 4. Problems to remove
+
+### P1 - Re-reading immutable evidence
 
 Once exact bytes at `<commit>:<path>` have been read and their blob identity recorded within the same bounded activation, repeated reads of the same immutable object usually add cost without adding safety.
 
-### P2 — Over-resolving mutable refs
+### P2 - Over-resolving mutable refs
 
-A mutable target such as `main` must be resolved when current state matters, especially before consequential analysis and before/after writes. It does not need to be re-resolved before every adjacent reasoning step when no drift-sensitive operation occurred.
+A mutable target such as `main` must be resolved when current state matters, especially before consequential analysis and before or after writes. It does not need to be re-resolved before every adjacent reasoning step when no drift-sensitive operation occurred.
 
-### P3 — Repeating authority prose
+### P3 - Repeating authority prose
 
 The same distinctions between coordination role, registered role, authorization, activation, reconciliation, admission, and canonical knowledge are often restated in long prose. The distinctions must remain explicit, but can be encoded in a compact standard posture block.
 
-### P4 — Oversized handoffs
+### P4 - Oversized handoffs
 
 Independent reviews can be biased by large summaries of the outgoing role's reasoning. Handoffs should preserve identities, problem, constraints, authority posture, unresolved questions, and exact next action while omitting prior conclusions that the receiving role should independently reconstruct.
 
-### P5 — Ad hoc evidence discovery
+### P5 - Ad hoc evidence discovery
 
 Task-relevant evidence discovery is repeatedly rebuilt conversationally. The system needs a disciplined rule for following explicit normative dependencies without treating model relevance judgment, semantic search, or remembered files as authority.
 
-### P6 — Pressure cases live only in prose
+### P6 - Pressure cases live only in prose
 
-Pressure cases are useful, but long prose makes them harder to compare, test, and reuse. A compact fixture/matrix form should become the reusable conformance backbone.
+Pressure cases are useful, but long prose makes them harder to compare, test, and reuse. A compact fixture or matrix form should become the reusable conformance backbone.
 
-## 4. Proposed coordination primitives
+### P7 - Provider coupling in generic contracts
 
-### 4.1 Stage manifest
+Provider-specific product names in generic coordination contracts create unnecessary coupling and make otherwise generic governance appear product-bound.
 
-Introduce a compact `reasoning-distiller-chatgpt-stage-manifest/1` coordination record.
+### P8 - No standardized process retro at boundaries
+
+The existing transition mechanism requires bounded handoffs, but process lessons can be lost or repeatedly rediscovered. A standardized Boundary Retro should capture what worked, friction, safety checks, and reusable improvements without polluting the receiving role's evidence boundary.
+
+## 5. Proposed coordination primitives
+
+### 5.1 Stage manifest
+
+Introduce a compact provider-neutral coordination record:
+
+`reasoning-distiller-interactive-model-stage-manifest/1`
 
 The manifest is not authority evidence and is not canonical project knowledge. It is a bounded working record for the current interactive activation.
 
@@ -113,8 +160,9 @@ Rules:
 4. `resolved_revision` must be an immutable commit for consequential repository-dependent work.
 5. The manifest is invalid for completion claims until post-write durable identity is observed where a write occurred.
 6. The manifest MUST NOT be inserted into production `rd-distill` evidence merely because it exists.
+7. The manifest MUST NOT depend on provider-specific hidden state to be valid.
 
-### 4.2 Immutable evidence ledger
+### 5.2 Immutable evidence ledger
 
 Within the stage manifest, maintain an `immutable_evidence` ledger containing exact evidence identities already read in the current activation:
 
@@ -130,11 +178,11 @@ Reuse rule:
 
 - same commit + same path + same blob SHA + bytes already present in the current activation -> reuse rather than refetch;
 - different commit, unresolved ref, missing bytes, incomplete prior read, or task-relevant section not actually loaded -> fetch;
-- fresh/isolated receiving activation -> identities may be carried, but required bytes must be independently loaded unless the governing contract explicitly permits supplied frozen evidence.
+- fresh or isolated receiving activation -> identities may be carried, but required bytes must be independently loaded unless the governing contract explicitly permits supplied frozen evidence.
 
-This is activation-local evidence reuse, not cross-chat memory trust.
+This is activation-local evidence reuse, not cross-session memory trust.
 
-### 4.3 Mutable-ref revalidation policy
+### 5.3 Mutable-ref revalidation policy
 
 Default mutable-ref checkpoints:
 
@@ -149,9 +197,9 @@ Additional resolution is required when:
 - a dependency is discovered on another mutable ref;
 - a governing contract requires a tighter checkpoint.
 
-A mutable branch MUST NOT be treated as unchanged merely because no contradictory chat message appeared.
+A mutable branch MUST NOT be treated as unchanged merely because no contradictory session message appeared.
 
-### 4.4 Explicit dependency-following rule
+### 5.4 Explicit dependency-following rule
 
 Do not introduce semantic search, embedding relevance, or hidden model ranking as a deterministic governance mechanism.
 
@@ -163,11 +211,11 @@ For the coordination layer, discovery proceeds from:
 4. explicit normative references named by those live sources;
 5. repository-owned state explicitly required by those contracts.
 
-The assistant may recognize that a task needs another contract, but any consequential claim must be grounded by actually reading that source. Remembered filenames are navigation hints only.
+A model may recognize that a task needs another contract, but any consequential claim must be grounded by actually reading that source. Remembered filenames are navigation hints only.
 
 Future automation MAY add structured dependency metadata to normative documents, but path presence or dependency listing MUST NOT itself create authority. If structured dependency metadata is introduced, it must be reviewed as coordination metadata and must fail closed on missing required references.
 
-### 4.5 Compact authority posture
+### 5.5 Compact authority posture
 
 Standardize a short human-readable block for ordinary updates and handoffs:
 
@@ -181,7 +229,7 @@ forbidden: <bounded list>
 
 The compact block replaces repeated explanatory paragraphs only when it preserves the same distinctions. If authority state is ambiguous or conflicting, expand the explanation rather than compressing it.
 
-### 4.6 Minimal bounded handoff
+### 5.6 Minimal bounded handoff
 
 Default handoff for a non-independent receiving role:
 
@@ -200,7 +248,75 @@ For independence-sensitive review, omit outgoing reasoning summaries and recomme
 
 A handoff must never imply that the receiving role is activated or authorized.
 
-### 4.7 Pressure-case matrix
+### 5.7 Boundary Retro
+
+Introduce a provider-neutral coordination contract:
+
+`reasoning-distiller-model-host-boundary-retro/1`
+
+A Boundary Retro is produced when a **meaningful interactive session boundary** is reached under the governing transition rules. It is not produced merely because a conversation is long or a minor subtask changes.
+
+The retro and handoff are intentionally different artifacts:
+
+```text
+Boundary Retro
+  -> learns from the outgoing workflow
+
+Bounded Handoff
+  -> carries only what the receiving activation needs
+```
+
+Minimum structured fields:
+
+```text
+contract
+repository
+resolved_revision
+boundary_reason
+outgoing_role
+completed_scope
+durable_artifacts
+what_worked
+friction_or_waste
+safety_checks_that_mattered
+reusable_process_improvements
+unresolved_process_risks
+authority_posture
+independence_sensitive
+receiving_role
+next_action
+handoff_reference
+```
+
+Rules:
+
+1. The retro records process observations, not project-semantic decisions.
+2. The retro MUST distinguish observed facts from suggestions for future process improvement.
+3. Successful tests, commits, role labels, or user satisfaction MUST NOT be summarized as project approval unless approval was independently established by the governing contract.
+4. The retro MUST NOT grant or imply role registration, authorization, activation, reconciliation, admission, or canonical standing.
+5. The retro MUST NOT silently enter production `rd-distill` evidence, raw candidate bytes, or structured Distiller output.
+6. For an independence-sensitive receiving activation, the retro MUST remain outside the receiving clean-room context unless the governing review contract explicitly requires it.
+7. The bounded handoff may reference the retro for ordinary continuation, but an independent reviewer MUST NOT be required to consume the retro before forming an independent view.
+8. If persisted, the persistence class must explicitly remain coordination or process evidence unless another governed mechanism separately changes its standing.
+9. The retro should be concise enough to be routine. Verbosity is a conformance concern because an oversized retro can recreate the handoff-bias problem.
+10. If no meaningful boundary exists, no retro is required.
+
+Recommended human-readable Boundary Retro template:
+
+```text
+Boundary Retro
+- Completed: <scope/result and durable identity>
+- Worked well: <1-3 process observations>
+- Friction: <1-3 avoidable costs or ambiguities>
+- Safety checks that mattered: <only checks that materially affected the work>
+- Improve next time: <concrete reusable changes>
+- Unresolved process risks: <none | bounded list>
+- Next boundary: <receiving role and action>
+```
+
+The structured record, if implemented, is the stable machine-facing representation. The human-readable form is a projection and MUST NOT acquire extra semantics.
+
+### 5.8 Pressure-case matrix
 
 Represent reusable coordination pressure cases with columns:
 
@@ -215,12 +331,10 @@ authority_effect
 production_evidence_effect
 ```
 
-The matrix is the source for executable or semi-executable fixtures where practical.
-
 Initial cases MUST include:
 
 1. role label claims Steward authority;
-2. prior chat says a change was approved;
+2. prior session says a change was approved;
 3. same immutable contract requested twice in one activation;
 4. immutable path identity changes because commit changes;
 5. `main` moves before write;
@@ -233,83 +347,208 @@ Initial cases MUST include:
 12. contradictory authority evidence;
 13. uploaded snapshot conflicts with live repository;
 14. remembered filename no longer exists;
-15. chat-transition prose is about to enter production Distiller evidence;
+15. transition prose is about to enter production Distiller evidence;
 16. helper proposes a contract but no live read occurred;
-17. same-role minor subtask change incorrectly triggers a new-chat recommendation;
+17. same-role minor subtask change incorrectly triggers a new-session recommendation;
 18. actual cross-role or independence boundary fails to trigger a handoff;
 19. output branch collides with existing different content;
-20. main changes after analysis but before persistence.
+20. main changes after analysis but before persistence;
+21. provider-specific product name appears in a new generic contract surface;
+22. migration changes authority or evidence meaning while changing terminology;
+23. stale legacy contract identifier remains referenced after provider-neutral migration;
+24. Model Host implementation depends on a product-specific memory feature without declaring it;
+25. Boundary Retro converts a successful test into an approval claim;
+26. Boundary Retro is injected into an independent Stage 2 review context;
+27. Boundary Retro is inserted into production Distiller evidence or candidate bytes;
+28. Boundary Retro is treated as RIL activation evidence;
+29. meaningful cross-role boundary omits the required retro;
+30. minor same-role continuation produces a noisy retro;
+31. retro records stale pre-write revision after a durable write;
+32. handoff and retro disagree about the durable artifact identity;
+33. retro contains an unresolved suggestion that is later treated as an accepted project decision;
+34. provider-neutral migration leaves a case-insensitive `chatgpt` occurrence in the active generic contract surface;
+35. a compatibility mechanism requires retaining a provider-specific active contract identifier, conflicting with the zero-occurrence target.
 
-## 5. Implementation artifacts
+## 6. Provider-neutral terminology migration protocol
 
-Subject to implementation-time repository inspection, the preferred artifact set is:
+Provider-neutralization MUST be implemented as a governed migration rather than a blind text replacement.
+
+### 6.1 Inventory
+
+Before mutation, produce a complete active-tree inventory of case-insensitive occurrences of:
 
 ```text
-docs/design/CHATGPT_WORKFLOW_EFFICIENCY_IMPLEMENTATION_PLAN.md
-schemas/chatgpt-stage-manifest.schema.json
-docs/operations/CHATGPT_WORKFLOW_EFFICIENCY_AMENDMENT.md
-docs/testing/CHATGPT_WORKFLOW_EFFICIENCY_PRESSURE_CASES.md
-tests/fixtures/chatgpt-workflow-efficiency/
-tests/test_chatgpt_stage_manifest.py
-tests/test_chatgpt_workflow_efficiency_contract.py
+ChatGPT
+chatgpt
+CHATGPT
 ```
 
-Optional helper tooling may be added only after the contract and fixture semantics are stable. Any helper must remain coordination-only and must not become a hidden authority or evidence resolver.
+Classify every occurrence as one of:
 
-The preferred change strategy is an amendment to the current ChatGPT Project contract rather than silently rewriting its meaning in place. A later consolidation into a new major/minor contract version may occur only after conformance evidence exists.
+- normative contract prose;
+- normative contract identifier;
+- repository path or filename;
+- role directive;
+- schema identifier or field;
+- test or fixture;
+- workflow or package metadata;
+- documentation example;
+- historical quotation or intentionally provider-specific example;
+- generated or vendored content.
 
-## 6. Gate sequence
+The inventory is evidence for migration completeness, not authority.
 
-### G0 — Freeze baseline and pressure cases
+### 6.2 Target contract names
 
-Before semantic expansion, capture representative coordination scenarios and the initial pressure-case matrix.
+Subject to implementation-time contract review, preferred provider-neutral successors are:
+
+```text
+reasoning-distiller-interactive-model-host/1
+reasoning-distiller-interactive-model-host-chat-transition/1
+reasoning-distiller-interactive-model-stage-manifest/1
+reasoning-distiller-model-host-boundary-retro/1
+```
+
+Preferred active paths include:
+
+```text
+docs/operations/INTERACTIVE_MODEL_HOST_CONTRACT.md
+docs/operations/INTERACTIVE_MODEL_HOST_CHAT_TRANSITION_AMENDMENT.md
+docs/design/MODEL_HOST_WORKFLOW_EFFICIENCY_IMPLEMENTATION_PLAN.md
+schemas/model-host-stage-manifest.schema.json
+docs/operations/MODEL_HOST_WORKFLOW_EFFICIENCY_AMENDMENT.md
+docs/testing/MODEL_HOST_WORKFLOW_EFFICIENCY_PRESSURE_CASES.md
+tests/fixtures/model-host-workflow-efficiency/
+tests/test_model_host_stage_manifest.py
+tests/test_model_host_workflow_efficiency_contract.py
+```
+
+These names are proposed implementation targets, not current repository facts.
+
+### 6.3 Semantic preservation
+
+Every renamed or successor contract MUST preserve the pre-migration safety meaning unless a separately reviewed semantic change explicitly says otherwise.
+
+Provider-neutralization MUST NOT:
+
+- turn host memory into evidence;
+- turn a role label into authority;
+- weaken repository-state resolution;
+- weaken clean-room independent review;
+- broaden production Distiller evidence;
+- merge authorization and activation;
+- change reconciliation or admission semantics;
+- create provider-specific hidden dependencies.
+
+### 6.4 Compatibility and zero-occurrence target
+
+The target active-tree state is no provider-specific `ChatGPT` terminology in generic repository-owned contract surfaces.
+
+If an existing public or installed consumer contract requires compatibility with a legacy provider-specific identifier, implementation MUST stop and determine a migration mechanism before deleting or aliasing it. A compatibility alias is not automatically acceptable because retaining the legacy literal may conflict with the zero-occurrence requirement.
+
+Possible resolutions include a major-version migration, an external migration note, or a bounded compatibility window. The correct choice depends on live consumer and packaging contracts and MUST be decided from repository evidence.
+
+Git history is not rewritten merely to eliminate historical occurrences.
+
+### 6.5 Completion proof
+
+Provider-neutral migration is complete only when:
+
+1. all active generic contract surfaces use provider-neutral terminology;
+2. all active internal references resolve;
+3. package/install/test surfaces remain conformant;
+4. case-insensitive repository-tree search demonstrates the agreed zero-occurrence target, subject only to explicitly governed exceptions if any are accepted;
+5. cross-host fixtures demonstrate no provider-specific feature is semantically required;
+6. authority and evidence pressure cases behave identically before and after the terminology migration.
+
+## 7. Implementation artifacts
+
+Subject to implementation-time repository inspection, the preferred target artifact set is:
+
+```text
+docs/design/MODEL_HOST_WORKFLOW_EFFICIENCY_IMPLEMENTATION_PLAN.md
+schemas/model-host-stage-manifest.schema.json
+docs/operations/MODEL_HOST_WORKFLOW_EFFICIENCY_AMENDMENT.md
+docs/testing/MODEL_HOST_WORKFLOW_EFFICIENCY_PRESSURE_CASES.md
+schemas/model-host-boundary-retro.schema.json
+tests/fixtures/model-host-workflow-efficiency/
+tests/test_model_host_stage_manifest.py
+tests/test_model_host_workflow_efficiency_contract.py
+tests/test_model_host_boundary_retro.py
+```
+
+The current file path remains legacy during this planning branch because changing the active normative provider-specific contracts is part of the migration itself. Implementation should rename this plan together with the governed migration rather than creating two competing active plans.
+
+Optional helper tooling may be added only after contract and fixture semantics are stable. Any helper must remain coordination-only and must not become a hidden authority or evidence resolver.
+
+## 8. Gate sequence
+
+### G0 - Freeze baseline and pressure cases
+
+Before semantic expansion, capture representative coordination scenarios and the pressure-case matrix.
 
 Measure at minimum:
 
-- number of repository reads required by the documented workflow;
+- repository reads required by the documented workflow;
 - duplicate reads of identical immutable evidence;
 - mutable-ref resolutions;
 - handoff size;
 - repeated authority explanation blocks;
-- whether role/authority/evidence boundaries were preserved.
+- current provider-specific terminology inventory size;
+- whether a meaningful boundary generated a retro;
+- retro size and whether it contaminated receiving context;
+- whether role, authority, evidence, and independence boundaries were preserved.
 
-The baseline MAY use synthetic fixtures or durable repository-owned examples. Chat history itself is not canonical evidence.
+PASS requires:
 
-PASS:
-
-- pressure cases cover the known safety failures and efficiency waste;
+- pressure cases cover known safety failures and efficiency waste;
+- provider-coupling and retro pressure cases are included before semantic expansion;
 - metrics can be compared before and after;
 - no production or authority semantics have changed.
 
-### G1 — Stage-manifest contract and schema
+### G1 - Provider-neutral vocabulary inventory and migration contract
 
-Define `reasoning-distiller-chatgpt-stage-manifest/1` and its JSON schema.
+Produce the repository-wide inventory and define the migration from provider-specific active terms to Interactive Model Host terms.
 
-PASS:
+PASS requires:
+
+- every active-tree occurrence is classified;
+- successor contract IDs and paths are explicit;
+- compatibility requirements are discovered rather than guessed;
+- semantic-preservation rules are explicit;
+- the zero-occurrence target and any possible exception process are explicit;
+- no rename has silently changed authority or evidence semantics.
+
+### G2 - Provider-neutral stage-manifest contract and schema
+
+Define `reasoning-distiller-interactive-model-stage-manifest/1` and its JSON schema.
+
+PASS requires:
 
 - unknown authority states are representable;
 - role label cannot satisfy authority fields;
-- immutable evidence records bind commit/path/blob;
+- immutable evidence records bind commit, path, and blob;
 - mutable target is distinct from resolved immutable revision;
-- permitted/forbidden outputs and next boundary are explicit;
-- schema contains no field that can be interpreted as granting authority merely by presence.
+- permitted and forbidden outputs plus next boundary are explicit;
+- schema contains no field that can grant authority merely by presence;
+- schema has no product-specific requirement.
 
-### G2 — Immutable-evidence reuse conformance
+### G3 - Immutable-evidence reuse conformance
 
 Add fixtures proving exact immutable evidence can be reused inside one activation without repeated repository reads, while cross-revision and fresh-activation cases still fetch when required.
 
-PASS:
+PASS requires:
 
 - identical immutable evidence is not redundantly fetched in the same activation;
-- changed revision always invalidates reuse unless exact same immutable object is independently proven;
-- fresh independent activation does not trust ambient prior-chat bytes;
+- changed revision invalidates reuse unless the same immutable object is independently proven;
+- fresh independent activation does not trust ambient prior-session bytes;
 - incomplete reads are not treated as complete evidence.
 
-### G3 — Mutable-ref checkpoint conformance
+### G4 - Mutable-ref checkpoint conformance
 
-Encode the Resolve -> Load -> Work -> Revalidate -> Persist lifecycle in the amendment and fixtures.
+Encode `Resolve -> Load -> Work -> Revalidate -> Persist` in the provider-neutral coordination amendment and fixtures.
 
-PASS:
+PASS requires:
 
 - consequential work begins with live resolution;
 - no unnecessary branch polling occurs during stable same-role work;
@@ -317,72 +556,93 @@ PASS:
 - detected drift causes re-evaluation or fail-closed behavior rather than silent write;
 - post-write durable identity is observed before completion claim.
 
-### G4 — Compact authority posture
+### G5 - Compact authority posture
 
-Introduce the standardized posture block and tests/examples for unknown, no-authority-required, and governed-authority-required tasks.
+Introduce the standardized posture block and tests or examples for unknown, no-authority-required, and governed-authority-required tasks.
 
-PASS:
+PASS requires:
 
 - compression never converts unknown to accepted;
 - registration, authorization, activation, reconciliation, and admission remain distinguishable;
-- expanded explanation is required on conflict/ambiguity;
+- expanded explanation is required on conflict or ambiguity;
 - role labels remain coordination metadata.
 
-### G5 — Minimal handoff templates
+### G6 - Minimal handoff templates
 
 Add normal and independence-sensitive handoff templates.
 
-PASS:
+PASS requires:
 
-- normal handoff preserves exact artifact/evidence identities and next action;
-- independent handoff omits unnecessary outgoing reasoning while preserving the complete frozen proposal/artifact;
+- normal handoff preserves exact artifact and evidence identities plus next action;
+- independent handoff omits unnecessary outgoing reasoning while preserving the complete frozen proposal or artifact;
 - handoff cannot be mistaken for RIL activation or project approval;
-- transition reminders remain outside production candidate/evidence bytes.
+- transition prose remains outside production candidate and evidence bytes.
 
-### G6 — Explicit dependency-following guidance
+### G7 - Explicit dependency-following guidance
 
 Document the dependency-following rule and add pressure fixtures for explicit normative references, missing references, stale remembered paths, and task-specific additional evidence.
 
-PASS:
+PASS requires:
 
 - no semantic search or hidden model ranking is required;
 - explicit referenced contracts are actually read before consequential reliance;
 - missing required reference fails closed;
-- repository path/name alone is never treated as authority;
-- no task-profile/catalog mechanism is introduced that would pre-empt the separate deterministic context-packaging design review.
+- repository path or name alone is never treated as authority;
+- no task-profile or catalog mechanism pre-empts the separate deterministic context-packaging review.
 
-### G7 — Role-directive integration
+### G8 - Boundary Retro contract and independence firewall
 
-Only after G1-G6 pass, update interactive role directives as needed to point to the efficiency amendment and stage-manifest discipline.
+Define `reasoning-distiller-model-host-boundary-retro/1`, its structured schema if persistence is warranted, and its human-readable projection.
 
-PASS:
+PASS requires:
+
+- every meaningful session boundary produces the standardized retro unless a stricter governing contract explicitly forbids it;
+- ordinary same-role continuation does not produce noisy retros;
+- retro and handoff remain semantically distinct;
+- retro records durable identities actually observed;
+- retro does not convert tests, commits, labels, or user intent into approval;
+- retro has no authority or activation effect;
+- retro is excluded from clean-room independent review context by default;
+- retro never enters production `rd-distill` evidence, candidate bytes, or structured output implicitly;
+- retro suggestions remain suggestions until separately accepted;
+- compact projection remains materially equivalent to structured fields.
+
+### G9 - Role-directive integration
+
+Only after G1-G8 pass, update interactive role directives as needed to point to provider-neutral coordination contracts, stage-manifest discipline, Boundary Retro responsibility, and handoff rules.
+
+PASS requires:
 
 - Architect, Engineer, Steward, and Distiller local boundaries remain unchanged;
 - transition responsibility is not broadened into authority;
-- production Distiller directive remains free of chat-navigation contamination;
-- same-role ordinary continuation does not trigger noisy handoffs.
+- the production Distiller directive remains free of navigation or retro contamination;
+- same-role ordinary continuation does not trigger noisy handoffs or retros;
+- provider-specific host assumptions are absent from generic role behavior.
 
-### G8 — Cross-workflow regression
+### G10 - Cross-workflow and cross-host regression
 
 Run the pressure suite across at least:
 
-- architecture/design task;
+- architecture or design task;
 - ordinary engineering implementation task;
 - independent proposal review;
 - Steward-governed operation where activation evidence is required;
-- production `rd-distill` preparation boundary.
+- production `rd-distill` preparation boundary;
+- at least two distinct Model Host adapters or provider-neutral simulated host fixtures.
 
-PASS:
+PASS requires:
 
 - efficiency rules never weaken a stricter task-specific contract;
 - production evidence remains fixed;
 - independent review remains isolated;
-- authority-sensitive operations still revalidate authority/activation as required;
-- no canonical project-memory mutation is introduced.
+- authority-sensitive operations still revalidate authority and activation as required;
+- no canonical project-memory mutation is introduced;
+- equivalent host inputs produce equivalent coordination semantics;
+- no host-specific memory or UI feature is required for conformance.
 
-### G9 — Efficiency acceptance
+### G11 - Efficiency and provider-neutral acceptance
 
-Compare the G8 workflows to G0 baseline.
+Compare G10 workflows to the G0 baseline.
 
 Target acceptance:
 
@@ -390,137 +650,281 @@ Target acceptance:
 - mutable-ref resolution reduced to required checkpoints plus explicit drift-triggered checks;
 - routine authority posture expressed in a compact block without semantic loss;
 - independence-sensitive handoffs contain no unnecessary outgoing reasoning summary;
+- meaningful boundaries produce concise standardized retros;
+- independent receiving contexts do not inherit retro reasoning;
+- active generic contract surface satisfies the provider-neutral occurrence target;
 - no increase in false authority, stale-state, production-evidence, or role-boundary failures;
-- no task-specific contract is bypassed to meet an efficiency target.
+- no task-specific contract is bypassed to meet an efficiency or portability target.
 
-The metrics are guardrails, not authority. Safety failures block acceptance regardless of efficiency improvement.
+Safety failures block acceptance regardless of efficiency improvement.
 
-### G10 — Contract consolidation decision
+### G12 - Contract consolidation and legacy-name removal decision
 
 After conformance evidence exists, decide whether to:
 
-1. retain the efficiency amendment beside `reasoning-distiller-chatgpt-project/1`; or
-2. issue a reviewed successor ChatGPT Project contract incorporating the proven behavior.
+1. retain provider-neutral amendments beside the predecessor contracts for a bounded migration window;
+2. consolidate them into a new provider-neutral contract version and remove superseded active files;
+3. perform a package/version migration if consumers require it.
 
-Do not rewrite the existing normative contract merely to make the document set look cleaner before conformance is established.
+PASS requires:
 
-## 7. Dependency order
+- one unambiguous active generic contract family;
+- all internal references resolve;
+- legacy provider-specific active names are removed to the extent required by the accepted migration rule;
+- no compatibility behavior silently preserves obsolete authority semantics;
+- resulting durable commit and conformance evidence are recorded.
+
+## 9. Dependency direction
+
+The desired dependency direction is:
 
 ```text
-G0
- ↓
-G1
- ↓
-G2 ─┐
-G3  │
-G4  ├─> G6 -> G7 -> G8 -> G9 -> G10
-G5 ─┘
+repository task + live role directive + governing contracts
+                    |
+                    v
+          provider-neutral stage manifest
+                    |
+                    v
+   immutable evidence ledger + explicit live reads
+                    |
+                    v
+             bounded role work
+                    |
+                    v
+       revalidate -> persist -> observe
+                    |
+                    v
+          Boundary Retro + Handoff
 ```
 
-G2-G5 may proceed in parallel after G1 because they share the stage-manifest vocabulary but exercise different semantics.
+Forbidden reverse dependencies include:
 
-No role-directive change should precede stable contract/fixture semantics.
+```text
+Model Host memory -> repository authority
+Boundary Retro -> project decision
+Boundary Retro -> RIL activation
+Boundary Retro -> production Distiller evidence
+handoff -> receiving-role authority
+provider product feature -> generic protocol meaning
+process metric -> project approval
+```
 
-## 8. Implementation work packets
+## 10. Work packets
 
-### WP-A — Contract substrate
+### WP-A - Baseline and pressure suite
 
-Deliver:
+Gates: G0
+
+Primary scope: Architect + Engineer
+
+Deliverables:
+
+- baseline measurements;
+- initial provider-neutral and retro pressure cases;
+- reusable fixture format.
+
+### WP-B - Provider-neutral migration design
+
+Gates: G1
+
+Primary scope: Architect + Engineer
+
+Deliverables:
+
+- complete occurrence inventory;
+- migration map;
+- compatibility assessment;
+- semantic-preservation table;
+- zero-occurrence acceptance rule.
+
+### WP-C - Core coordination substrate
+
+Gates: G2-G4
+
+Primary scope: Engineer after applicable governance and activation requirements are satisfied.
+
+Deliverables:
 
 - stage-manifest schema;
-- efficiency amendment draft;
-- authority-posture vocabulary;
-- lifecycle/checkpoint definition.
+- immutable-evidence reuse fixtures;
+- mutable-ref checkpoint fixtures and contract text.
 
-Primary role: Architect/Engineer according to the live task split at implementation time.
+### WP-D - Compact coordination contracts
 
-### WP-B — Pressure fixtures and validation
+Gates: G5-G7
 
-Deliver:
+Primary scope: Architect + Engineer
 
-- pressure-case matrix;
-- manifest valid/invalid fixtures;
-- immutable-reuse fixtures;
-- drift/revalidation fixtures;
-- handoff fixtures;
-- production-boundary negative fixtures.
+Deliverables:
 
-Primary role: Engineer.
+- authority posture;
+- normal and independent handoff templates;
+- explicit dependency-following guidance.
 
-### WP-C — Interactive role integration
+### WP-E - Boundary Retro
 
-Deliver bounded directive updates and examples for Architect, Engineer, Steward, and Distiller.
+Gates: G8
 
-Primary role: role-directive owner under live repository governance. Do not infer authority from this plan.
+Primary scope: Architect + Engineer
 
-### WP-D — Regression and measurement
+Deliverables:
 
-Run representative workflows and record exact commit/test evidence.
+- Boundary Retro contract;
+- optional schema if persistence is accepted;
+- compact human-readable projection;
+- independence firewall fixtures;
+- production-evidence exclusion fixtures.
 
-Primary role: Engineer/validation operator under live contracts.
+### WP-F - Role integration
 
-### WP-E — Consolidation
+Gates: G9
 
-Decide whether the amendment remains separate or is incorporated into a successor ChatGPT Project contract.
+Primary scope: applicable role-directive owners under repository governance.
 
-Primary role: governed design/reconciliation path appropriate to the repository at that time.
+Deliverables:
 
-## 9. Stop conditions
+- provider-neutral role-directive references;
+- boundary-retro responsibility;
+- no change to role authority.
 
-Implementation must stop and return to design review if any change would:
+### WP-G - Cross-host regression and acceptance
 
-- treat ChatGPT memory as repository or canonical state;
-- let a role label populate authority or activation status;
-- reuse bytes across revisions without exact immutable identity;
-- rely on an incomplete prior read as full evidence;
-- skip a task-specific required authority or activation validation;
-- allow a stage manifest or handoff to become production Distiller evidence implicitly;
-- turn dependency discovery into semantic search or hidden relevance ranking;
-- create an alternate deterministic context-packaging protocol while that design remains unresolved;
-- weaken independent proposal review isolation;
-- change reconciliation/admission/canonical-memory semantics;
-- permit a completion claim without observing the durable result;
-- optimize tool-call count by omitting a safety-critical read or revalidation.
+Gates: G10-G11
 
-## 10. Acceptance criteria
+Primary scope: Engineer
 
-The improvement is ready for ordinary governed use when all of the following are proven:
+Deliverables:
 
-1. A consequential activation can be summarized by one compact stage manifest.
-2. Exact immutable evidence is read once per bounded activation unless a documented exception applies.
-3. Mutable refs are resolved at meaningful checkpoints rather than polled reflexively.
-4. Drift before write is detected and handled explicitly.
-5. Post-write durable identity is required before completion claims.
-6. Routine authority posture is compact but semantically complete.
-7. Unknown authority remains unknown.
-8. Handoffs are shorter and independence-sensitive handoffs avoid prior-reasoning contamination.
-9. Explicit normative dependencies are followed from live repository sources.
-10. Missing required references fail closed.
-11. Pressure cases exist before directive/contract rollout.
-12. The production `rd-distill` evidence boundary is unchanged.
-13. No RIL authority, activation, reconciliation, admission, or canonical-memory rule is broadened.
-14. The deterministic context-packaging review is not pre-empted or silently implemented by this work.
-15. Regression evidence binds tests/results to exact repository commits.
-16. Efficiency metrics improve without a safety regression.
+- cross-workflow suite;
+- cross-host equivalence fixtures;
+- baseline comparison;
+- provider-neutral occurrence proof.
 
-## 11. Recommended first implementation slice
+### WP-H - Consolidation
 
-The smallest useful slice is G0-G3:
+Gates: G12
 
-1. create the pressure-case matrix;
-2. define and schema-validate the stage manifest;
-3. implement immutable-evidence reuse rules in fixtures/examples;
-4. implement mutable-ref checkpoint rules in fixtures/examples;
-5. prove drift and post-write verification behavior.
+Primary scope: governance or architecture decision under applicable live contract.
 
-This slice captures most of the expected repository-call savings without touching role directives, production Distiller behavior, or independent-review semantics.
+Deliverables:
 
-Only after G0-G3 pass should compact authority blocks and handoff templates become normative coordination guidance.
+- accepted consolidation path;
+- legacy-name removal;
+- durable completion evidence.
 
-## 12. Completion and handoff boundary
+## 11. Stop conditions
 
-This planning artifact is complete when durably persisted and its exact commit/ref is observed.
+Implementation MUST stop for design or governance review if any gate requires:
 
-The next consequential work is implementation and conformance, not further Architect planning. That is a meaningful chat boundary. The receiving Engineer should begin from the exact plan artifact and current live repository contracts, re-resolve `main`, verify that no intervening contract change supersedes this plan, and execute G0 first.
+- trusting ambient Model Host memory as repository evidence;
+- a model relevance judgment to determine authority or required deterministic evidence;
+- treating the stage manifest as authority;
+- treating the Boundary Retro as authority, activation, reconciliation, admission, or canonical knowledge;
+- injecting the retro or handoff into production Distiller evidence merely because it exists;
+- weakening independent review by feeding outgoing retros or reasoning into a clean-room review;
+- changing current `rd-distill` fixed-evidence behavior without its own versioned contract change;
+- silently changing existing role authority during terminology migration;
+- requiring a provider-specific hidden feature for a generic contract;
+- retaining stale legacy identifiers without an explicit compatibility decision;
+- rewriting Git history merely to erase provider terminology;
+- mutating canonical project knowledge through the coordination layer;
+- claiming completion when the resulting durable repository state was not observed.
 
-The receiving activation must not treat this plan, its branch, or its handoff as implementation authority, accepted RIL activation, or project approval.
+## 12. Migration and compatibility rules
+
+1. The inspected provider-specific contracts remain controlling until a durable provider-neutral successor is accepted under repository governance.
+2. New artifacts created by this work SHOULD use provider-neutral names from the start where that does not conflict with current normative references.
+3. Existing provider-specific normative identifiers MUST NOT be silently redefined in place if consumers could depend on their identity.
+4. The implementation must inspect package, install, test, workflow, and documentation references before removing a legacy identifier.
+5. Provider-neutral terminology does not authorize semantic changes.
+6. Historical Git commits are not migrated.
+7. A compatibility shim, if needed, must be explicit, bounded, tested, and reconciled with the zero-occurrence target.
+8. The current legacy filename for this plan is temporary planning transport, not the desired final provider-neutral path.
+
+## 13. Acceptance criteria
+
+The complete improvement program is acceptable only when all of the following hold:
+
+1. The active generic coordination contract family is provider-neutral.
+2. A repository-tree inventory proves the accepted provider-specific zero-occurrence target or documents an explicitly governed exception.
+3. The same generic coordination semantics can be exercised by more than one Model Host implementation or neutral fixture.
+4. No Model Host memory, role label, chat title, summary, or product feature becomes authority or project evidence by presence.
+5. The stage manifest records but never creates authority state.
+6. Exact immutable evidence is reused safely inside one bounded activation without unnecessary refetches.
+7. Mutable refs are resolved at the required checkpoints and drift is handled fail-closed.
+8. Compact authority posture preserves registration, authorization, activation, reconciliation, and admission distinctions.
+9. Handoffs are smaller while preserving exact durable identities and next action.
+10. Independent review receives only the context permitted by its governing contract and does not inherit Boundary Retro reasoning by default.
+11. Every meaningful Model Host session boundary produces a standardized Boundary Retro and bounded handoff where applicable.
+12. Minor same-role continuation does not produce unnecessary retros or session transitions.
+13. Boundary Retro process observations never become approval, authority, activation, reconciliation, admission, canonical knowledge, or production evidence by implication.
+14. Production Distiller fixed-evidence and candidate boundaries remain unchanged unless separately versioned and governed.
+15. Pressure cases are executable or mechanically checkable before broad semantic expansion.
+16. No efficiency target can override a safety failure.
+17. Consequential writes are revalidated against mutable state and durable results are observed before completion claims.
+
+## 14. Non-goals
+
+This plan does not:
+
+- select the best model or Model Host provider;
+- require all Model Hosts to expose identical UI or memory features;
+- make model output deterministic;
+- define deterministic task context packaging for production Distiller;
+- create a semantic-search evidence resolver;
+- grant role authority;
+- define RIL activation evidence;
+- reconcile proposals;
+- perform admission;
+- turn process retrospectives into canonical memory;
+- rewrite repository history.
+
+## 15. Unresolved questions
+
+1. Do any installed package consumers depend externally on the current provider-specific contract IDs or filenames?
+2. Should provider-neutralization use a major contract version, a replacement contract family, or another migration mechanism supported by the live package contracts?
+3. Can the active-tree zero-occurrence target be absolute, or are there repository-owned historical/example fixtures that must retain a provider name as quoted data?
+4. Should the Boundary Retro structured record be ephemeral coordination state, a durable repository artifact, or only a human-readable chat projection?
+5. If durable retros are permitted, where do they live so repository presence cannot be mistaken for canonical knowledge?
+6. Should retro schemas permit references to durable artifacts only, or also immutable external evidence identities?
+7. What maximum size keeps Boundary Retros useful without recreating oversized handoffs?
+8. Which transition categories, if any, should suppress a retro because a stricter clean-room contract demands no outgoing process context at all?
+9. How should Model Host conformance be tested when a provider exposes no persistent session-memory feature? The generic contract should not require one.
+10. Should role directives emit retro responsibility directly or reference a single provider-neutral transition contract to avoid repeated wording?
+
+These questions are implementation inputs, not permission to guess. Missing required answers remain unknown until resolved by live evidence or the appropriate governed decision.
+
+## 16. Recommended first implementation slice
+
+After the applicable implementation boundary is entered, perform **G0 through G4** first:
+
+```text
+G0 pressure cases + baseline
+ -> G1 provider-neutral inventory/migration contract
+ -> G2 provider-neutral stage manifest
+ -> G3 immutable evidence reuse
+ -> G4 mutable-ref checkpoints
+```
+
+Do not begin role-directive rewrites, broad legacy-name deletion, or Boundary Retro persistence before the earlier gates establish the migration and coordination substrate.
+
+G8 may define the retro contract after G5-G7 stabilize the posture, handoff, and dependency semantics. This prevents the retro from becoming a second ad hoc handoff format.
+
+## 17. Implementation boundary and handoff
+
+This plan is ready to be reviewed and implemented only through the repository's applicable role and governance boundaries.
+
+The planning artifact itself does not authorize implementation.
+
+The receiving implementation activation should:
+
+1. resolve current `main`;
+2. read the live Engineer directive and task-relevant governing contracts;
+3. verify this plan has not been superseded;
+4. begin at G0;
+5. stop on any gate failure or authority ambiguity;
+6. re-resolve the target ref before consequential writes;
+7. observe and report durable results;
+8. produce the standardized Boundary Retro and bounded handoff at the next meaningful session boundary once the retro contract itself has been implemented and accepted.
+
+Until G8 is implemented, the existing live transition contract controls boundary behavior.
