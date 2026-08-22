@@ -43,6 +43,7 @@ REQUIRED_COVERAGE = {
 CASE_KEYS = {
     "id",
     "source_stage",
+    "source_pressure_case",
     "required_outcome",
     "fixture_precondition",
     "expected_result",
@@ -116,7 +117,7 @@ class ContextPackagingPressureSuiteP0Tests(unittest.TestCase):
         self.assertEqual(set(stage1), {f"PC-{n:02d}" for n in range(1, 31)})
         self.assertEqual(set(stage2), {f"PC-{n:02d}" for n in range(31, 47)})
 
-    def test_every_fixture_is_losslessly_bound_to_its_source_pressure_row(self):
+    def test_every_fixture_preserves_source_row_and_separates_materialization(self):
         source_rows = {}
         for stage in ("stage1", "stage2"):
             rows = pressure_rows(ROOT / EXPECTED_SOURCES[stage]["path"])
@@ -127,13 +128,17 @@ class ContextPackagingPressureSuiteP0Tests(unittest.TestCase):
         cases = {case["id"]: case for case in self.suite["cases"]}
         self.assertEqual(set(cases), set(source_rows))
 
-        for case_id, (scenario, required_outcome) in source_rows.items():
+        for case_id, (source_pressure_case, required_outcome) in source_rows.items():
             case = cases[case_id]
             with self.subTest(case=case_id):
-                self.assertEqual(case["fixture_precondition"], scenario)
+                self.assertEqual(case["source_pressure_case"], source_pressure_case)
                 self.assertEqual(case["required_outcome"], required_outcome)
                 self.assertTrue(case["fixture_precondition"].strip())
-                self.assertTrue(case["required_outcome"].strip())
+                self.assertNotEqual(
+                    case["fixture_precondition"],
+                    case["source_pressure_case"],
+                    "fixture_precondition must be a concrete materialization, not a relabeling of source prose",
+                )
 
     def test_exactly_pc_01_through_pc_46_exist_in_order(self):
         cases = self.suite["cases"]
@@ -158,8 +163,9 @@ class ContextPackagingPressureSuiteP0Tests(unittest.TestCase):
                     case["source_stage"],
                     "stage1" if index <= 30 else "stage2",
                 )
-                self.assertTrue(case["fixture_precondition"].strip())
+                self.assertTrue(case["source_pressure_case"].strip())
                 self.assertTrue(case["required_outcome"].strip())
+                self.assertTrue(case["fixture_precondition"].strip())
                 self.assertIn(case["expected_result"], {"PASS", "FAIL"})
                 self.assertIsInstance(case["coverage"], list)
                 self.assertTrue(case["coverage"])
