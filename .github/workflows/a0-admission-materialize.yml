@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - relationship-discovery-a0-admission
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
