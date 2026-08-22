@@ -33,13 +33,15 @@ Exact content identity is always bound to the original source bytes. P1a require
 
 ## 2. Logical source identity
 
-The generic logical source identity is the tuple:
+The generic logical source identity is the structured tuple:
 
 ```text
 (logical_namespace, logical_source_id)
 ```
 
 Both values are explicit and non-empty.
+
+The tuple is the identity. Implementations MUST NOT define logical identity by delimiter-concatenating the two strings. If a later wire format serializes this tuple into one scalar value, that encoding must be independently frozen, injective, and unambiguous; ordinary delimiter joining is insufficient because tuple components may themselves contain the delimiter.
 
 `source_class` is a separate semantic classification supplied by the contracted input. V1 P1a freezes these classes:
 
@@ -48,7 +50,15 @@ Both values are explicit and non-empty.
 - `canonical_state`
 - `operational_evidence`
 
-A logical source has exactly one source class inside one deterministic request/build boundary. Reusing the same logical identity under a different source class is a source-class conflict; the implementation does not reinterpret the source from path or contents.
+A logical source has exactly one source class inside one deterministic request/build boundary. Reusing the same structured logical identity under a different source class is a source-class conflict; the implementation does not reinterpret the source from path or contents.
+
+A structured source reference used by P1a conformance is:
+
+```text
+(source_class, logical_namespace, logical_source_id)
+```
+
+It is likewise compared structurally and MUST NOT be defined by delimiter concatenation.
 
 `logical_namespace` prevents unrelated projects, repositories, or governed domains from colliding merely because they reuse a short identifier.
 
@@ -105,9 +115,19 @@ A canonical-state binding MUST semantically identify:
 
 The standing-evidence binding is project/backend supplied. This generic contract does not define one repository-local admission receipt as universal proof of canonical standing.
 
+For P1a conformance, standing-evidence **identity** is distinct from standing-evidence **acceptance**. A standing-evidence item is immutably identified by:
+
+```text
+(contract, immutable_snapshot_id, raw_sha256)
+```
+
+but a correctly shaped item does not prove its own acceptance. A successful canonical-state conformance case MUST also be accompanied by an explicit accepted project/backend standing condition supplied by the consuming project/backend validation boundary. That condition identifies the structured canonical source reference and the exact canonical immutable-snapshot fingerprint it accepted. The packer/conformance evaluator MUST NOT synthesize this condition from the binding's fields or self-description.
+
+If an accepted project/backend condition for the same canonical source reference names a different immutable fingerprint, the binding is conflicting rather than accepted. If no accepted condition exists, canonical standing is unproven.
+
 The packer or future resolver may validate an existing binding read-only. It MUST NOT create standing evidence, infer admission from placement, repair canonical state, admit PEMS/COVE, or rewrite the binding to make it pass.
 
-If required standing evidence is absent, ambiguous, stale, conflicting, or unverifiable, canonical standing is unproven and the operation fails closed.
+If required standing evidence or its accepted project/backend condition is absent, ambiguous, stale, conflicting, or unverifiable, canonical standing is unproven or conflicting and the operation fails closed.
 
 ## 5. Operational-evidence identity
 
@@ -142,38 +162,55 @@ For conflict comparison inside P1a, each source binding has a semantic immutable
 For `repository_control`, the fingerprint is the exact tuple:
 
 ```text
-(repository, commit, path, raw_sha256)
+(repository, normalized_commit, path, normalized_raw_sha256)
 ```
 
 For `package_control`, the fingerprint is the exact tuple:
 
 ```text
 (project_id, package_contract, immutable_package_snapshot_id,
- artifact_locator, raw_sha256)
+ artifact_locator, normalized_raw_sha256)
 ```
 
 For `canonical_state`, the fingerprint is the exact tuple:
 
 ```text
 (project_id, backend_type, backend_contract, backend_config_identity,
- immutable_snapshot_id, pems_semantic, serializer, pems_sha256,
+ immutable_snapshot_id, pems_semantic, serializer, normalized_pems_sha256,
  optional_cove_tuple_and_sha256, standing_evidence_identity_set)
 ```
+
+When present, `optional_cove_tuple_and_sha256` is exactly:
+
+```text
+(cove_semantic, pems_semantic, serializer, normalized_cove_sha256)
+```
+
+The standing-evidence component is a mathematical set of normalized standing-evidence identities. Ordering and duplicate presentation of an identical evidence identity do not change the canonical fingerprint. A changed evidence identity does change it.
 
 For `operational_evidence`, the fingerprint is the exact tuple:
 
 ```text
-(artifact_contract, immutable_snapshot_id, raw_sha256,
+(artifact_contract, immutable_snapshot_id, normalized_raw_sha256,
  validation_status, optional_validation_result_identity)
 ```
+
+where the optional validation-result identity is:
+
+```text
+(result_contract, validator_contract, immutable_snapshot_id,
+ normalized_raw_sha256)
+```
+
+Only hexadecimal representation normalization frozen by Section 11 is applied to commit and SHA-256 fields. Every other component remains exact.
 
 P1c may add canonical digest identities over frozen serialized forms. It MUST NOT change which semantic components distinguish P1a snapshots without a versioned amendment.
 
 ## 7. Logical-source conflicts
 
-Within one deterministic request/build boundary, bindings sharing one logical source identity MUST use the same `source_class`. Different classes for one logical identity are a source-class conflict and MUST fail closed.
+Within one deterministic request/build boundary, bindings sharing one structured logical source identity MUST use the same `source_class`. Different classes for one logical identity are a source-class conflict and MUST fail closed.
 
-Bindings sharing one logical source identity and source class MUST resolve to one immutable snapshot fingerprint unless the explicit contracted intent models multiple snapshots for that exact logical source.
+Bindings sharing one structured logical source identity and source class MUST resolve to one immutable snapshot fingerprint unless the explicit contracted intent models multiple snapshots for that exact logical source.
 
 The default multiplicity is one snapshot.
 
@@ -185,7 +222,7 @@ When multiple snapshots are explicitly modeled, each immutable fingerprint remai
 
 Cross-source consistency is never inferred merely because individually valid bindings exist.
 
-A governed profile/request may require explicit predicates between named logical sources. P1a freezes these V1 predicate semantics:
+A governed profile/request may require explicit predicates between named structured source references. P1a freezes these V1 predicate semantics:
 
 ### `same_project_identity`
 
@@ -193,7 +230,7 @@ Both referenced bindings expose a project identity and those identities compare 
 
 ### `canonical_declares_repository_snapshot`
 
-The referenced canonical-state binding contains an explicit declared repository relationship consisting of exact repository identity plus exact 40-hex commit, and that tuple equals the referenced repository-control snapshot's repository and commit.
+The referenced canonical-state binding contains an explicit declared repository relationship consisting of exact repository identity plus exact 40-hex commit, and that tuple equals the referenced repository-control snapshot's repository and normalized commit.
 
 A missing declaration, mutable branch label, unequal repository, or unequal commit makes the predicate unproven.
 
@@ -206,7 +243,7 @@ If a required consistency predicate is unproven, the operation fails closed. A p
 Source class and plane use remain explicit semantic facts.
 
 - `repository_control` and `package_control` are eligible only for explicitly selected control material under later profile/request contracts.
-- `canonical_state` is the only P1a source class that can establish the source side of knowledge-plane canonical standing, and only with a valid canonical-state binding.
+- `canonical_state` is the only P1a source class that can establish the source side of knowledge-plane canonical standing, and only with a valid canonical-state binding plus accepted project/backend standing condition.
 - `operational_evidence` remains operational evidence regardless of whether its text resembles a directive or whether a validation result was accepted.
 
 P1a does not itself select sources into planes. P1b/P1e inputs later carry the explicit selection/profile intent. P2 performs read-only resolution. No P1a rule upgrades one class into another.
@@ -218,10 +255,12 @@ P1a conformance fixtures use stable gate-local classifications to pin the semant
 Required gate-local failures include:
 
 - `SOURCE_IDENTITY_INVALID`
+- `UNSUPPORTED_SOURCE_CLASS`
 - `SOURCE_CLASS_CONFLICT`
 - `IMMUTABLE_SNAPSHOT_UNAVAILABLE`
 - `CONTROL_SOURCE_INVALID`
 - `CANONICAL_BINDING_UNPROVEN`
+- `CANONICAL_BINDING_CONFLICT`
 - `OPERATIONAL_EVIDENCE_IDENTITY_INVALID`
 - `LOGICAL_SOURCE_CONFLICT`
 - `CROSS_SOURCE_CONSISTENCY_UNPROVEN`
@@ -230,12 +269,14 @@ P1b owns the eventual runtime result/failure contracts and may map these conform
 
 ## 11. Deterministic comparison rules
 
-P1a identity checks use exact comparisons only.
+P1a identity checks use exact structural comparisons only.
 
-- Git commit identities are lowercase or uppercase hex representations of exactly 20 bytes; implementations compare the normalized hex value, not a branch name.
-- SHA-256 content identities are `sha256:` followed by exactly 64 hexadecimal digits; implementations compare the normalized hex value.
-- repository, path, contract, namespace, logical ID, project ID, backend ID, and immutable snapshot ID strings are compared exactly after only the representation normalization explicitly frozen by their owning contract.
-- no Unicode normalization, case folding, path canonicalization, fuzzy matching, semantic equivalence, or model judgment is introduced by P1a.
+- logical keys and source references are tuples, not delimiter-joined strings;
+- Git commit identities are lowercase or uppercase hex representations of exactly 20 bytes; implementations compare the normalized lowercase hex value, not a branch name;
+- SHA-256 content identities are `sha256:` followed by exactly 64 hexadecimal digits; implementations compare the normalized lowercase hexadecimal representation;
+- standing-evidence identity collections are sets after the permitted digest normalization, so presentation order and duplicate identical entries are non-semantic;
+- repository, path, contract, namespace, logical ID, project ID, backend ID, immutable snapshot ID, semantic-version, and serializer strings are compared exactly after only the representation normalization explicitly frozen by their owning contract;
+- no Unicode normalization, case folding of opaque strings, path canonicalization, fuzzy matching, semantic equivalence, or model judgment is introduced by P1a.
 
 Filesystem safety, symlink handling, and actual source acquisition belong to P2. P1a freezes what identity must be proven, not how the resolver obtains bytes.
 
@@ -245,24 +286,46 @@ P1a intentionally leaves these later gates untouched:
 
 - **P1b** freezes JSON Schemas and runtime result/failure envelopes, including closed-world unknown-field rejection.
 - **P1c** freezes Base64 payload representation, JCS/canonical serialization, named digest domains and preimages, receipts, and toolchain identity.
-- **P2** implements read-only acquisition/resolution and verifies real source bytes against the frozen identities.
+- **P2** implements read-only acquisition/resolution, filesystem safety, backend availability handling, and verifies real source bytes against the frozen identities.
 
-P1a conformance fixtures are machine-checkable semantic examples. They are not wire-protocol schemas and are not a production resolver.
+P1a conformance fixtures are machine-checkable semantic examples. Their structured Python tuples and accepted-standing conditions are gate-local test representations, not wire-protocol schemas and not a production resolver.
 
-## 13. Conformance gate
+## 13. P0 pressure-case preservation
+
+P1a conformance MUST mechanically retain the exact frozen P0 pressure text and required outcomes for the P1a-owned facets of:
+
+- PC-03 admitted canonical standing;
+- PC-06 immutable repository commit identity;
+- PC-07 invalid control-source identity;
+- PC-16 exact control artifact without authority creation;
+- PC-22 unsupported ambient/session source class;
+- PC-24 carried operational evidence without authority creation;
+- PC-27 explicit cross-source relationship failure;
+- PC-31 shape-valid PEMS without accepted canonical standing;
+- PC-32 canonical binding/snapshot conflict;
+- PC-42 logical-source snapshot conflict;
+- PC-43 carried operational evidence without inferred validator acceptance;
+- PC-45 equal content under distinct source identities.
+
+The conformance test loads `tests/fixtures/context-packaging-pressure-cases-v1.json`, checks those source-pressure and required-outcome strings exactly, and binds each to a P1a semantic case with a compatible PASS/failure result. P0 cases whose decisive behavior is actual acquisition, source disappearance, filesystem behavior, rendering, serialization, or later request-schema semantics remain preserved in P0 and are not falsely claimed as completed by P1a.
+
+## 14. Conformance gate
 
 P1a is complete only when machine-checkable evidence demonstrates at least:
 
 1. repository controls require exact commit plus raw-byte digest;
 2. package controls require an immutable package snapshot/content identity plus exact artifact bytes digest;
 3. mutable branch/path-only/package-name-only identity fails;
-4. canonical-looking paths and valid PEMS bytes do not prove canonical standing;
-5. a complete backend/project canonical-state binding can establish source-side canonical standing without mutation;
-6. operational evidence preserves exact artifact identity and explicit validation status without creating authority;
-7. logical identity, source classification, and immutable snapshot identity remain distinct;
-8. conflicting source classes for one logical identity fail closed;
-9. conflicting snapshots for one logical source fail unless multiple snapshots were explicitly modeled;
-10. equal bytes under different logical identities remain distinct;
-11. required cross-source relationships pass only from explicit exact evidence;
-12. missing, mismatched, or unsupported required relationships fail closed;
-13. no P1a operation performs reconciliation, admission, canonical mutation, authority mutation, or production evidence integration.
+4. structured logical identities and source references cannot collide through delimiter concatenation;
+5. canonical-looking paths and valid PEMS bytes do not prove canonical standing;
+6. a complete backend/project canonical-state binding succeeds only when an independent accepted project/backend standing condition matches its exact immutable fingerprint;
+7. canonical fingerprints include the optional COVE tuple/digest and normalized standing-evidence identity set exactly as frozen;
+8. operational evidence preserves exact artifact identity and explicit validation status without creating authority;
+9. logical identity, source classification, and immutable snapshot identity remain distinct;
+10. conflicting source classes for one logical identity fail closed;
+11. conflicting snapshots for one logical source fail unless multiple snapshots were explicitly modeled;
+12. equal bytes under different logical identities remain distinct;
+13. required cross-source relationships pass only from explicit exact evidence;
+14. missing, mismatched, or unsupported required relationships fail closed;
+15. the relevant frozen P0 pressure cases and required outcomes are mechanically preserved;
+16. no P1a operation performs reconciliation, admission, canonical mutation, authority mutation, or production evidence integration.
