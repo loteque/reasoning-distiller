@@ -1,0 +1,103 @@
+name: A0 Reconciliation Inputs Transport
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/a0-reconciliation-inputs-transport.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact reconciliation inputs
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          base = root / 'evaluation' / 'relationship-discovery' / 'benchmark-v1' / 'baseline' / 'A0-exhaustive'
+          pems_path = root / 'project-knowledge' / 'canonical' / 'pems2.jcs.json'
+          pems_bytes = pems_path.read_bytes()
+          pems = json.loads(pems_bytes)
+          records = {r['id']: r for r in pems['records'] if isinstance(r, dict) and isinstance(r.get('id'), str)}
+          manifest = json.loads((base / 'candidates.json').read_text(encoding='utf-8'))
+          expected_pems = manifest['pems_sha256']
+          actual_pems = 'sha256:' + hashlib.sha256(pems_bytes).hexdigest()
+          if actual_pems != expected_pems:
+              raise SystemExit(f'PEMS digest mismatch: expected {expected_pems}, got {actual_pems}')
+
+          def canonical_bytes(value):
+              return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+
+          relations = []
+          seen = set()
+          result_files = sorted((base / 'batches').glob('A0-B??-B??.result.json'))
+          if len(result_files) != manifest['source_result_count']:
+              raise SystemExit(f"expected {manifest['source_result_count']} batch results, found {len(result_files)}")
+
+          for path in result_files:
+              result = json.loads(path.read_text(encoding='utf-8'))
+              result_digest = result['result_digest']
+              for index, rel in enumerate(result['candidate_relations']):
+                  source = records.get(rel['from_record_id'])
+                  target = records.get(rel['to_record_id'])
+                  if source is None or target is None:
+                      raise SystemExit(f'missing canonical endpoint in {path.name}:{index}')
+                  source_statement = source.get('data', {}).get('statement')
+                  target_statement = target.get('data', {}).get('statement')
+                  if not isinstance(source_statement, str) or not isinstance(target_statement, str):
+                      raise SystemExit(f'endpoint statement missing in {path.name}:{index}')
+                  key = (rel['from_record_id'], rel['type'], rel['to_record_id'])
+                  if rel['type'] == 'contradicts':
+                      key = (min(rel['from_record_id'], rel['to_record_id']), rel['type'], max(rel['from_record_id'], rel['to_record_id']))
+                  if key in seen:
+                      raise SystemExit(f'duplicate candidate relation {key}')
+                  seen.add(key)
+                  relation_digest = 'sha256:' + hashlib.sha256(canonical_bytes(rel)).hexdigest()
+                  relations.append({
+                      'batch_id': result['batch_id'],
+                      'result_digest': result_digest,
+                      'relation_index': index,
+                      'relation_digest': relation_digest,
+                      'from_record_id': rel['from_record_id'],
+                      'from_record_digest': rel['from_record_digest'],
+                      'from_statement': source_statement,
+                      'type': rel['type'],
+                      'to_record_id': rel['to_record_id'],
+                      'to_record_digest': rel['to_record_digest'],
+                      'to_statement': target_statement,
+                      'analyzer_rationale': rel['rationale'],
+                  })
+
+          if len(relations) != manifest['candidate_relation_count']:
+              raise SystemExit(f"candidate count mismatch: expected {manifest['candidate_relation_count']}, got {len(relations)}")
+          payload = {
+              'contract': 'reasoning-distiller-relationship-reconciliation-inputs/1',
+              'benchmark_id': manifest['benchmark_id'],
+              'algorithm_id': manifest['algorithm_id'],
+              'candidate_set_digest': manifest['candidate_set_digest'],
+              'candidate_relations_digest': manifest['candidate_relations_digest'],
+              'pems_sha256': actual_pems,
+              'candidate_relation_count': len(relations),
+              'relations': relations,
+          }
+          payload['input_digest'] = 'sha256:' + hashlib.sha256(canonical_bytes(payload)).hexdigest()
+          out = Path('/tmp/a0-reconciliation-inputs.json')
+          out.write_bytes(canonical_bytes(payload) + b'\n')
+          print(f"PASS {len(relations)} relation inputs; input_digest={payload['input_digest']}")
+          PY
+      - name: Upload reconciliation inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: a0-reconciliation-inputs
+          path: /tmp/a0-reconciliation-inputs.json
+          if-no-files-found: error
+          retention-days: 7
