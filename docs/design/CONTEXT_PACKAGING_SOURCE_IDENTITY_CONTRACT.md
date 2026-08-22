@@ -134,7 +134,11 @@ For P1a conformance, standing-evidence **identity** is distinct from standing-ev
 
 but a correctly shaped item does not prove its own acceptance. A successful canonical-state conformance case MUST also be accompanied by an explicit accepted project/backend standing condition supplied by the consuming project/backend validation boundary. That condition identifies the structured canonical source reference, the exact canonical snapshot address, and the exact canonical immutable-snapshot fingerprint it accepted. The packer/conformance evaluator MUST NOT synthesize this condition from the binding's fields or self-description.
 
-If an accepted project/backend condition for the same canonical source reference names a different canonical snapshot address or immutable fingerprint, the binding is conflicting rather than accepted. If no accepted condition exists, canonical standing is unproven. An accepted-standing condition cannot cure or override a canonical snapshot address that is already ambiguous because different fingerprints claim that address.
+Accepted-standing conflict evaluation is multiplicity-aware and MUST use the same explicit contracted intent that governs the logical source. When that intent permits only one snapshot, any accepted project/backend standing condition for the same canonical source reference that names a different canonical snapshot address or a different canonical fingerprint is conflicting rather than accepted. When that intent explicitly models multiple snapshots for the logical source, accepted conditions for distinct canonical snapshot addresses do not conflict merely because they share the canonical source reference; every selected binding MUST still have an exact accepted condition for its own canonical snapshot address and canonical fingerprint.
+
+For every multiplicity mode, two accepted conditions that claim the same canonical snapshot address but different canonical fingerprints are conflicting. An exact accepted condition cannot cure a contradictory accepted condition for that same address. If no accepted condition exists for the canonical source reference, canonical standing is unproven. If relevant accepted conditions exist but none exactly accepts the selected binding under these rules, canonical standing is conflicting. Multi-snapshot intent MUST NOT be inferred from the number of bindings, accepted conditions, paths, names, or model judgment.
+
+An accepted-standing condition cannot cure or override a canonical snapshot address that is already ambiguous because different fingerprints claim that address.
 
 The packer or future resolver may validate an existing binding read-only. It MUST NOT create standing evidence, infer admission from placement, repair canonical state, admit PEMS/COVE, or rewrite the binding to make it pass.
 
@@ -231,7 +235,7 @@ If two bindings share a logical key and have different immutable fingerprints wh
 
 When multiple snapshots are explicitly modeled, each immutable fingerprint remains separately addressable. Permission to model several snapshots is selection intent only; it grants no canonical or authority standing.
 
-Canonical snapshot addressability from Section 4 is an independent invariant and is checked before accepted-standing or logical-source multiplicity can make a canonical binding usable. `allow_multiple_snapshots`-style intent can permit several distinct addresses for one logical canonical source, but it cannot authorize two fingerprints for the same canonical snapshot address.
+Canonical snapshot addressability from Section 4 is an independent invariant and is checked before accepted-standing or logical-source multiplicity can make a canonical binding usable. `allow_multiple_snapshots`-style intent can permit several distinct addresses for one logical canonical source, but it cannot authorize two fingerprints for the same canonical snapshot address. The same explicit multiplicity decision scopes accepted-standing conflict evaluation; it is never inferred from accepted-standing evidence itself.
 
 ## 8. Cross-source consistency
 
@@ -335,7 +339,7 @@ P1a is complete only when machine-checkable evidence demonstrates at least:
 4. structured logical identities and source references cannot collide through delimiter concatenation;
 5. canonical-looking paths and valid PEMS bytes do not prove canonical standing;
 6. one canonical snapshot address maps to at most one canonical fingerprint, even across different logical source identities and regardless of accepted-standing claims;
-7. a complete backend/project canonical-state binding succeeds only when an independent accepted project/backend standing condition matches its exact canonical snapshot address and immutable fingerprint;
+7. a complete backend/project canonical-state binding succeeds only when an independent accepted project/backend standing condition matches its exact canonical snapshot address and immutable fingerprint, while accepted-standing conflicts distinguish single-snapshot ambiguity from explicitly modeled distinct snapshots without permitting contradictory fingerprints for one address;
 8. canonical fingerprints include the optional COVE tuple/digest and normalized standing-evidence identity set exactly as frozen;
 9. operational evidence preserves exact artifact identity and explicit validation status without creating authority;
 10. logical identity, source classification, immutable snapshot address, and immutable snapshot fingerprint remain distinct;
