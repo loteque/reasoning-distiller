@@ -1,0 +1,45 @@
+name: A0 Admission Materialize
+
+on:
+  push:
+    branches:
+      - relationship-discovery-a0-admission
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: relationship-discovery-a0-admission
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Materialize admitted A0 relationship baseline
+        run: python evaluation/relationship_discovery_admission.py materialize
+      - name: Validate materialized admission
+        run: |
+          python evaluation/relationship_discovery_admission.py validate
+          python -m unittest tests.test_relationship_discovery_admission tests.test_relationship_discovery_reconciliation_artifacts
+      - name: Commit generated admission artifacts
+        run: |
+          if git diff --quiet && [ -z "$(git status --porcelain)" ]; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/admission-manifest.json \
+            project-knowledge/canonical/pems2.jcs.json \
+            project-knowledge/canonical/cove1.jcs.json \
+            project-knowledge/submissions \
+            project-knowledge/reconciliation/dispositions \
+            project-knowledge/admission/activation-evidence \
+            project-knowledge/admission/plans \
+            project-knowledge/admission/receipts
+          git commit -m "Materialize A0 relationship admission"
+          git push origin HEAD:relationship-discovery-a0-admission
