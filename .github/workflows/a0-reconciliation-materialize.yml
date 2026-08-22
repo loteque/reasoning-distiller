@@ -1,0 +1,45 @@
+name: A0 Reconciliation Materialize
+
+on:
+  push:
+    branches:
+      - relationship-discovery-a0-reconciliation
+    paths:
+      - ".github/workflows/a0-reconciliation-materialize.yml"
+      - "evaluation/relationship_discovery_materialize_reconciliation.py"
+      - "evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/steward-selection.json"
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: relationship-discovery-a0-reconciliation
+
+      - name: Materialize immutable Steward dispositions
+        run: |
+          set -euo pipefail
+          base=evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive
+          python evaluation/relationship_discovery_materialize_reconciliation.py \
+            --candidates "$base/candidates.json" \
+            --result-dir "$base/batches" \
+            --activation project-knowledge/reconciliation/activation-evidence/a81360a9a4ab349a377dd378b5ed55e7e4a28d45ca26f6de51888dfac477928b.json \
+            --selection "$base/steward-selection.json" \
+            --out "$base/steward-dispositions.json"
+
+      - name: Commit generated disposition evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/steward-dispositions.json
+          if git diff --cached --quiet; then
+            echo "Disposition evidence already materialized"
+            exit 0
+          fi
+          git commit -m "Materialize A0 Steward dispositions"
+          git push origin HEAD:relationship-discovery-a0-reconciliation
