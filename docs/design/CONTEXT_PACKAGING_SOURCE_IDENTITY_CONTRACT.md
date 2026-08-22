@@ -113,6 +113,17 @@ A canonical-state binding MUST semantically identify:
 - one or more immutable standing-evidence bindings sufficient under the consuming project/backend contract to prove that the snapshot is the admitted canonical state being consumed;
 - any explicit relationship to a repository/control snapshot required by a selected consistency constraint.
 
+For P1a canonical-state conformance, the exact backend snapshot address is the structured tuple:
+
+```text
+(project_id, backend_type, backend_contract,
+ backend_config_identity, immutable_snapshot_id)
+```
+
+This tuple is the **canonical snapshot address**. It is distinct from logical source identity and from the richer immutable-snapshot fingerprint in Section 6. The address is the identity the applicable canonical resolver must be able to use to select exactly one backend snapshot state.
+
+Within one deterministic request/build boundary, one canonical snapshot address MUST denote at most one canonical immutable-snapshot fingerprint. Two bindings may use different logical source identities to alias the same canonical snapshot address only when their canonical fingerprints are equal. If the same canonical snapshot address is paired with different canonical fingerprints, the result is `CANONICAL_BINDING_CONFLICT` and MUST fail closed before accepted-standing evaluation. Explicit multi-snapshot intent permits one logical source to name multiple distinct snapshot addresses; it never permits one address to denote multiple states.
+
 The standing-evidence binding is project/backend supplied. This generic contract does not define one repository-local admission receipt as universal proof of canonical standing.
 
 For P1a conformance, standing-evidence **identity** is distinct from standing-evidence **acceptance**. A standing-evidence item is immutably identified by:
@@ -121,9 +132,9 @@ For P1a conformance, standing-evidence **identity** is distinct from standing-ev
 (contract, immutable_snapshot_id, raw_sha256)
 ```
 
-but a correctly shaped item does not prove its own acceptance. A successful canonical-state conformance case MUST also be accompanied by an explicit accepted project/backend standing condition supplied by the consuming project/backend validation boundary. That condition identifies the structured canonical source reference and the exact canonical immutable-snapshot fingerprint it accepted. The packer/conformance evaluator MUST NOT synthesize this condition from the binding's fields or self-description.
+but a correctly shaped item does not prove its own acceptance. A successful canonical-state conformance case MUST also be accompanied by an explicit accepted project/backend standing condition supplied by the consuming project/backend validation boundary. That condition identifies the structured canonical source reference, the exact canonical snapshot address, and the exact canonical immutable-snapshot fingerprint it accepted. The packer/conformance evaluator MUST NOT synthesize this condition from the binding's fields or self-description.
 
-If an accepted project/backend condition for the same canonical source reference names a different immutable fingerprint, the binding is conflicting rather than accepted. If no accepted condition exists, canonical standing is unproven.
+If an accepted project/backend condition for the same canonical source reference names a different canonical snapshot address or immutable fingerprint, the binding is conflicting rather than accepted. If no accepted condition exists, canonical standing is unproven. An accepted-standing condition cannot cure or override a canonical snapshot address that is already ambiguous because different fingerprints claim that address.
 
 The packer or future resolver may validate an existing binding read-only. It MUST NOT create standing evidence, infer admission from placement, repair canonical state, admit PEMS/COVE, or rewrite the binding to make it pass.
 
@@ -157,7 +168,7 @@ No status may be inferred from artifact presence, path, role name, prose, or a b
 
 ## 6. Immutable snapshot fingerprints
 
-For conflict comparison inside P1a, each source binding has a semantic immutable-snapshot fingerprint.
+For conflict comparison inside P1a, each source binding has a semantic immutable-snapshot fingerprint. A fingerprint binds the addressable snapshot to the exact semantics/content identities carried by the binding; it is not a substitute for the resolver address required to select that snapshot.
 
 For `repository_control`, the fingerprint is the exact tuple:
 
@@ -179,6 +190,8 @@ For `canonical_state`, the fingerprint is the exact tuple:
  immutable_snapshot_id, pems_semantic, serializer, normalized_pems_sha256,
  optional_cove_tuple_and_sha256, standing_evidence_identity_set)
 ```
+
+The first five canonical fingerprint components are exactly the canonical snapshot address from Section 4.
 
 When present, `optional_cove_tuple_and_sha256` is exactly:
 
@@ -217,6 +230,8 @@ The default multiplicity is one snapshot.
 If two bindings share a logical key and have different immutable fingerprints while multiple snapshots are not explicitly modeled, the result is a logical-source conflict and MUST fail closed. The implementation MUST NOT pick newest, first, last, path-local, highest version, or model-preferred state.
 
 When multiple snapshots are explicitly modeled, each immutable fingerprint remains separately addressable. Permission to model several snapshots is selection intent only; it grants no canonical or authority standing.
+
+Canonical snapshot addressability from Section 4 is an independent invariant and is checked before accepted-standing or logical-source multiplicity can make a canonical binding usable. `allow_multiple_snapshots`-style intent can permit several distinct addresses for one logical canonical source, but it cannot authorize two fingerprints for the same canonical snapshot address.
 
 ## 8. Cross-source consistency
 
@@ -272,6 +287,7 @@ P1b owns the eventual runtime result/failure contracts and may map these conform
 P1a identity checks use exact structural comparisons only.
 
 - logical keys and source references are tuples, not delimiter-joined strings;
+- canonical snapshot addresses are structured tuples and are compared before accepted-standing evaluation;
 - Git commit identities are lowercase or uppercase hex representations of exactly 20 bytes; implementations compare the normalized lowercase hex value, not a branch name;
 - SHA-256 content identities are `sha256:` followed by exactly 64 hexadecimal digits; implementations compare the normalized lowercase hexadecimal representation;
 - standing-evidence identity collections are sets after the permitted digest normalization, so presentation order and duplicate identical entries are non-semantic;
@@ -318,14 +334,15 @@ P1a is complete only when machine-checkable evidence demonstrates at least:
 3. mutable branch/path-only/package-name-only identity fails;
 4. structured logical identities and source references cannot collide through delimiter concatenation;
 5. canonical-looking paths and valid PEMS bytes do not prove canonical standing;
-6. a complete backend/project canonical-state binding succeeds only when an independent accepted project/backend standing condition matches its exact immutable fingerprint;
-7. canonical fingerprints include the optional COVE tuple/digest and normalized standing-evidence identity set exactly as frozen;
-8. operational evidence preserves exact artifact identity and explicit validation status without creating authority;
-9. logical identity, source classification, and immutable snapshot identity remain distinct;
-10. conflicting source classes for one logical identity fail closed;
-11. conflicting snapshots for one logical source fail unless multiple snapshots were explicitly modeled;
-12. equal bytes under different logical identities remain distinct;
-13. required cross-source relationships pass only from explicit exact evidence;
-14. missing, mismatched, or unsupported required relationships fail closed;
-15. the relevant frozen P0 pressure cases and required outcomes are mechanically preserved;
-16. no P1a operation performs reconciliation, admission, canonical mutation, authority mutation, or production evidence integration.
+6. one canonical snapshot address maps to at most one canonical fingerprint, even across different logical source identities and regardless of accepted-standing claims;
+7. a complete backend/project canonical-state binding succeeds only when an independent accepted project/backend standing condition matches its exact canonical snapshot address and immutable fingerprint;
+8. canonical fingerprints include the optional COVE tuple/digest and normalized standing-evidence identity set exactly as frozen;
+9. operational evidence preserves exact artifact identity and explicit validation status without creating authority;
+10. logical identity, source classification, immutable snapshot address, and immutable snapshot fingerprint remain distinct;
+11. conflicting source classes for one logical identity fail closed;
+12. conflicting snapshots for one logical source fail unless multiple snapshots were explicitly modeled;
+13. equal bytes under different logical identities remain distinct;
+14. required cross-source relationships pass only from explicit exact evidence;
+15. missing, mismatched, or unsupported required relationships fail closed;
+16. the relevant frozen P0 pressure cases and required outcomes are mechanically preserved;
+17. no P1a operation performs reconciliation, admission, canonical mutation, authority mutation, or production evidence integration.

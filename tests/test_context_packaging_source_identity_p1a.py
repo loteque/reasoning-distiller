@@ -135,6 +135,16 @@ def source_ref(binding):
     return (binding.get("source_class"), binding.get("logical_namespace"), binding.get("logical_source_id"))
 
 
+def canonical_snapshot_address(binding):
+    return (
+        binding.get("project_id"),
+        binding.get("backend_type"),
+        binding.get("backend_contract"),
+        binding.get("backend_config_identity"),
+        binding.get("immutable_snapshot_id"),
+    )
+
+
 def standing_identity(item):
     return (item.get("contract"), item.get("immutable_snapshot_id"), normalized_hex(item.get("raw_sha256")))
 
@@ -203,10 +213,11 @@ def fingerprint(binding):
     )
 
 
-def accepted_standing(binding, fingerprint_override=None):
+def accepted_standing(binding, fingerprint_override=None, address_override=None):
     return {
         "condition": ACCEPTED_STANDING,
         "canonical_ref": source_ref(binding),
+        "canonical_snapshot_address": canonical_snapshot_address(binding) if address_override is None else address_override,
         "project_id": binding.get("project_id"),
         "backend_type": binding.get("backend_type"),
         "backend_contract": binding.get("backend_contract"),
@@ -314,6 +325,7 @@ def canonical_standing_failure(binding, conditions):
     for condition in relevant:
         if (
             condition.get("condition") == ACCEPTED_STANDING
+            and condition.get("canonical_snapshot_address") == canonical_snapshot_address(binding)
             and condition.get("project_id") == binding.get("project_id")
             and condition.get("backend_type") == binding.get("backend_type")
             and condition.get("backend_contract") == binding.get("backend_contract")
@@ -335,6 +347,16 @@ def evaluate(case):
             return failure
         by_key.setdefault(logical_key(binding), []).append(binding)
         by_ref.setdefault(source_ref(binding), []).append(binding)
+
+    canonical_by_address = {}
+    for binding in bindings:
+        if binding["source_class"] != "canonical_state":
+            continue
+        address = canonical_snapshot_address(binding)
+        candidate_fingerprint = fingerprint(binding)
+        prior_fingerprint = canonical_by_address.setdefault(address, candidate_fingerprint)
+        if prior_fingerprint != candidate_fingerprint:
+            return "CANONICAL_BINDING_CONFLICT"
 
     allowed = set(case.get("allow_multiple_snapshots", []))
     for key, group in by_key.items():
@@ -409,8 +431,8 @@ duplicate_standing = canonical(
 )
 single_standing = canonical(logical="duplicate-standing", standing_items=[standing("standing:001", C)])
 
-cove_a = canonical(logical="cove-source", cove_binding=cove(D))
-cove_b = canonical(logical="cove-source", cove_binding=cove(E))
+cove_a = canonical(logical="cove-source", snapshot="snapshot:cove-a", cove_binding=cove(D))
+cove_b = canonical(logical="cove-source", snapshot="snapshot:cove-b", cove_binding=cove(E))
 cove_tuple_changed = canonical(logical="cove-source-invalid", cove_binding=cove(D, serializer="other/1"))
 
 alias_a = repo(ns="a|b", logical="c", path="controls/a.md")
@@ -425,6 +447,16 @@ conflicting_fp = tuple(conflicting_fp)
 
 same_content_control = repo(logical="same-content-control", path="controls/same.txt", digest=B)
 same_content_knowledge = canonical(logical="same-content-knowledge", digest=B)
+
+address_conflict_a = canonical(logical="address-conflict-a", snapshot="snapshot:shared-address", digest=B)
+address_conflict_b = canonical(
+    logical="address-conflict-b",
+    snapshot="snapshot:shared-address",
+    digest=D,
+    standing_items=[standing("standing:shared-other", E)],
+)
+address_alias_a = canonical(logical="address-alias-a", snapshot="snapshot:shared-alias")
+address_alias_b = canonical(logical="address-alias-b", snapshot="snapshot:shared-alias")
 
 CASES = [
     case("SI-01", [repo()]),
@@ -537,6 +569,17 @@ CASES = [
         [same_content_control, same_content_knowledge],
         accepted_canonical_standing=[accepted_standing(same_content_knowledge)],
     ),
+    case(
+        "SI-36",
+        [address_conflict_a, address_conflict_b],
+        "CANONICAL_BINDING_CONFLICT",
+        accepted_canonical_standing=[accepted_standing(address_conflict_a), accepted_standing(address_conflict_b)],
+    ),
+    case(
+        "SI-37",
+        [address_alias_a, address_alias_b],
+        accepted_canonical_standing=[accepted_standing(address_alias_a), accepted_standing(address_alias_b)],
+    ),
 ]
 
 CASE_BY_ID = {case["id"]: case for case in CASES}
@@ -615,9 +658,9 @@ class P1aSourceIdentityTests(unittest.TestCase):
         ):
             self.assertIn(text, CONTRACT)
 
-    def test_35_machine_checkable_identity_cases(self):
-        self.assertEqual(len(CASES), 35)
-        self.assertEqual(len(CASE_BY_ID), 35)
+    def test_37_machine_checkable_identity_cases(self):
+        self.assertEqual(len(CASES), 37)
+        self.assertEqual(len(CASE_BY_ID), 37)
         for conformance_case in CASES:
             with self.subTest(case=conformance_case["id"]):
                 self.assertEqual(evaluate(conformance_case), conformance_case["failure_class"])
@@ -633,11 +676,31 @@ class P1aSourceIdentityTests(unittest.TestCase):
         self.assertNotEqual(fingerprint(cove_a), fingerprint(cove_b))
         self.assertEqual(fingerprint(repo(commit=C3.upper(), digest=upper_digest(A))), fingerprint(repo(commit=C3, digest=A)))
 
+    def test_canonical_snapshot_addressability_precedes_accepted_standing(self):
+        self.assertEqual(canonical_snapshot_address(address_conflict_a), canonical_snapshot_address(address_conflict_b))
+        self.assertNotEqual(fingerprint(address_conflict_a), fingerprint(address_conflict_b))
+        self.assertEqual(evaluate(CASE_BY_ID["SI-36"]), "CANONICAL_BINDING_CONFLICT")
+        self.assertEqual(canonical_snapshot_address(address_alias_a), canonical_snapshot_address(address_alias_b))
+        self.assertEqual(fingerprint(address_alias_a), fingerprint(address_alias_b))
+        self.assertIsNone(evaluate(CASE_BY_ID["SI-37"]))
+
     def test_shape_valid_standing_does_not_self_prove_acceptance(self):
         candidate = canonical(logical="shape-only")
         self.assertIsNone(validate(candidate))
         self.assertEqual(evaluate(case("shape-only", [candidate])), "CANONICAL_BINDING_UNPROVEN")
         self.assertIsNone(evaluate(case("accepted", [candidate], accepted_canonical_standing=[accepted_standing(candidate)])))
+        wrong_address = list(canonical_snapshot_address(candidate))
+        wrong_address[-1] = "snapshot:other"
+        self.assertEqual(
+            evaluate(
+                case(
+                    "accepted-wrong-address",
+                    [candidate],
+                    accepted_canonical_standing=[accepted_standing(candidate, address_override=tuple(wrong_address))],
+                )
+            ),
+            "CANONICAL_BINDING_CONFLICT",
+        )
 
     def test_relevant_frozen_p0_pressure_cases_are_mechanically_preserved(self):
         self.assertEqual(P0["contract"], "reasoning-distiller-context-pack-pressure-suite/1")
@@ -655,6 +718,7 @@ class P1aSourceIdentityTests(unittest.TestCase):
     def test_required_semantics_are_frozen(self):
         for text in (
             "The tuple is the identity",
+            "canonical snapshot address",
             "accepted project/backend standing condition",
             "optional_cove_tuple_and_sha256",
             "standing-evidence identity collections are sets",
