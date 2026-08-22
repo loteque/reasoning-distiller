@@ -51,12 +51,16 @@ def validate_candidate_set(candidates: dict[str, Any], coverage: dict[str, Any])
         raise ValueError("candidate-set PEMS digest mismatch")
     if candidates.get("coverage_digest") != bench.sha256_prefixed(bench.canonical_json_bytes(coverage)):
         raise ValueError("candidate-set coverage digest mismatch")
+    storage = candidates.get("storage")
+    if storage != {
+        "mode": "subdivided_batch_results",
+        "path_pattern": "batches/{batch_id}.result.json",
+    }:
+        raise ValueError("candidate-set storage manifest is invalid")
 
     source_results = candidates.get("source_results")
-    relations = candidates.get("candidate_relations")
-    if not isinstance(source_results, list) or not isinstance(relations, list):
-        raise ValueError("candidate-set source_results and candidate_relations must be arrays")
-
+    if not isinstance(source_results, list):
+        raise ValueError("candidate-set source_results must be an array")
     expected_batch_ids = [batch["batch_id"] for batch in coverage["batches"]]
     actual_batch_ids = [item.get("batch_id") for item in source_results if isinstance(item, dict)]
     if actual_batch_ids != expected_batch_ids:
@@ -67,7 +71,6 @@ def validate_candidate_set(candidates: dict[str, Any], coverage: dict[str, Any])
     total_pairs = 0
     total_hypotheses = 0
     total_candidates = 0
-    source_digest_by_batch: dict[str, str] = {}
     for item in source_results:
         if not isinstance(item, dict):
             raise ValueError("candidate-set source result manifest entries must be objects")
@@ -75,7 +78,6 @@ def validate_candidate_set(candidates: dict[str, Any], coverage: dict[str, Any])
         result_digest = item.get("result_digest")
         if not isinstance(result_digest, str) or not result_digest.startswith("sha256:"):
             raise ValueError(f"candidate-set source result {batch_id} has invalid result digest")
-        source_digest_by_batch[batch_id] = result_digest
         for field in ("assessed_pair_count", "assessed_hypothesis_count", "candidate_relation_count"):
             if not isinstance(item.get(field), int) or item[field] < 0:
                 raise ValueError(f"candidate-set source result {batch_id} has invalid {field}")
@@ -87,24 +89,11 @@ def validate_candidate_set(candidates: dict[str, Any], coverage: dict[str, Any])
         raise ValueError("candidate-set assessed pair count mismatch")
     if total_hypotheses != coverage["expected_hypothesis_count"] or candidates.get("assessed_hypothesis_count") != total_hypotheses:
         raise ValueError("candidate-set assessed hypothesis count mismatch")
-    if total_candidates != len(relations) or candidates.get("candidate_relation_count") != total_candidates:
+    if candidates.get("candidate_relation_count") != total_candidates:
         raise ValueError("candidate-set relation count mismatch")
-
-    seen: set[tuple[str, str, str]] = set()
-    for index, relation in enumerate(relations):
-        if not isinstance(relation, dict):
-            raise ValueError(f"candidate_relations[{index}] must be an object")
-        key = (relation.get("from_record_id"), relation.get("type"), relation.get("to_record_id"))
-        if any(not isinstance(value, str) or not value for value in key):
-            raise ValueError(f"candidate_relations[{index}] has invalid identity")
-        if key in seen:
-            raise ValueError(f"candidate_relations[{index}] duplicates a relation identity")
-        seen.add(key)
-        batch_id = relation.get("source_batch_id")
-        result_digest = relation.get("source_result_digest")
-        if source_digest_by_batch.get(batch_id) != result_digest:
-            raise ValueError(f"candidate_relations[{index}] provenance does not bind to source result")
-
+    relation_digest = candidates.get("candidate_relations_digest")
+    if not isinstance(relation_digest, str) or not relation_digest.startswith("sha256:"):
+        raise ValueError("candidate_relations_digest is invalid")
     if candidates.get("candidate_set_digest") != _candidate_payload_digest(candidates):
         raise ValueError("candidate_set_digest mismatch")
 
@@ -164,12 +153,16 @@ def aggregate_candidates(
             {"protocol": protocol, "model": model, "authority": authority}
             for protocol, model, authority in sorted(analyzers)
         ],
+        "storage": {
+            "mode": "subdivided_batch_results",
+            "path_pattern": "batches/{batch_id}.result.json",
+        },
         "source_result_count": len(source_results),
         "source_results": source_results,
         "assessed_pair_count": sum(item["assessed_pair_count"] for item in source_results),
         "assessed_hypothesis_count": sum(item["assessed_hypothesis_count"] for item in source_results),
         "candidate_relation_count": len(relations),
-        "candidate_relations": relations,
+        "candidate_relations_digest": bench.sha256_prefixed(bench.canonical_json_bytes(relations)),
     }
     payload["candidate_set_digest"] = _candidate_payload_digest(payload)
     validate_candidate_set(payload, coverage)
