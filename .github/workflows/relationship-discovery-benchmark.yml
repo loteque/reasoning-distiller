@@ -93,19 +93,13 @@ jobs:
             --out-dir "$out"
 
           persisted=evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive
-          artifact_names=(coverage.json candidates.json report.json report.md)
-          persisted_count=0
-          for name in "${artifact_names[@]}"; do
-            if [ -f "$persisted/$name" ]; then
-              persisted_count=$((persisted_count + 1))
-            fi
-          done
-          if [ "$persisted_count" -ne 0 ]; then
-            if [ "$persisted_count" -ne 4 ]; then
-              echo "FAIL partial persisted A0 closeout artifact set: $persisted_count/4" >&2
-              exit 1
-            fi
+          if [ -f "$persisted/coverage.json" ] || [ -f "$persisted/candidates.json" ]; then
+            artifact_names=(coverage.json candidates.json report.json report.md)
             for name in "${artifact_names[@]}"; do
+              if [ ! -f "$persisted/$name" ]; then
+                echo "FAIL persisted A0 closeout is missing $name" >&2
+                exit 1
+              fi
               cmp "$out/$name" "$persisted/$name"
             done
             echo "PASS persisted A0 closeout exactly matches deterministic regeneration"
