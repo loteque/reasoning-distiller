@@ -318,22 +318,34 @@ def validate(binding):
     return None
 
 
-def canonical_standing_failure(binding, conditions):
+def canonical_standing_failure(binding, conditions, allow_multiple_snapshots=False):
     relevant = [condition for condition in conditions if condition.get("canonical_ref") == source_ref(binding)]
     if not relevant:
         return "CANONICAL_BINDING_UNPROVEN"
+
+    binding_address = canonical_snapshot_address(binding)
+    binding_fingerprint = fingerprint(binding)
+    exact_match = False
+
     for condition in relevant:
-        if (
-            condition.get("condition") == ACCEPTED_STANDING
-            and condition.get("canonical_snapshot_address") == canonical_snapshot_address(binding)
-            and condition.get("project_id") == binding.get("project_id")
-            and condition.get("backend_type") == binding.get("backend_type")
-            and condition.get("backend_contract") == binding.get("backend_contract")
-            and condition.get("backend_config_identity") == binding.get("backend_config_identity")
-            and condition.get("canonical_fingerprint") == fingerprint(binding)
-        ):
-            return None
-    return "CANONICAL_BINDING_CONFLICT"
+        if condition.get("condition") != ACCEPTED_STANDING:
+            continue
+
+        condition_address = condition.get("canonical_snapshot_address")
+        if condition_address == binding_address:
+            if (
+                condition.get("project_id") != binding.get("project_id")
+                or condition.get("backend_type") != binding.get("backend_type")
+                or condition.get("backend_contract") != binding.get("backend_contract")
+                or condition.get("backend_config_identity") != binding.get("backend_config_identity")
+                or condition.get("canonical_fingerprint") != binding_fingerprint
+            ):
+                return "CANONICAL_BINDING_CONFLICT"
+            exact_match = True
+        elif not allow_multiple_snapshots:
+            return "CANONICAL_BINDING_CONFLICT"
+
+    return None if exact_match else "CANONICAL_BINDING_CONFLICT"
 
 
 def evaluate(case):
@@ -374,7 +386,7 @@ def evaluate(case):
     conditions = case.get("accepted_canonical_standing", [])
     for binding in bindings:
         if binding["source_class"] == "canonical_state":
-            failure = canonical_standing_failure(binding, conditions)
+            failure = canonical_standing_failure(binding, conditions, logical_key(binding) in allowed)
             if failure:
                 return failure
 
@@ -457,6 +469,17 @@ address_conflict_b = canonical(
 )
 address_alias_a = canonical(logical="address-alias-a", snapshot="snapshot:shared-alias")
 address_alias_b = canonical(logical="address-alias-b", snapshot="snapshot:shared-alias")
+
+standing_multi_a = canonical(logical="standing-multi", snapshot="snapshot:standing-a")
+standing_multi_b = canonical(
+    logical="standing-multi",
+    snapshot="snapshot:standing-b",
+    digest=D,
+    standing_items=[standing("standing:multi-b", E)],
+)
+standing_same_address_conflict_fp = list(fingerprint(standing_multi_a))
+standing_same_address_conflict_fp[7] = D
+standing_same_address_conflict_fp = tuple(standing_same_address_conflict_fp)
 
 CASES = [
     case("SI-01", [repo()]),
@@ -580,6 +603,27 @@ CASES = [
         [address_alias_a, address_alias_b],
         accepted_canonical_standing=[accepted_standing(address_alias_a), accepted_standing(address_alias_b)],
     ),
+    case(
+        "SI-38",
+        [standing_multi_a],
+        "CANONICAL_BINDING_CONFLICT",
+        accepted_canonical_standing=[accepted_standing(standing_multi_a), accepted_standing(standing_multi_b)],
+    ),
+    case(
+        "SI-39",
+        [standing_multi_a],
+        "CANONICAL_BINDING_CONFLICT",
+        accepted_canonical_standing=[
+            accepted_standing(standing_multi_a),
+            accepted_standing(standing_multi_a, fingerprint_override=standing_same_address_conflict_fp),
+        ],
+    ),
+    case(
+        "SI-40",
+        [standing_multi_a, standing_multi_b],
+        accepted_canonical_standing=[accepted_standing(standing_multi_a), accepted_standing(standing_multi_b)],
+        allow_multiple_snapshots=[logical_key(standing_multi_a)],
+    ),
 ]
 
 CASE_BY_ID = {case["id"]: case for case in CASES}
@@ -658,9 +702,9 @@ class P1aSourceIdentityTests(unittest.TestCase):
         ):
             self.assertIn(text, CONTRACT)
 
-    def test_37_machine_checkable_identity_cases(self):
-        self.assertEqual(len(CASES), 37)
-        self.assertEqual(len(CASE_BY_ID), 37)
+    def test_40_machine_checkable_identity_cases(self):
+        self.assertEqual(len(CASES), 40)
+        self.assertEqual(len(CASE_BY_ID), 40)
         for conformance_case in CASES:
             with self.subTest(case=conformance_case["id"]):
                 self.assertEqual(evaluate(conformance_case), conformance_case["failure_class"])
@@ -683,6 +727,11 @@ class P1aSourceIdentityTests(unittest.TestCase):
         self.assertEqual(canonical_snapshot_address(address_alias_a), canonical_snapshot_address(address_alias_b))
         self.assertEqual(fingerprint(address_alias_a), fingerprint(address_alias_b))
         self.assertIsNone(evaluate(CASE_BY_ID["SI-37"]))
+
+    def test_accepted_standing_conflicts_respect_explicit_snapshot_multiplicity(self):
+        self.assertEqual(evaluate(CASE_BY_ID["SI-38"]), "CANONICAL_BINDING_CONFLICT")
+        self.assertEqual(evaluate(CASE_BY_ID["SI-39"]), "CANONICAL_BINDING_CONFLICT")
+        self.assertIsNone(evaluate(CASE_BY_ID["SI-40"]))
 
     def test_shape_valid_standing_does_not_self_prove_acceptance(self):
         candidate = canonical(logical="shape-only")
@@ -720,6 +769,7 @@ class P1aSourceIdentityTests(unittest.TestCase):
             "The tuple is the identity",
             "canonical snapshot address",
             "accepted project/backend standing condition",
+            "Accepted-standing conflict evaluation is multiplicity-aware",
             "optional_cove_tuple_and_sha256",
             "standing-evidence identity collections are sets",
             "UNSUPPORTED_SOURCE_CLASS",
