@@ -6,6 +6,7 @@ on:
       - ".github/workflows/relationship-discovery-benchmark.yml"
       - "evaluation/relationship_discovery_benchmark.py"
       - "evaluation/relationship_analysis_result.py"
+      - "evaluation/relationship_discovery_closeout.py"
       - "evaluation/relationship-discovery/**"
       - "tests/test_relationship*.py"
       - "project-knowledge/canonical/pems2.jcs.json"
@@ -71,10 +72,59 @@ jobs:
           done
           echo "PASS validated ${#results[@]} persisted A0 semantic batch result(s)"
 
+      - name: Build complete A0 closeout
+        id: closeout
+        run: |
+          set -euo pipefail
+          result_dir=evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/batches
+          result_count="$(find "$result_dir" -maxdepth 1 -type f -name 'A0-B??-B??.result.json' | wc -l | tr -d ' ')"
+          if [ "$result_count" -ne 78 ]; then
+            echo "complete=false" >> "$GITHUB_OUTPUT"
+            echo "SKIP A0 closeout: expected 78 results, found $result_count"
+            exit 0
+          fi
+
+          out=/tmp/relationship-discovery-a0-closeout
+          python evaluation/relationship_discovery_closeout.py build \
+            --coverage /tmp/relationship-discovery-a0/coverage.json \
+            --batch-dir /tmp/relationship-discovery-a0/batches \
+            --result-dir "$result_dir" \
+            --report-template evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/report.json \
+            --out-dir "$out"
+
+          persisted=evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive
+          artifact_names=(coverage.json candidates.json report.json report.md)
+          persisted_count=0
+          for name in "${artifact_names[@]}"; do
+            if [ -f "$persisted/$name" ]; then
+              persisted_count=$((persisted_count + 1))
+            fi
+          done
+          if [ "$persisted_count" -ne 0 ]; then
+            if [ "$persisted_count" -ne 4 ]; then
+              echo "FAIL partial persisted A0 closeout artifact set: $persisted_count/4" >&2
+              exit 1
+            fi
+            for name in "${artifact_names[@]}"; do
+              cmp "$out/$name" "$persisted/$name"
+            done
+            echo "PASS persisted A0 closeout exactly matches deterministic regeneration"
+          fi
+          echo "complete=true" >> "$GITHUB_OUTPUT"
+
       - name: Upload immutable A0 analysis inputs
         uses: actions/upload-artifact@v4
         with:
           name: relationship-discovery-a0-inputs
           path: /tmp/relationship-discovery-a0
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload deterministic A0 closeout
+        if: steps.closeout.outputs.complete == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: relationship-discovery-a0-closeout
+          path: /tmp/relationship-discovery-a0-closeout
           if-no-files-found: error
           retention-days: 14
