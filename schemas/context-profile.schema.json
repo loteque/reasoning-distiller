@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/context-profile.schema.json",
+  "title": "Reasoning Distiller Context Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "profile_id",
+    "profile_version",
+    "contracts",
+    "source_requirements",
+    "knowledge",
+    "limits",
+    "output"
+  ],
+  "properties": {
+    "contract": {
+      "const": "reasoning-distiller-context-profile/1"
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "pack",
+        "result",
+        "failure",
+        "source_binding",
+        "eligibility",
+        "receipt"
+      ],
+      "properties": {
+        "request": {"const": "reasoning-distiller-context-pack-request/1"},
+        "pack": {"const": "reasoning-distiller-context-pack/1"},
+        "result": {"const": "reasoning-distiller-context-pack-result/1"},
+        "failure": {"const": "reasoning-distiller-context-pack-failure/1"},
+        "source_binding": {"const": "reasoning-distiller-context-source-binding/1"},
+        "eligibility": {"const": "reasoning-distiller-context-profile-eligibility/1"},
+        "receipt": {"const": "reasoning-distiller-context-pack-receipt/1"}
+      }
+    },
+    "source_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_slots", "operational_evidence_slots", "consistency_rules"],
+      "properties": {
+        "control_slots": {"type": "array", "items": {"$ref": "#/$defs/controlSlot"}},
+        "operational_evidence_slots": {"type": "array", "items": {"$ref": "#/$defs/evidenceSlot"}},
+        "consistency_rules": {"type": "array", "items": {"$ref": "#/$defs/consistencyRule"}}
+      }
+    },
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "canonical_slot_id", "selector_kinds", "empty_result", "snapshot_multiplicity", "closure_descriptor"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "canonical_slot_id": {"type": "string", "minLength": 1},
+        "selector_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["record_id", "relation_id"]}
+        },
+        "empty_result": {"enum": ["allow", "reject"]},
+        "snapshot_multiplicity": {"enum": ["single", "explicit_request"]},
+        "closure_descriptor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["contract", "semantic", "immutable_snapshot_id", "raw_sha256"],
+          "properties": {
+            "contract": {"type": "string", "minLength": 1},
+            "semantic": {"const": "pems/2"},
+            "immutable_snapshot_id": {"type": "string", "minLength": 1},
+            "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"}
+          }
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_resolution", "projection", "canonical_pack", "rendering"],
+      "properties": {
+        "source_resolution": {"$ref": "#/$defs/sourceLimits"},
+        "projection": {"$ref": "#/$defs/projectionLimits"},
+        "canonical_pack": {"$ref": "#/$defs/packLimits"},
+        "rendering": {"$ref": "#/$defs/renderLimits"}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serializer", "knowledge_encoding"],
+      "properties": {
+        "serializer": {"const": "jcs/1"},
+        "knowledge_encoding": {"enum": ["pems/2", "cove/1"]}
+      }
+    }
+  },
+  "$defs": {
+    "cardinality": {"enum": ["exactly_one", "one_or_more", "zero_or_more"]},
+    "controlSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slot_id", "source_classes", "cardinality"],
+      "properties": {
+        "slot_id": {"type": "string", "minLength": 1},
+        "source_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["repository_control", "package_control"]}
+        },
+        "cardinality": {"$ref": "#/$defs/cardinality"}
+      }
+    },
+    "evidenceSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slot_id", "cardinality", "accepted_statuses"],
+      "properties": {
+        "slot_id": {"type": "string", "minLength": 1},
+        "cardinality": {"$ref": "#/$defs/cardinality"},
+        "accepted_statuses": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["carried_unvalidated", "shape_and_digest_validated", "accepted_validation_result"]}
+        }
+      }
+    },
+    "consistencyRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["predicate", "left_slot_id", "right_slot_id"],
+      "properties": {
+        "predicate": {"enum": ["same_project_identity", "canonical_declares_repository_snapshot"]},
+        "left_slot_id": {"type": "string", "minLength": 1},
+        "right_slot_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "positiveInteger": {"type": "integer", "minimum": 1},
+    "sourceLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_bindings", "max_single_source_bytes", "max_total_source_bytes"],
+      "properties": {
+        "max_bindings": {"$ref": "#/$defs/positiveInteger"},
+        "max_single_source_bytes": {"$ref": "#/$defs/positiveInteger"},
+        "max_total_source_bytes": {"$ref": "#/$defs/positiveInteger"}
+      }
+    },
+    "projectionLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_records", "max_relations", "max_depth", "max_bytes"],
+      "properties": {
+        "max_records": {"$ref": "#/$defs/positiveInteger"},
+        "max_relations": {"$ref": "#/$defs/positiveInteger"},
+        "max_depth": {"$ref": "#/$defs/positiveInteger"},
+        "max_bytes": {"$ref": "#/$defs/positiveInteger"}
+      }
+    },
+    "packLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_control_items", "max_operational_evidence_items", "max_bytes"],
+      "properties": {
+        "max_control_items": {"$ref": "#/$defs/positiveInteger"},
+        "max_operational_evidence_items": {"$ref": "#/$defs/positiveInteger"},
+        "max_bytes": {"$ref": "#/$defs/positiveInteger"}
+      }
+    },
+    "renderLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_activation_bytes"],
+      "properties": {"max_activation_bytes": {"$ref": "#/$defs/positiveInteger"}}
+    }
+  }
+}
