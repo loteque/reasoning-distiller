@@ -9,11 +9,13 @@ on:
       - "evaluation/relationship_discovery_closeout.py"
       - "evaluation/relationship_discovery_reconciliation.py"
       - "evaluation/relationship_discovery_materialize_reconciliation.py"
+      - "evaluation/relationship_discovery_admission.py"
       - "evaluation/relationship-discovery/**"
       - "tests/test_relationship*.py"
       - "project-knowledge/reconciliation/activation-evidence/**"
       - "project-knowledge/canonical/pems2.jcs.json"
       - "project-knowledge/canonical/cove1.jcs.json"
+      - "project-knowledge/admission/**"
   workflow_dispatch:
 
 permissions:
@@ -32,10 +34,22 @@ jobs:
         run: |
           set -euo pipefail
           artifact=/tmp/relationship-discovery-a0
+          benchmark=evaluation/relationship-discovery/benchmark-v1/benchmark.json
           mkdir -p "$artifact/batches"
+
+          frozen_commit="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          benchmark = json.loads(Path('evaluation/relationship-discovery/benchmark-v1/benchmark.json').read_text(encoding='utf-8'))
+          print(benchmark['repository_commit'])
+          PY
+          )"
+          git fetch --no-tags --depth=1 origin "$frozen_commit"
+          git show "$frozen_commit:project-knowledge/canonical/pems2.jcs.json" > "$artifact/pems2.jcs.json"
+
           python evaluation/relationship_discovery_benchmark.py bootstrap \
-            --pems project-knowledge/canonical/pems2.jcs.json \
-            --benchmark evaluation/relationship-discovery/benchmark-v1/benchmark.json \
+            --pems "$artifact/pems2.jcs.json" \
+            --benchmark "$benchmark" \
             --coverage-out "$artifact/coverage.json"
           python evaluation/relationship_discovery_benchmark.py verify-coverage "$artifact/coverage.json"
           python - <<'PY'
@@ -52,7 +66,7 @@ jobs:
 
           artifact = Path('/tmp/relationship-discovery-a0')
           coverage = json.loads((artifact / 'coverage.json').read_text(encoding='utf-8'))
-          pems_bytes = (root / 'project-knowledge' / 'canonical' / 'pems2.jcs.json').read_bytes()
+          pems_bytes = (artifact / 'pems2.jcs.json').read_bytes()
           for batch in coverage['batches']:
               payload = bench.materialize_batch(pems_bytes, coverage, batch['batch_id'])
               path = artifact / 'batches' / f"{batch['batch_id']}.json"
@@ -60,7 +74,7 @@ jobs:
           batch_files = sorted((artifact / 'batches').glob('A0-B??-B??.json'))
           if len(batch_files) != 78:
               raise SystemExit(f'expected 78 materialized batches, found {len(batch_files)}')
-          print(f'PASS materialized {len(batch_files)} A0 batches')
+          print(f'PASS materialized {len(batch_files)} A0 batches from frozen repository commit')
           PY
 
       - name: Validate persisted semantic batch results
