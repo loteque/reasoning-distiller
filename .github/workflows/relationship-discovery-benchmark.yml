@@ -7,9 +7,13 @@ on:
       - "evaluation/relationship_discovery_benchmark.py"
       - "evaluation/relationship_analysis_result.py"
       - "evaluation/relationship_discovery_closeout.py"
+      - "evaluation/relationship_discovery_reconciliation.py"
+      - "evaluation/relationship_discovery_materialize_reconciliation.py"
       - "evaluation/relationship-discovery/**"
       - "tests/test_relationship*.py"
+      - "project-knowledge/reconciliation/activation-evidence/**"
       - "project-knowledge/canonical/pems2.jcs.json"
+      - "project-knowledge/canonical/cove1.jcs.json"
   workflow_dispatch:
 
 permissions:
@@ -94,7 +98,7 @@ jobs:
 
           persisted=evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive
           if [ -f "$persisted/coverage.json" ] || [ -f "$persisted/candidates.json" ]; then
-            artifact_names=(coverage.json candidates.json report.json report.md)
+            artifact_names=(coverage.json candidates.json)
             for name in "${artifact_names[@]}"; do
               if [ ! -f "$persisted/$name" ]; then
                 echo "FAIL persisted A0 closeout is missing $name" >&2
@@ -102,9 +106,65 @@ jobs:
               fi
               cmp "$out/$name" "$persisted/$name"
             done
-            echo "PASS persisted A0 closeout exactly matches deterministic regeneration"
+            if [ ! -f "$persisted/steward-dispositions.json" ]; then
+              cmp "$out/report.json" "$persisted/report.json"
+              cmp "$out/report.md" "$persisted/report.md"
+              echo "PASS persisted pre-reconciliation A0 closeout exactly matches deterministic regeneration"
+            else
+              echo "PASS persisted A0 coverage and candidate set exactly match deterministic regeneration"
+            fi
           fi
           echo "complete=true" >> "$GITHUB_OUTPUT"
+
+      - name: Validate completed Steward reconciliation
+        if: steps.closeout.outputs.complete == 'true'
+        run: |
+          set -euo pipefail
+          base=evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive
+          activation=project-knowledge/reconciliation/activation-evidence/a81360a9a4ab349a377dd378b5ed55e7e4a28d45ca26f6de51888dfac477928b.json
+          if [ ! -f "$base/steward-selection.json" ] || [ ! -f "$base/steward-dispositions.json" ]; then
+            echo "FAIL complete A0 reconciliation evidence is missing" >&2
+            exit 1
+          fi
+
+          python evaluation/relationship_discovery_reconciliation.py validate \
+            --candidates "$base/candidates.json" \
+            --result-dir "$base/batches" \
+            --activation "$activation" \
+            --dispositions "$base/steward-dispositions.json"
+
+          python evaluation/relationship_discovery_materialize_reconciliation.py \
+            --candidates "$base/candidates.json" \
+            --result-dir "$base/batches" \
+            --activation "$activation" \
+            --selection "$base/steward-selection.json" \
+            --out /tmp/steward-dispositions.json
+          cmp /tmp/steward-dispositions.json "$base/steward-dispositions.json"
+
+          python evaluation/relationship_discovery_benchmark.py validate-report "$base/report.json"
+          python evaluation/relationship_discovery_benchmark.py render-report \
+            "$base/report.json" --out /tmp/a0-report.md
+          cmp /tmp/a0-report.md "$base/report.md"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          base = Path('evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive')
+          dispositions = json.loads((base / 'steward-dispositions.json').read_text(encoding='utf-8'))
+          report = json.loads((base / 'report.json').read_text(encoding='utf-8'))
+          if dispositions['reviewed_candidate_count'] != 1128:
+              raise SystemExit('reviewed candidate count mismatch')
+          if dispositions['recommended_relation_count'] != 668:
+              raise SystemExit('approved baseline relation count mismatch')
+          if dispositions['recommended_relations_digest'] != 'sha256:ab07f98f8e280a7008d60b12b31e0376eec3ea761b70979ffae32a39482b8efd':
+              raise SystemExit('approved baseline relation digest mismatch')
+          if report['verdict'] != 'PASS':
+              raise SystemExit('A0 report is not PASS after reconciliation')
+          if report['metrics']['baseline_relations'].get('value') != 668:
+              raise SystemExit('A0 report baseline count mismatch')
+          print('PASS completed A0 Steward reconciliation is deterministic and report-bound')
+          PY
 
       - name: Upload immutable A0 analysis inputs
         uses: actions/upload-artifact@v4

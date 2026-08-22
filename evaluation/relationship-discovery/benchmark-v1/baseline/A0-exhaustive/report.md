@@ -42,10 +42,10 @@ Sort the frozen eligible proposition corpus by canonical record ID, divide it in
 
 | Metric | Result |
 |---|---:|
-| baseline relations | PENDING |
-| baseline relations covered | PENDING |
-| baseline relations missed | PENDING |
-| baseline recall percent | PENDING |
+| baseline relations | 668 (measured) |
+| baseline relations covered | 668 (derived) |
+| baseline relations missed | 0 (derived) |
+| baseline recall percent | 100.0 % (derived) |
 
 ## Misses
 
@@ -54,14 +54,16 @@ None recorded at this stage.
 ## Efficiency
 
 **Pair-space reduction:** 0.0 % (derived)  
-**Baseline recall:** PENDING
+**Baseline recall:** 100.0 % (derived)
 
 ## Verdict
 
-**INCOMPLETE**
+**PASS**
 
 The pre-result hypothesis is preserved unchanged from the report template.
 
 All 78 exhaustive A0 semantic batches are COMPLETE and validated: 67528 unordered pairs, 472696 relationship hypotheses, and 1128 raw non-authoritative candidate relations.
 
-A0 remains INCOMPLETE pending fresh Steward semantic reconciliation; raw candidate count is not the baseline relation count.
+Fresh Steward semantic reconciliation reviewed all 1128 raw A0 candidates and established 668 approved exhaustive baseline relations.
+
+This reconciliation is non-admitting; canonical PEMS/COVE state remains unchanged until a separately activated admission invocation.
