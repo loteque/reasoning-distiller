@@ -39,7 +39,9 @@ class P1b(unittest.TestCase):
  def setUpClass(c):
   c.sc={n:load(S/n)for n in FILES};c.fx=load(F);c.p0=load(P0);p=load(PEMS);reg=Registry().with_resources([(x['$id'],Resource.from_contents(x))for x in[*c.sc.values(),p]]);c.v={n:Draft202012Validator(x,registry=reg)for n,x in c.sc.items()};c.e=c.fx['examples'];c.reg=reg
  def val(s,n,x):return list(s.v[n].iter_errors(x))
- def sub(s,n,d,x):return list(Draft202012Validator(s.sc[n]['$defs'][d],registry=s.reg).iter_errors(x))
+ def sub(s,n,d,x):
+  wrapper={'$schema':'https://json-schema.org/draft/2020-12/schema','$ref':s.sc[n]['$id']+'#/$defs/'+d}
+  return list(Draft202012Validator(wrapper,registry=s.reg).iter_errors(x))
  def test_inventory_meta_and_closed_world(s):
   s.assertEqual({x['file']for x in s.fx['schemas']},set(FILES));s.assertEqual(s.fx['scope']['authorized'],'P1B_PROTOCOL_SCHEMAS_ONLY');s.assertFalse(s.fx['scope']['resolver_implemented']or s.fx['scope']['later_gates_implemented']or s.fx['scope']['production_integration_authorized'])
   for n,x in s.sc.items():Draft202012Validator.check_schema(x);[s.assertIs(o.get('additionalProperties'),False,n)for o in objects(x)]
