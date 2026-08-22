@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - relationship-discovery-a0-admission
+  workflow_dispatch:
 
 permissions:
   contents: write
