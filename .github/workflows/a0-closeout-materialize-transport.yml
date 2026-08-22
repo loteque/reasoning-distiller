@@ -1,0 +1,73 @@
+name: A0 Closeout Materialize Transport
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/a0-closeout-materialize-transport.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.event.pull_request.base.ref == 'evaluation/relationship-discovery-benchmark-v1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate clean closeout commit
+        env:
+          BASE_SHA: 2055f8005e374ee316966a5958e3c38f85b61d46
+          CLEAN_BRANCH: transport/a0-closeout-clean
+        run: |
+          set -euo pipefail
+          git checkout "$BASE_SHA"
+
+          inputs=/tmp/relationship-discovery-a0
+          closeout=/tmp/relationship-discovery-a0-closeout
+          mkdir -p "$inputs/batches"
+          python evaluation/relationship_discovery_benchmark.py bootstrap \
+            --pems project-knowledge/canonical/pems2.jcs.json \
+            --benchmark evaluation/relationship-discovery/benchmark-v1/benchmark.json \
+            --coverage-out "$inputs/coverage.json"
+          python - <<'PY'
+          import importlib.util
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          module_path = root / 'evaluation' / 'relationship_discovery_benchmark.py'
+          spec = importlib.util.spec_from_file_location('relationship_discovery_benchmark', module_path)
+          bench = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(bench)
+          inputs = Path('/tmp/relationship-discovery-a0')
+          coverage = json.loads((inputs / 'coverage.json').read_text(encoding='utf-8'))
+          pems_bytes = (root / 'project-knowledge' / 'canonical' / 'pems2.jcs.json').read_bytes()
+          for batch in coverage['batches']:
+              payload = bench.materialize_batch(pems_bytes, coverage, batch['batch_id'])
+              (inputs / 'batches' / f"{batch['batch_id']}.json").write_bytes(
+                  bench.canonical_json_bytes(payload) + b'\n'
+              )
+          PY
+          python evaluation/relationship_discovery_closeout.py build \
+            --coverage "$inputs/coverage.json" \
+            --batch-dir "$inputs/batches" \
+            --result-dir evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/batches \
+            --report-template evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/report.json \
+            --out-dir "$closeout"
+
+          git switch -C "$CLEAN_BRANCH" "$BASE_SHA"
+          target=evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive
+          cp "$closeout/coverage.json" "$target/coverage.json"
+          cp "$closeout/candidates.json" "$target/candidates.json"
+          cp "$closeout/report.json" "$target/report.json"
+          cp "$closeout/report.md" "$target/report.md"
+          git add "$target/coverage.json" "$target/candidates.json" "$target/report.json" "$target/report.md"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "evaluation: persist deterministic A0 closeout"
+          git push --force origin "HEAD:refs/heads/$CLEAN_BRANCH"
+          echo "CLEAN_SHA=$(git rev-parse HEAD)"
