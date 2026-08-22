@@ -1,9 +1,9 @@
 import hashlib
 import importlib.util
 import json
-import sys
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
@@ -149,9 +149,12 @@ class RelationshipDiscoveryCloseoutTests(unittest.TestCase):
             self.assertEqual(6, candidates["assessed_pair_count"])
             self.assertEqual(42, candidates["assessed_hypothesis_count"])
             self.assertEqual(1, candidates["candidate_relation_count"])
-            relation = candidates["candidate_relations"][0]
-            self.assertEqual("A0-B00-B01", relation["source_batch_id"])
-            self.assertTrue(relation["source_result_digest"].startswith("sha256:"))
+            self.assertEqual(
+                {"mode": "subdivided_batch_results", "path_pattern": "batches/{batch_id}.result.json"},
+                candidates["storage"],
+            )
+            self.assertNotIn("candidate_relations", candidates)
+            self.assertTrue(candidates["candidate_relations_digest"].startswith("sha256:"))
             closeout.validate_candidate_set(candidates, coverage)
 
     def test_finalize_report_preserves_pre_result_hypothesis(self):
