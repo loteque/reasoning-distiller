@@ -3,436 +3,57 @@
   "gate": "P0",
   "authorized_scope": "P0_ONLY",
   "production_integration_authorized": false,
-  "governing_plan": {
-    "repository": "loteque/reasoning-distiller",
-    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
-    "path": "docs/proposals/context-packaging/FINAL_PLAN.md",
-    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0"
-  },
-  "source_artifacts": [
-    {
-      "stage": "stage1",
-      "commit": "0030d502db2304e9d3a865372baba74d5910bf22",
-      "path": "docs/proposals/context-packaging/01-engineer-proposal.md",
-      "blob": "0561c42d0fa8a913d8e8665c21d4a79d74fb19ad",
-      "case_range": "PC-01..PC-30"
-    },
-    {
-      "stage": "stage2",
-      "commit": "7c54f0f44f137e0ccda02ff3632eaefd235ac5af",
-      "path": "docs/proposals/context-packaging/02-engineer-review-synthesis.md",
-      "blob": "a9f44ed4107325db08ed186cbb9d1a58a1c8f4ee",
-      "case_range": "PC-31..PC-46"
-    }
-  ],
-  "semantics": {
-    "expected_result": {
-      "PASS": "Under the fixture_precondition, the future contracted operation is expected to complete without a protocol failure while satisfying required_outcome.",
-      "FAIL": "Under the fixture_precondition, the future contracted operation is expected to fail closed with failure_class."
-    },
-    "failure_class_scope": "P0 pressure-suite taxonomy. These identifiers are stable fixture classifications, not yet a frozen runtime failure schema or wire-format code; P1b owns runtime failure-schema freeze."
-  },
-  "failure_classes": [
-    "BUILD_SIDE_EFFECT_DETECTED",
-    "CANONICAL_BINDING_CONFLICT",
-    "CANONICAL_BINDING_UNPROVEN",
-    "CANONICAL_STATE_STALE",
-    "CLOSURE_LIMIT_EXCEEDED",
-    "CONTROL_SOURCE_INVALID",
-    "COVE_ROUNDTRIP_MISMATCH",
-    "CROSS_SOURCE_CONSISTENCY_UNPROVEN",
-    "EMPTY_RESULT_DISALLOWED",
-    "IMMUTABLE_OUTPUT_COLLISION",
-    "IMMUTABLE_SNAPSHOT_UNAVAILABLE",
-    "LOGICAL_SOURCE_CONFLICT",
-    "PLANE_CLASSIFICATION_CONFLICT",
-    "RENDER_LIMIT_EXCEEDED",
-    "REQUIRED_ACTIVATION_EVIDENCE_MISSING",
-    "SELECTED_SEMANTIC_ID_MISSING",
-    "TOOLCHAIN_IDENTITY_MISMATCH",
-    "UNDEFINED_CLOSURE_RULE",
-    "UNKNOWN_SEMANTICS_FIELD",
-    "UNSUPPORTED_ENCODING_TUPLE",
-    "UNSUPPORTED_SOURCE_CLASS"
-  ],
-  "required_coverage": [
-    "authority",
-    "canonical_standing",
-    "byte_identity",
-    "digest_circularity",
-    "toolchain_variance",
-    "source_conflicts",
-    "side_effects",
-    "renderer_isolation"
-  ],
+  "governing_plan": {"repository":"loteque/reasoning-distiller","commit":"0803bcca5343224d6feefa53c2f1b8baf1d4a8cd","path":"docs/proposals/context-packaging/FINAL_PLAN.md","blob":"8474d2da42f863f0a190fd80292085176d3f97f0"},
+  "source_artifacts": [{"stage":"stage1","commit":"0030d502db2304e9d3a865372baba74d5910bf22","path":"docs/proposals/context-packaging/01-engineer-proposal.md","blob":"0561c42d0fa8a913d8e8665c21d4a79d74fb19ad","case_range":"PC-01..PC-30"},{"stage":"stage2","commit":"7c54f0f44f137e0ccda02ff3632eaefd235ac5af","path":"docs/proposals/context-packaging/02-engineer-review-synthesis.md","blob":"a9f44ed4107325db08ed186cbb9d1a58a1c8f4ee","case_range":"PC-31..PC-46"}],
+  "semantics": {"expected_result":{"PASS":"Under the fixture_precondition, the future contracted operation is expected to complete without a protocol failure while satisfying required_outcome.","FAIL":"Under the fixture_precondition, the future contracted operation is expected to fail closed with failure_class while satisfying required_outcome."},"source_binding":"fixture_precondition and required_outcome are exact immutable copies of the governing Stage 1/Stage 2 pressure-case row and are mechanically compared to those source artifacts by the P0 verifier.","failure_class_scope":"P0 pressure-suite taxonomy. These identifiers are stable fixture classifications, not yet a frozen runtime failure schema or wire-format code; P1b owns runtime failure-schema freeze."},
+  "failure_classes": ["BUILD_SIDE_EFFECT_DETECTED","CANONICAL_BINDING_CONFLICT","CANONICAL_BINDING_UNPROVEN","CANONICAL_STATE_STALE","CLOSURE_LIMIT_EXCEEDED","CONTROL_SOURCE_INVALID","COVE_ROUNDTRIP_MISMATCH","CROSS_SOURCE_CONSISTENCY_UNPROVEN","EMPTY_RESULT_DISALLOWED","IMMUTABLE_OUTPUT_COLLISION","IMMUTABLE_SNAPSHOT_UNAVAILABLE","LOGICAL_SOURCE_CONFLICT","PLANE_CLASSIFICATION_CONFLICT","RENDER_LIMIT_EXCEEDED","REQUIRED_ACTIVATION_EVIDENCE_MISSING","SELECTED_SEMANTIC_ID_MISSING","TOOLCHAIN_IDENTITY_MISMATCH","UNDEFINED_CLOSURE_RULE","UNKNOWN_SEMANTICS_FIELD","UNSUPPORTED_ENCODING_TUPLE","UNSUPPORTED_SOURCE_CLASS"],
+  "required_coverage": ["authority","canonical_standing","byte_identity","digest_circularity","toolchain_variance","source_conflicts","side_effects","renderer_isolation"],
   "cases": [
-    {
-      "id": "PC-01",
-      "source_stage": "stage1",
-      "fixture_precondition": "Role-like text is explicitly selected as content; no accepted activation is supplied.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["authority"]
-    },
-    {
-      "id": "PC-02",
-      "source_stage": "stage1",
-      "fixture_precondition": "Ambient memory is present only outside contracted source classes.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["authority"]
-    },
-    {
-      "id": "PC-03",
-      "source_stage": "stage1",
-      "fixture_precondition": "The record is proven admitted canonical PEMS/2 and explicitly selected.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["canonical_standing", "authority"]
-    },
-    {
-      "id": "PC-04",
-      "source_stage": "stage1",
-      "fixture_precondition": "The relevant record is not selected by any explicit selector or closure rule.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["selection_determinism"]
-    },
-    {
-      "id": "PC-05",
-      "source_stage": "stage1",
-      "fixture_precondition": "All contracted inputs and behavior-defining identities are identical.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["determinism"]
-    },
-    {
-      "id": "PC-06",
-      "source_stage": "stage1",
-      "fixture_precondition": "The request pins the original commit SHA, and that immutable commit remains resolvable after the branch moves.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["source_identity", "determinism"]
-    },
-    {
-      "id": "PC-07",
-      "source_stage": "stage1",
-      "fixture_precondition": "The required control selector resolves to an invalid control source under one of the enumerated invalid conditions.",
-      "expected_result": "FAIL",
-      "failure_class": "CONTROL_SOURCE_INVALID",
-      "coverage": ["source_identity", "byte_identity"]
-    },
-    {
-      "id": "PC-08",
-      "source_stage": "stage1",
-      "fixture_precondition": "The selected record ID does not exist in the bound canonical snapshot.",
-      "expected_result": "FAIL",
-      "failure_class": "SELECTED_SEMANTIC_ID_MISSING",
-      "coverage": ["selection_determinism", "canonical_standing"]
-    },
-    {
-      "id": "PC-09",
-      "source_stage": "stage1",
-      "fixture_precondition": "All required provenance records and source records are present and closure can include them within limits.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["semantic_closure"]
-    },
-    {
-      "id": "PC-10",
-      "source_stage": "stage1",
-      "fixture_precondition": "All required premise relations and endpoints exist and closure can include them within limits.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["semantic_closure"]
-    },
-    {
-      "id": "PC-11",
-      "source_stage": "stage1",
-      "fixture_precondition": "The omitted endpoint exists and closure can include it within limits.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["semantic_closure"]
-    },
-    {
-      "id": "PC-12",
-      "source_stage": "stage1",
-      "fixture_precondition": "The selected protocol version has no rule for the encountered semantic reference.",
-      "expected_result": "FAIL",
-      "failure_class": "UNDEFINED_CLOSURE_RULE",
-      "coverage": ["semantic_closure"]
-    },
-    {
-      "id": "PC-13",
-      "source_stage": "stage1",
-      "fixture_precondition": "COVE output decodes to a structure that differs from the selected PEMS object.",
-      "expected_result": "FAIL",
-      "failure_class": "COVE_ROUNDTRIP_MISMATCH",
-      "coverage": ["encoding"]
-    },
-    {
-      "id": "PC-14",
-      "source_stage": "stage1",
-      "fixture_precondition": "The exact requested version tuple is outside the supported compatibility set.",
-      "expected_result": "FAIL",
-      "failure_class": "UNSUPPORTED_ENCODING_TUPLE",
-      "coverage": ["encoding"]
-    },
-    {
-      "id": "PC-15",
-      "source_stage": "stage1",
-      "fixture_precondition": "The proposition is admitted canonical knowledge and explicitly selected.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["authority", "renderer_isolation"]
-    },
-    {
-      "id": "PC-16",
-      "source_stage": "stage1",
-      "fixture_precondition": "The directive is explicitly selected as a control artifact.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["authority", "byte_identity"]
-    },
-    {
-      "id": "PC-17",
-      "source_stage": "stage1",
-      "fixture_precondition": "The artifact is present in repository state but has no explicit selection or closure cause.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["selection_determinism"]
-    },
-    {
-      "id": "PC-18",
-      "source_stage": "stage1",
-      "fixture_precondition": "Multiple deterministic inclusion paths resolve to the same semantic record identity.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["selection_provenance", "determinism"]
-    },
-    {
-      "id": "PC-19",
-      "source_stage": "stage1",
-      "fixture_precondition": "The cycle is valid PEMS graph structure and all members fit within explicit limits.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["semantic_closure", "determinism"]
-    },
-    {
-      "id": "PC-20",
-      "source_stage": "stage1",
-      "fixture_precondition": "The required semantic closure exceeds at least one contracted closure/projection limit.",
-      "expected_result": "FAIL",
-      "failure_class": "CLOSURE_LIMIT_EXCEEDED",
-      "coverage": ["limits", "semantic_closure"]
-    },
-    {
-      "id": "PC-21",
-      "source_stage": "stage1",
-      "fixture_precondition": "The request assigns one source identity to incompatible plane classifications.",
-      "expected_result": "FAIL",
-      "failure_class": "PLANE_CLASSIFICATION_CONFLICT",
-      "coverage": ["plane_separation"]
-    },
-    {
-      "id": "PC-22",
-      "source_stage": "stage1",
-      "fixture_precondition": "The request names an explicitly unsupported ambient/session source class.",
-      "expected_result": "FAIL",
-      "failure_class": "UNSUPPORTED_SOURCE_CLASS",
-      "coverage": ["authority", "source_identity"]
-    },
-    {
-      "id": "PC-23",
-      "source_stage": "stage1",
-      "fixture_precondition": "The profile explicitly requires accepted activation evidence and the exact required evidence/binding is absent.",
-      "expected_result": "FAIL",
-      "failure_class": "REQUIRED_ACTIVATION_EVIDENCE_MISSING",
-      "coverage": ["authority", "operational_evidence"]
-    },
-    {
-      "id": "PC-24",
-      "source_stage": "stage1",
-      "fixture_precondition": "The evidence is explicitly selected for the operational-evidence plane; pack construction itself performs no authority-bearing operation.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["authority", "operational_evidence"]
-    },
-    {
-      "id": "PC-25",
-      "source_stage": "stage1",
-      "fixture_precondition": "The disposition is explicitly selected as operational evidence.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["authority", "operational_evidence", "side_effects"]
-    },
-    {
-      "id": "PC-26",
-      "source_stage": "stage1",
-      "fixture_precondition": "The canonical snapshot digest no longer matches the request's expected immutable identity.",
-      "expected_result": "FAIL",
-      "failure_class": "CANONICAL_STATE_STALE",
-      "coverage": ["canonical_standing", "source_identity"]
-    },
-    {
-      "id": "PC-27",
-      "source_stage": "stage1",
-      "fixture_precondition": "The selected profile requires a cross-source relationship and the relationship cannot be proven.",
-      "expected_result": "FAIL",
-      "failure_class": "CROSS_SOURCE_CONSISTENCY_UNPROVEN",
-      "coverage": ["source_conflicts", "canonical_standing"]
-    },
-    {
-      "id": "PC-28",
-      "source_stage": "stage1",
-      "fixture_precondition": "The target output path exists with bytes different from the newly derived artifact.",
-      "expected_result": "FAIL",
-      "failure_class": "IMMUTABLE_OUTPUT_COLLISION",
-      "coverage": ["persistence", "byte_identity"]
-    },
-    {
-      "id": "PC-29",
-      "source_stage": "stage1",
-      "fixture_precondition": "Contracted semantic inputs and behavior identity are equivalent; only host ordering/locale differs.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["determinism", "byte_identity"]
-    },
-    {
-      "id": "PC-30",
-      "source_stage": "stage1",
-      "fixture_precondition": "No production invocation input explicitly declares the generated pack as evidence.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["production_boundary", "authority"]
-    },
-    {
-      "id": "PC-31",
-      "source_stage": "stage2",
-      "fixture_precondition": "The PEMS/2 bytes and digest validate structurally, but no accepted canonical-state binding proves standing.",
-      "expected_result": "FAIL",
-      "failure_class": "CANONICAL_BINDING_UNPROVEN",
-      "coverage": ["canonical_standing"]
-    },
-    {
-      "id": "PC-32",
-      "source_stage": "stage2",
-      "fixture_precondition": "The supplied canonical bytes conflict with the immutable snapshot named by the project/backend binding or receipt chain.",
-      "expected_result": "FAIL",
-      "failure_class": "CANONICAL_BINDING_CONFLICT",
-      "coverage": ["canonical_standing", "source_conflicts"]
-    },
-    {
-      "id": "PC-33",
-      "source_stage": "stage2",
-      "fixture_precondition": "The proposition is proven admitted canonical knowledge and explicitly selected.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["renderer_isolation", "authority", "canonical_standing"]
-    },
-    {
-      "id": "PC-34",
-      "source_stage": "stage2",
-      "fixture_precondition": "The artifact media is permitted by the selected contract and therefore uses the contract's exact byte-preserving representation.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["byte_identity"]
-    },
-    {
-      "id": "PC-35",
-      "source_stage": "stage2",
-      "fixture_precondition": "The contracted digest construction excludes the whole-pack digest field from its own preimage by construction.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["digest_circularity", "determinism"]
-    },
-    {
-      "id": "PC-36",
-      "source_stage": "stage2",
-      "fixture_precondition": "The changed behavior-defining toolchain identity is not declared explicitly compatible with the original replay identity.",
-      "expected_result": "FAIL",
-      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
-      "coverage": ["toolchain_variance", "determinism"]
-    },
-    {
-      "id": "PC-37",
-      "source_stage": "stage2",
-      "fixture_precondition": "The selected profile's explicit empty-result rule rejects an empty knowledge projection.",
-      "expected_result": "FAIL",
-      "failure_class": "EMPTY_RESULT_DISALLOWED",
-      "coverage": ["selection_determinism", "limits"]
-    },
-    {
-      "id": "PC-38",
-      "source_stage": "stage2",
-      "fixture_precondition": "The unknown field is semantics-bearing and is not defined by the selected contract version.",
-      "expected_result": "FAIL",
-      "failure_class": "UNKNOWN_SEMANTICS_FIELD",
-      "coverage": ["schema_strictness", "semantic_closure", "limits"]
-    },
-    {
-      "id": "PC-39",
-      "source_stage": "stage2",
-      "fixture_precondition": "The path difference is host-local implementation state and is not explicitly contracted as semantic input.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["determinism", "byte_identity"]
-    },
-    {
-      "id": "PC-40",
-      "source_stage": "stage2",
-      "fixture_precondition": "The pure build path attempts a write to a prohibited semantic or lifecycle store.",
-      "expected_result": "FAIL",
-      "failure_class": "BUILD_SIDE_EFFECT_DETECTED",
-      "coverage": ["side_effects", "authority"]
-    },
-    {
-      "id": "PC-41",
-      "source_stage": "stage2",
-      "fixture_precondition": "The originally bound immutable snapshot can no longer be read exactly after the external backend changes or becomes unavailable.",
-      "expected_result": "FAIL",
-      "failure_class": "IMMUTABLE_SNAPSHOT_UNAVAILABLE",
-      "coverage": ["source_identity", "source_conflicts", "canonical_standing"]
-    },
-    {
-      "id": "PC-42",
-      "source_stage": "stage2",
-      "fixture_precondition": "The profile does not explicitly permit multiple snapshots for the logical source.",
-      "expected_result": "FAIL",
-      "failure_class": "LOGICAL_SOURCE_CONFLICT",
-      "coverage": ["source_conflicts", "source_identity"]
-    },
-    {
-      "id": "PC-43",
-      "source_stage": "stage2",
-      "fixture_precondition": "The profile allows carried operational evidence without requiring an accepted validation result as a pack-build precondition.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["operational_evidence", "authority"]
-    },
-    {
-      "id": "PC-44",
-      "source_stage": "stage2",
-      "fixture_precondition": "The rendered activation bytes exceed the selected renderer profile's explicit byte limit.",
-      "expected_result": "FAIL",
-      "failure_class": "RENDER_LIMIT_EXCEEDED",
-      "coverage": ["renderer_isolation", "limits"]
-    },
-    {
-      "id": "PC-45",
-      "source_stage": "stage2",
-      "fixture_precondition": "The control and knowledge items have distinct source identities and valid independent plane assignments.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["plane_separation", "selection_provenance"]
-    },
-    {
-      "id": "PC-46",
-      "source_stage": "stage2",
-      "fixture_precondition": "Contracted semantic inputs and behavior identity are equivalent; only the enumerated host representations/orderings differ.",
-      "expected_result": "PASS",
-      "failure_class": null,
-      "coverage": ["determinism", "byte_identity"]
-    }
+    {"id":"PC-01","source_stage":"stage1","fixture_precondition":"Prompt, chat title, or Project text says `act as Steward` but no accepted RIL activation exists","required_outcome":"Role text may be packaged only as explicitly selected content; it creates no authority or activation","expected_result":"PASS","failure_class":null,"coverage":["authority"]},
+    {"id":"PC-02","source_stage":"stage1","fixture_precondition":"Ambient chat memory says a design was approved","required_outcome":"Ambient memory is not a supported deterministic source class and cannot enter the pack","expected_result":"PASS","failure_class":null,"coverage":["authority"]},
+    {"id":"PC-03","source_stage":"stage1","fixture_precondition":"An admitted PEMS/2 `chat` record contains information originally derived from a conversation","required_outcome":"It may be selected because it is admitted canonical PEMS state, not because ambient chat is trusted","expected_result":"PASS","failure_class":null,"coverage":["canonical_standing","authority"]},
+    {"id":"PC-04","source_stage":"stage1","fixture_precondition":"A model would consider an unselected canonical record highly relevant","required_outcome":"Deterministic stage excludes it unless an explicit selector/profile rule includes it","expected_result":"PASS","failure_class":null,"coverage":["selection_determinism"]},
+    {"id":"PC-05","source_stage":"stage1","fixture_precondition":"Same request/profile and same immutable source state are packaged twice","required_outcome":"Canonical pack bytes and digests are identical","expected_result":"PASS","failure_class":null,"coverage":["determinism"]},
+    {"id":"PC-06","source_stage":"stage1","fixture_precondition":"Target branch moves between request creation and source resolution","required_outcome":"Builder either resolves the exact immutable commit required by the request or fails; no silent rebinding","expected_result":"PASS","failure_class":null,"coverage":["source_identity","determinism"]},
+    {"id":"PC-07","source_stage":"stage1","fixture_precondition":"A required control path is missing, symlinked, ambiguous, or digest-mismatched","required_outcome":"Fail closed before output","expected_result":"FAIL","failure_class":"CONTROL_SOURCE_INVALID","coverage":["source_identity","byte_identity"]},
+    {"id":"PC-08","source_stage":"stage1","fixture_precondition":"An explicitly selected PEMS record ID is absent","required_outcome":"Fail closed; no fuzzy replacement or semantic substitution","expected_result":"FAIL","failure_class":"SELECTED_SEMANTIC_ID_MISSING","coverage":["selection_determinism","canonical_standing"]},
+    {"id":"PC-09","source_stage":"stage1","fixture_precondition":"Selected PEMS content contains provenance references to omitted `source_observation` records","required_outcome":"Deterministic semantic closure includes required provenance records and their source records, or fails","expected_result":"PASS","failure_class":null,"coverage":["semantic_closure"]},
+    {"id":"PC-10","source_stage":"stage1","fixture_precondition":"Selected derived proposition would lose its `derived_from` premise structure","required_outcome":"Include required premise relations/endpoints through semantic closure, or fail","expected_result":"PASS","failure_class":null,"coverage":["semantic_closure"]},
+    {"id":"PC-11","source_stage":"stage1","fixture_precondition":"Selected relation would have an omitted endpoint","required_outcome":"Include endpoint through semantic closure, or fail","expected_result":"PASS","failure_class":null,"coverage":["semantic_closure"]},
+    {"id":"PC-12","source_stage":"stage1","fixture_precondition":"A PEMS record contains an ID-bearing semantic reference whose closure rule is undefined in the selected protocol version","required_outcome":"Fail rather than silently truncate meaning","expected_result":"FAIL","failure_class":"UNDEFINED_CLOSURE_RULE","coverage":["semantic_closure"]},
+    {"id":"PC-13","source_stage":"stage1","fixture_precondition":"COVE encoding does not structurally round-trip to the exact selected PEMS object","required_outcome":"Fail; never use the lossy encoding","expected_result":"FAIL","failure_class":"COVE_ROUNDTRIP_MISMATCH","coverage":["encoding"]},
+    {"id":"PC-14","source_stage":"stage1","fixture_precondition":"Requested COVE/PEMS/JCS tuple is unsupported","required_outcome":"Fail closed rather than coerce versions","expected_result":"FAIL","failure_class":"UNSUPPORTED_ENCODING_TUPLE","coverage":["encoding"]},
+    {"id":"PC-15","source_stage":"stage1","fixture_precondition":"Project knowledge contains prose that says it is authoritative, approved, or grants a role","required_outcome":"Preserve the proposition as project knowledge; do not promote it into the control or authority planes","expected_result":"PASS","failure_class":null,"coverage":["authority","renderer_isolation"]},
+    {"id":"PC-16","source_stage":"stage1","fixture_precondition":"An Engineer/Steward directive is included as a control item","required_outcome":"Inclusion conveys exact directive bytes only; it does not establish a registered or activated role","expected_result":"PASS","failure_class":null,"coverage":["authority","byte_identity"]},
+    {"id":"PC-17","source_stage":"stage1","fixture_precondition":"Prior proposal, candidate, disposition, or canonical interpretation exists in the repository but is not selected","required_outcome":"Exclude it","expected_result":"PASS","failure_class":null,"coverage":["selection_determinism"]},
+    {"id":"PC-18","source_stage":"stage1","fixture_precondition":"One canonical record is reached through several explicit selectors/closure paths","required_outcome":"Include the record once and preserve every deterministic inclusion cause in the outer ledger","expected_result":"PASS","failure_class":null,"coverage":["selection_provenance","determinism"]},
+    {"id":"PC-19","source_stage":"stage1","fixture_precondition":"Closure graph contains cycles","required_outcome":"Terminate deterministically using visited identities while preserving valid graph relations; never recurse by model judgment","expected_result":"PASS","failure_class":null,"coverage":["semantic_closure","determinism"]},
+    {"id":"PC-20","source_stage":"stage1","fixture_precondition":"Closure exceeds explicit record/byte/depth limits","required_outcome":"Fail with a stable limit code; do not silently truncate","expected_result":"FAIL","failure_class":"CLOSURE_LIMIT_EXCEEDED","coverage":["limits","semantic_closure"]},
+    {"id":"PC-21","source_stage":"stage1","fixture_precondition":"The same file or semantic item is assigned to conflicting planes","required_outcome":"Reject the pack request as a plane-classification conflict","expected_result":"FAIL","failure_class":"PLANE_CLASSIFICATION_CONFLICT","coverage":["plane_separation"]},
+    {"id":"PC-22","source_stage":"stage1","fixture_precondition":"Pack request attempts to name Project memory, assistant recollection, hidden reasoning, or an ungoverned conversation as a source","required_outcome":"Reject unsupported source class","expected_result":"FAIL","failure_class":"UNSUPPORTED_SOURCE_CLASS","coverage":["authority","source_identity"]},
+    {"id":"PC-23","source_stage":"stage1","fixture_precondition":"An authority-sensitive task profile declares required activation evidence but the exact evidence/binding is absent","required_outcome":"Fail the profile requirement; never synthesize or infer activation","expected_result":"FAIL","failure_class":"REQUIRED_ACTIVATION_EVIDENCE_MISSING","coverage":["authority","operational_evidence"]},
+    {"id":"PC-24","source_stage":"stage1","fixture_precondition":"Activation evidence is present","required_outcome":"The pack may carry the exact artifact/digest as operational evidence but does not convert it into authority; downstream RIL operation must revalidate it as required by its contract","expected_result":"PASS","failure_class":null,"coverage":["authority","operational_evidence"]},
+    {"id":"PC-25","source_stage":"stage1","fixture_precondition":"Reconciliation disposition says `COMPATIBLE/RECOMMEND`","required_outcome":"The pack may carry it only when explicitly selected; it still does not admit or mutate canonical PEMS/COVE","expected_result":"PASS","failure_class":null,"coverage":["authority","operational_evidence","side_effects"]},
+    {"id":"PC-26","source_stage":"stage1","fixture_precondition":"Canonical PEMS changes after a request recorded an expected canonical digest","required_outcome":"Fail stale-state validation; do not silently rebuild against newer semantics","expected_result":"FAIL","failure_class":"CANONICAL_STATE_STALE","coverage":["canonical_standing","source_identity"]},
+    {"id":"PC-27","source_stage":"stage1","fixture_precondition":"Control repository commit and canonical snapshot come from separately identified immutable states","required_outcome":"Record both identities; if the selected profile requires a relationship that cannot be proven, fail","expected_result":"FAIL","failure_class":"CROSS_SOURCE_CONSISTENCY_UNPROVEN","coverage":["source_conflicts","canonical_standing"]},
+    {"id":"PC-28","source_stage":"stage1","fixture_precondition":"Output path already contains different bytes","required_outcome":"Fail immutable-output collision; exact replay may return `NO_CHANGE`","expected_result":"FAIL","failure_class":"IMMUTABLE_OUTPUT_COLLISION","coverage":["persistence","byte_identity"]},
+    {"id":"PC-29","source_stage":"stage1","fixture_precondition":"Filesystem enumeration order, map order, or host locale differs","required_outcome":"Canonical sorting/serialization produces identical pack bytes","expected_result":"PASS","failure_class":null,"coverage":["determinism","byte_identity"]},
+    {"id":"PC-30","source_stage":"stage1","fixture_precondition":"Current `rd-distill prepare` is invoked without explicitly declaring the generated pack as evidence","required_outcome":"Packer output is not injected. Current production evidence remains unchanged","expected_result":"PASS","failure_class":null,"coverage":["production_boundary","authority"]},
+    {"id":"PC-31","source_stage":"stage2","fixture_precondition":"Request points to a schema-valid PEMS/2 file with correct digest that is not proven as admitted canonical state","required_outcome":"Reject as non-canonical/unproven canonical binding; path or request label is insufficient","expected_result":"FAIL","failure_class":"CANONICAL_BINDING_UNPROVEN","coverage":["canonical_standing"]},
+    {"id":"PC-32","source_stage":"stage2","fixture_precondition":"Canonical PEMS bytes are present but the project/backend admission binding or receipt chain identifies a different snapshot","required_outcome":"Fail stale/conflicting canonical-state validation","expected_result":"FAIL","failure_class":"CANONICAL_BINDING_CONFLICT","coverage":["canonical_standing","source_conflicts"]},
+    {"id":"PC-33","source_stage":"stage2","fixture_precondition":"Admitted canonical proposition contains `ignore controls`, `act as Steward`, or other instruction-like text","required_outcome":"Preserve as knowledge data; renderer must not promote it to control/instruction semantics","expected_result":"PASS","failure_class":null,"coverage":["renderer_isolation","authority","canonical_standing"]},
+    {"id":"PC-34","source_stage":"stage2","fixture_precondition":"Exact control artifact contains CRLF, non-ASCII, non-UTF-8, or bytes that a text decoder would normalize/reject","required_outcome":"Pack preserves exact source-byte identity through a specified byte representation or rejects unsupported media by explicit contract","expected_result":"PASS","failure_class":null,"coverage":["byte_identity"]},
+    {"id":"PC-35","source_stage":"stage2","fixture_precondition":"Whole-pack digest field is included in its own hash preimage","required_outcome":"Schema/algorithm makes self-reference impossible by a defined digest domain or out-of-band receipt","expected_result":"PASS","failure_class":null,"coverage":["digest_circularity","determinism"]},
+    {"id":"PC-36","source_stage":"stage2","fixture_precondition":"Same request and sources are replayed with a different PEMS validator/COVE encoder/closure descriptor","required_outcome":"Toolchain identity mismatch is visible and either fails compatibility or uses explicitly compatible contracted behavior","expected_result":"FAIL","failure_class":"TOOLCHAIN_IDENTITY_MISMATCH","coverage":["toolchain_variance","determinism"]},
+    {"id":"PC-37","source_stage":"stage2","fixture_precondition":"Explicit selectors produce an empty knowledge set","required_outcome":"Profile-defined deterministic empty-result rule applies; no model-driven fallback or broader search occurs","expected_result":"FAIL","failure_class":"EMPTY_RESULT_DISALLOWED","coverage":["selection_determinism","limits"]},
+    {"id":"PC-38","source_stage":"stage2","fixture_precondition":"Profile/request contains an unknown selector, closure rule, or limit field","required_outcome":"Fail closed under schema/version rules; do not ignore a field that could alter semantics","expected_result":"FAIL","failure_class":"UNKNOWN_SEMANTICS_FIELD","coverage":["schema_strictness","semantic_closure","limits"]},
+    {"id":"PC-39","source_stage":"stage2","fixture_precondition":"Host-local absolute path or temporary directory differs across machines","required_outcome":"Local path does not enter canonical identity/rendered context unless explicitly contracted; replay remains environment-independent","expected_result":"PASS","failure_class":null,"coverage":["determinism","byte_identity"]},
+    {"id":"PC-40","source_stage":"stage2","fixture_precondition":"Builder implementation attempts to update a cache, canonical PEMS/COVE, admission store, reconciliation store, or authority store during build","required_outcome":"Pure build fails/tests detect side effect; semantic result is never contingent on mutation","expected_result":"FAIL","failure_class":"BUILD_SIDE_EFFECT_DETECTED","coverage":["side_effects","authority"]},
+    {"id":"PC-41","source_stage":"stage2","fixture_precondition":"External backend locator resolves once, then content changes or backend becomes unavailable before read","required_outcome":"Immutable snapshot binding controls the read; change/missing snapshot fails, never silently re-resolves latest state","expected_result":"FAIL","failure_class":"IMMUTABLE_SNAPSHOT_UNAVAILABLE","coverage":["source_identity","source_conflicts","canonical_standing"]},
+    {"id":"PC-42","source_stage":"stage2","fixture_precondition":"Two source descriptors claim the same logical source but bind different immutable digests","required_outcome":"Reject conflict unless multi-snapshot semantics are explicitly part of the profile","expected_result":"FAIL","failure_class":"LOGICAL_SOURCE_CONFLICT","coverage":["source_conflicts","source_identity"]},
+    {"id":"PC-43","source_stage":"stage2","fixture_precondition":"Operational-evidence artifact has correct bytes/digest but is expired, invalidly bound, or otherwise not accepted by its RIL validator","required_outcome":"Pack records carried/validation status without inferring acceptance; authority-bearing downstream operation revalidates","expected_result":"PASS","failure_class":null,"coverage":["operational_evidence","authority"]},
+    {"id":"PC-44","source_stage":"stage2","fixture_precondition":"Canonical pack is valid but deterministic renderer exceeds its activation-byte limit","required_outcome":"Renderer fails with stable limit result; it does not summarize, rank, or silently omit context","expected_result":"FAIL","failure_class":"RENDER_LIMIT_EXCEEDED","coverage":["renderer_isolation","limits"]},
+    {"id":"PC-45","source_stage":"stage2","fixture_precondition":"Same semantic text appears in control and knowledge sources under different identities","required_outcome":"Preserve distinct source/plane identities; do not deduplicate by text similarity or content alone","expected_result":"PASS","failure_class":null,"coverage":["plane_separation","selection_provenance"]},
+    {"id":"PC-46","source_stage":"stage2","fixture_precondition":"Unicode normalization form, locale, path separator, dictionary insertion order, or filesystem order differs across hosts","required_outcome":"Contracted canonical byte representation and ordering remain identical","expected_result":"PASS","failure_class":null,"coverage":["determinism","byte_identity"]}
   ]
 }

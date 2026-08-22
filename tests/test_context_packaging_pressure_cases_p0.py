@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import unittest
@@ -42,6 +43,7 @@ REQUIRED_COVERAGE = {
 CASE_KEYS = {
     "id",
     "source_stage",
+    "required_outcome",
     "fixture_precondition",
     "expected_result",
     "failure_class",
@@ -50,6 +52,12 @@ CASE_KEYS = {
 PRESSURE_ROW = re.compile(
     r"^\|\s*(PC-\d{2})\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*$"
 )
+
+
+def git_blob_sha(path: Path) -> str:
+    data = path.read_bytes()
+    header = f"blob {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data).hexdigest()
 
 
 def pressure_rows(path: Path) -> dict[str, tuple[str, str]]:
@@ -79,6 +87,11 @@ class ContextPackagingPressureSuiteP0Tests(unittest.TestCase):
         self.assertEqual(self.suite["authorized_scope"], "P0_ONLY")
         self.assertFalse(self.suite["production_integration_authorized"])
         self.assertEqual(self.suite["governing_plan"], EXPECTED_PLAN)
+        self.assertEqual(
+            git_blob_sha(ROOT / EXPECTED_PLAN["path"]),
+            EXPECTED_PLAN["blob"],
+            "governing plan bytes must match the approved immutable blob",
+        )
 
     def test_source_artifacts_are_immutable_and_cover_all_pressure_cases(self):
         actual = {
@@ -90,15 +103,37 @@ class ContextPackagingPressureSuiteP0Tests(unittest.TestCase):
         }
         self.assertEqual(actual, EXPECTED_SOURCES)
 
+        for source in EXPECTED_SOURCES.values():
+            with self.subTest(source=source["path"]):
+                self.assertEqual(
+                    git_blob_sha(ROOT / source["path"]),
+                    source["blob"],
+                    "pressure-case source bytes must match the frozen Git blob",
+                )
+
         stage1 = pressure_rows(ROOT / EXPECTED_SOURCES["stage1"]["path"])
         stage2 = pressure_rows(ROOT / EXPECTED_SOURCES["stage2"]["path"])
         self.assertEqual(set(stage1), {f"PC-{n:02d}" for n in range(1, 31)})
         self.assertEqual(set(stage2), {f"PC-{n:02d}" for n in range(31, 47)})
-        for rows in (stage1, stage2):
-            for case_id, (scenario, required_outcome) in rows.items():
-                with self.subTest(case=case_id):
-                    self.assertTrue(scenario.strip())
-                    self.assertTrue(required_outcome.strip())
+
+    def test_every_fixture_is_losslessly_bound_to_its_source_pressure_row(self):
+        source_rows = {}
+        for stage in ("stage1", "stage2"):
+            rows = pressure_rows(ROOT / EXPECTED_SOURCES[stage]["path"])
+            overlap = set(source_rows) & set(rows)
+            self.assertFalse(overlap, f"pressure-case IDs overlap across stages: {overlap}")
+            source_rows.update(rows)
+
+        cases = {case["id"]: case for case in self.suite["cases"]}
+        self.assertEqual(set(cases), set(source_rows))
+
+        for case_id, (scenario, required_outcome) in source_rows.items():
+            case = cases[case_id]
+            with self.subTest(case=case_id):
+                self.assertEqual(case["fixture_precondition"], scenario)
+                self.assertEqual(case["required_outcome"], required_outcome)
+                self.assertTrue(case["fixture_precondition"].strip())
+                self.assertTrue(case["required_outcome"].strip())
 
     def test_exactly_pc_01_through_pc_46_exist_in_order(self):
         cases = self.suite["cases"]
@@ -124,6 +159,7 @@ class ContextPackagingPressureSuiteP0Tests(unittest.TestCase):
                     "stage1" if index <= 30 else "stage2",
                 )
                 self.assertTrue(case["fixture_precondition"].strip())
+                self.assertTrue(case["required_outcome"].strip())
                 self.assertIn(case["expected_result"], {"PASS", "FAIL"})
                 self.assertIsInstance(case["coverage"], list)
                 self.assertTrue(case["coverage"])
