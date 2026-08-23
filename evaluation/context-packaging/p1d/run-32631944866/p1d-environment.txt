@@ -1,0 +1,31 @@
+target_sha=945ff72ccee87310642ff78c4b4c8e01c46fb551
+live_main_basis=58b99891e116b5a06dd603810c2b98ea83e328c3
+governing_plan=0803bcca5343224d6feefa53c2f1b8baf1d4a8cd
+suite=tests/test_context_packaging_pems_closure_p1d.py
+suite_blob=cc4cb1cd1554e4a8665d85363fdedcd5eb92334e
+descriptor_blob=43dd9fe88e2953d12ed0630cf6a33e53a0ecf7a3
+fixture_blob=6862a62b3f8812888fa5501ce2282890e877d725
+pems_schema_blob=cd7683d704e8aef2842a0c1b25b453fb1dbc8030
+pems_validator_blob=d615bf2e95d3721b0ca312075cc0c39522f0a896
+Python 3.12.14
+Name: jsonschema
+Version: 4.25.1
+Summary: An implementation of JSON Schema validation for Python
+Home-page: https://github.com/python-jsonschema/jsonschema
+Author: 
+Author-email: Julian Berman <Julian+jsonschema@GrayVines.com>
+License-Expression: MIT
+Location: /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages
+Requires: attrs, jsonschema-specifications, referencing, rpds-py
+Required-by: 
+---
+Name: referencing
+Version: 0.37.0
+Summary: JSON Referencing + Python
+Home-page: https://github.com/python-jsonschema/referencing
+Author: 
+Author-email: Julian Berman <Julian+referencing@GrayVines.com>
+License-Expression: MIT
+Location: /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages
+Requires: attrs, rpds-py, typing-extensions
+Required-by: jsonschema, jsonschema-specifications
