@@ -1,0 +1,60 @@
+name: P4 context-packaging candidate evidence
+
+on:
+  push:
+    branches:
+      - evidence/context-packaging-p4-c5e265aa
+
+permissions:
+  contents: read
+
+jobs:
+  p4-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact semantic candidate
+        uses: actions/checkout@v4
+        with:
+          ref: c5e265aa2c572b6156c987bfa75e3740c097f2ec
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema referencing
+
+      - name: Verify candidate identity and P4 blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "c5e265aa2c572b6156c987bfa75e3740c097f2ec"
+          test "$(git rev-parse HEAD^)" = "197956138e6181ed9f9aae1d6a40b9f5084695a8"
+          test "$(git rev-parse HEAD:context_packaging/cove_adapter.py)" = "3a85c5cf3a705e93bb53adbda4ebdaa67d8f07e9"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_cove_adapter_p4.py)" = "35c784b78468eba6ac8286c8f6ece8e8746ac2d2"
+          test "$(git rev-parse HEAD:admission/apply_admission_transaction.py)" = "0f0117a7770f1928e41bd76082d9a572102e823a"
+          {
+            echo "candidate=$(git rev-parse HEAD)"
+            echo "parent=$(git rev-parse HEAD^)"
+            echo "adapter_blob=$(git rev-parse HEAD:context_packaging/cove_adapter.py)"
+            echo "p4_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_cove_adapter_p4.py)"
+            echo "frozen_cove_blob=$(git rev-parse HEAD:admission/apply_admission_transaction.py)"
+          } > p4-candidate-evidence.txt
+
+      - name: Run P4 gate and context-packaging regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_context_packaging_*.py 2>&1 | tee p4-pytest.txt
+
+      - name: Upload candidate-bound evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-context-packaging-c5e265aa-evidence
+          path: |
+            p4-candidate-evidence.txt
+            p4-pytest.txt
+          if-no-files-found: warn
