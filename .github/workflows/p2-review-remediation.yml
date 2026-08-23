@@ -1,0 +1,256 @@
+name: P2 Review Remediation
+
+on:
+  push:
+    branches:
+      - automation/p2-review-remediation-20260823
+    paths:
+      - .github/workflows/p2-review-remediation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  remediate-p2:
+    runs-on: ubuntu-latest
+    env:
+      BASE_SHA: 0aeaa98f6d514092aaf010afae5b1719308ed3bd
+      TARGET_BRANCH: implement/context-packaging-p2
+    steps:
+      - name: Checkout exact P2 branch
+        uses: actions/checkout@v4
+        with:
+          ref: implement/context-packaging-p2
+          fetch-depth: 0
+
+      - name: Verify target branch has not drifted
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+
+      - name: Apply bounded resolver remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("context_packaging/source_resolver.py")
+          text = path.read_text(encoding="utf-8")
+
+          old = '''    # Exact duplicate bindings are one immutable source acquisition. They still
+              # count toward max_bindings because that limit applies to request bindings.
+              unique: list[Mapping[str, Any]] = []
+              seen: set[tuple[Any, ...]] = set()
+              for binding in bindings:
+                  key = _snapshot_key(binding)
+                  if key not in seen:
+                      seen.add(key)
+                      unique.append(binding)
+          '''
+          new = '''    # Semantically equivalent complete bindings are one immutable source
+              # acquisition. Snapshot-reference equality alone is insufficient because a
+              # canonical binding can carry consistency semantics outside its P1a
+              # immutable fingerprint (currently repository_relationship).
+              unique: list[Mapping[str, Any]] = []
+              seen: set[tuple[Any, ...]] = set()
+              for binding in bindings:
+                  key = _complete_binding_key(binding)
+                  if key not in seen:
+                      seen.add(key)
+                      unique.append(binding)
+          '''
+          if old not in text:
+              raise SystemExit("coalescing patch preimage not found")
+          text = text.replace(old, new, 1)
+
+          old = '''    by_key: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+              canonical_by_address: dict[tuple[Any, ...], tuple[Any, ...]] = {}
+
+              for binding in bindings:
+                  code = _validate_binding(binding)
+                  if code:
+                      return _failure(code, binding)
+                  key = _logical_key(binding)
+                  by_key.setdefault(key, []).append(binding)
+
+                  if binding["source_class"] == "canonical_state":
+          '''
+          new = '''    by_key: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+              canonical_by_address: dict[tuple[Any, ...], tuple[Any, ...]] = {}
+              complete_by_snapshot: dict[tuple[Any, ...], Mapping[str, Any]] = {}
+
+              for binding in bindings:
+                  code = _validate_binding(binding)
+                  if code:
+                      return _failure(code, binding)
+                  key = _logical_key(binding)
+                  by_key.setdefault(key, []).append(binding)
+
+                  snapshot_key = _snapshot_key(binding)
+                  prior_complete = complete_by_snapshot.setdefault(snapshot_key, binding)
+                  if prior_complete is not binding and not _same_binding(prior_complete, binding):
+                      return _failure(
+                          "CROSS_SOURCE_CONSISTENCY_UNPROVEN",
+                          binding,
+                          ("non-equivalent complete bindings share one snapshot reference",),
+                      )
+
+                  if binding["source_class"] == "canonical_state":
+          '''
+          if old not in text:
+              raise SystemExit("binding-set patch preimage not found")
+          text = text.replace(old, new, 1)
+
+          old = '''    matches = [item for item in bindings if _snapshot_key(item) == wanted]
+              return matches[0] if matches else None
+
+
+          def _snapshot_key(binding: Mapping[str, Any]) -> tuple[Any, ...]:
+              return (_source_ref_tuple(binding), _fingerprint(binding))
+          '''
+          new = '''    matches = [item for item in bindings if _snapshot_key(item) == wanted]
+              if not matches:
+                  return None
+              if any(not _same_binding(matches[0], item) for item in matches[1:]):
+                  return None
+              return matches[0]
+
+
+          def _snapshot_key(binding: Mapping[str, Any]) -> tuple[Any, ...]:
+              return (_source_ref_tuple(binding), _fingerprint(binding))
+
+
+          def _complete_binding_key(binding: Mapping[str, Any]) -> tuple[Any, ...]:
+              relation = None
+              if binding.get("source_class") == "canonical_state":
+                  item = binding.get("repository_relationship")
+                  if isinstance(item, Mapping):
+                      relation = (item.get("repository"), _lower_hex(item.get("commit")))
+              return (_snapshot_key(binding), relation)
+          '''
+          if old not in text:
+              raise SystemExit("snapshot lookup patch preimage not found")
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          cat > tests/test_context_packaging_source_resolution_p2_regression.py <<'PY'
+          import unittest
+
+          from context_packaging.source_resolver import resolve_sources
+          from tests.test_context_packaging_source_resolution_p2 import (
+              C_BYTES,
+              Registry,
+              accepted,
+              canonical,
+              profile,
+              repo,
+              request,
+              snapshot_ref,
+              source_ref,
+          )
+
+
+          class P2RelationshipAndMultiplicityRegressions(unittest.TestCase):
+              def _relationship_ambiguity(self, canonical_order):
+                  repository = repo()
+                  req = request([repository, *canonical_order])
+                  req["consistency_requirements"] = [
+                      {
+                          "predicate": "canonical_declares_repository_snapshot",
+                          "left_snapshot_ref": snapshot_ref(canonical_order[0]),
+                          "right_snapshot_ref": snapshot_ref(repository),
+                      }
+                  ]
+                  registry = Registry(
+                      {"repository_control": b"alpha-control\n", "canonical_state": C_BYTES}
+                  )
+                  result = resolve_sources(req, profile(), registry.adapters())
+                  self.assertEqual(
+                      result.failure["code"], "CROSS_SOURCE_CONSISTENCY_UNPROVEN"
+                  )
+                  self.assertEqual(registry.calls, [])
+
+              def test_conflicting_relationship_fails_good_then_bad(self):
+                  repository = repo()
+                  good = canonical(
+                      relation={
+                          "repository": repository["repository"],
+                          "commit": repository["commit"],
+                      }
+                  )
+                  bad = canonical(
+                      relation={"repository": repository["repository"], "commit": "2" * 40}
+                  )
+                  self._relationship_ambiguity([good, bad])
+
+              def test_conflicting_relationship_fails_bad_then_good(self):
+                  repository = repo()
+                  good = canonical(
+                      relation={
+                          "repository": repository["repository"],
+                          "commit": repository["commit"],
+                      }
+                  )
+                  bad = canonical(
+                      relation={"repository": repository["repository"], "commit": "2" * 40}
+                  )
+                  self._relationship_ambiguity([bad, good])
+
+              def test_single_snapshot_intent_rejects_other_accepted_standing(self):
+                  repository = repo()
+                  first = canonical(logical="standing-multi", snapshot="snapshot:a")
+                  second = canonical(logical="standing-multi", snapshot="snapshot:b")
+                  req = request([repository, first])
+                  req["accepted_canonical_standing"].append(accepted(second))
+                  registry = Registry(
+                      {"repository_control": b"alpha-control\n", "canonical_state": C_BYTES}
+                  )
+                  result = resolve_sources(req, profile(), registry.adapters())
+                  self.assertEqual(result.failure["code"], "CANONICAL_BINDING_CONFLICT")
+                  self.assertEqual(registry.calls, [])
+
+              def test_explicit_multi_snapshot_intent_accepts_distinct_standing(self):
+                  repository = repo()
+                  first = canonical(logical="standing-multi", snapshot="snapshot:a")
+                  second = canonical(logical="standing-multi", snapshot="snapshot:b")
+                  req = request([repository, first, second])
+                  req["multiple_snapshot_sources"] = [source_ref(first)]
+                  prof = profile()
+                  prof["knowledge"]["snapshot_multiplicity"] = "explicit_request"
+                  registry = Registry(
+                      {"repository_control": b"alpha-control\n", "canonical_state": C_BYTES}
+                  )
+                  result = resolve_sources(req, prof, registry.adapters())
+                  self.assertTrue(result.ok)
+                  self.assertEqual(len(result.sources), 3)
+                  self.assertEqual(len(registry.calls), 3)
+
+
+          if __name__ == "__main__":
+              unittest.main()
+          PY
+
+      - name: Run P2 and inherited P1a regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            tests/test_context_packaging_source_resolution_p2.py \
+            tests/test_context_packaging_source_resolution_p2_regression.py \
+            tests/test_context_packaging_source_identity_p1a.py
+
+      - name: Commit only the bounded P2 remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add context_packaging/source_resolver.py tests/test_context_packaging_source_resolution_p2_regression.py
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git diff --cached --name-only
+          git commit -m "P2: fail closed on non-equivalent snapshot bindings"
+          printf 'candidate_sha=%s\n' "$(git rev-parse HEAD)"
+          git push origin HEAD:"$TARGET_BRANCH"
