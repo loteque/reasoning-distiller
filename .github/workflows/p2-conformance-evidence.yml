@@ -1,0 +1,122 @@
+name: P2 Conformance Evidence
+
+on:
+  push:
+    branches:
+      - evidence/p2-0aeaa98f-conformance
+    paths:
+      - .github/workflows/p2-conformance-evidence.yml
+  pull_request:
+    branches:
+      - evidence/p2-0aeaa98f-base
+    paths:
+      - .github/workflows/p2-conformance-evidence.yml
+
+permissions:
+  contents: read
+
+jobs:
+  p2-conformance:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: 0aeaa98f6d514092aaf010afae5b1719308ed3bd
+      PARENT_P1E: e6e9d318724a2d13e3b820f8208bdb623d61e482
+      LIVE_MAIN_BASIS: 58b99891e116b5a06dd603810c2b98ea83e328c3
+      GOVERNING_PLAN: 0803bcca5343224d6feefa53c2f1b8baf1d4a8cd
+      SUITE: tests/test_context_packaging_source_resolution_p2.py
+    steps:
+      - name: Checkout immutable P2 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 0aeaa98f6d514092aaf010afae5b1719308ed3bd
+          fetch-depth: 1
+
+      - name: Verify immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          printf 'target_sha=%s\n' "$TARGET_SHA"
+          printf 'resolver_blob=%s\n' "$(git hash-object context_packaging/source_resolver.py)"
+          printf 'package_init_blob=%s\n' "$(git hash-object context_packaging/__init__.py)"
+          printf 'contract_note_blob=%s\n' "$(git hash-object docs/design/CONTEXT_PACKAGING_SOURCE_RESOLUTION_P2.md)"
+          printf 'suite_blob=%s\n' "$(git hash-object "$SUITE")"
+          printf 'source_binding_schema_blob=%s\n' "$(git hash-object schemas/context-source-binding.schema.json)"
+          printf 'request_schema_blob=%s\n' "$(git hash-object schemas/context-pack-request.schema.json)"
+          printf 'profile_schema_blob=%s\n' "$(git hash-object schemas/context-profile.schema.json)"
+          printf 'failure_schema_blob=%s\n' "$(git hash-object schemas/context-pack-failure.schema.json)"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Record environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            printf 'target_sha=%s\n' "$TARGET_SHA"
+            printf 'parent_p1e=%s\n' "$PARENT_P1E"
+            printf 'live_main_basis=%s\n' "$LIVE_MAIN_BASIS"
+            printf 'governing_plan=%s\n' "$GOVERNING_PLAN"
+            printf 'suite=%s\n' "$SUITE"
+            printf 'resolver_blob=%s\n' "$(git hash-object context_packaging/source_resolver.py)"
+            printf 'package_init_blob=%s\n' "$(git hash-object context_packaging/__init__.py)"
+            printf 'contract_note_blob=%s\n' "$(git hash-object docs/design/CONTEXT_PACKAGING_SOURCE_RESOLUTION_P2.md)"
+            printf 'suite_blob=%s\n' "$(git hash-object "$SUITE")"
+            printf 'source_binding_schema_blob=%s\n' "$(git hash-object schemas/context-source-binding.schema.json)"
+            printf 'request_schema_blob=%s\n' "$(git hash-object schemas/context-pack-request.schema.json)"
+            printf 'profile_schema_blob=%s\n' "$(git hash-object schemas/context-profile.schema.json)"
+            printf 'failure_schema_blob=%s\n' "$(git hash-object schemas/context-pack-failure.schema.json)"
+            python --version
+          } > p2-environment.txt
+          cat p2-environment.txt
+
+      - name: Execute P2 conformance suite
+        id: suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v "$SUITE" 2>&1 | tee p2-conformance.log
+
+      - name: Write result metadata
+        if: always()
+        shell: bash
+        env:
+          SUITE_OUTCOME: ${{ steps.suite.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "contract": "reasoning-distiller-p2-conformance-execution-evidence/1",
+              "candidate_commit": os.environ["TARGET_SHA"],
+              "parent_p1e_candidate": os.environ["PARENT_P1E"],
+              "live_main_basis": os.environ["LIVE_MAIN_BASIS"],
+              "governing_plan_commit": os.environ["GOVERNING_PLAN"],
+              "suite": os.environ["SUITE"],
+              "command": "python -m unittest -v tests/test_context_packaging_source_resolution_p2.py",
+              "outcome": os.environ.get("SUITE_OUTCOME", "unknown"),
+              "p3_started": False,
+              "steward_reconciliation_performed": False,
+          }
+          Path("p2-execution-evidence.json").write_text(
+              json.dumps(evidence, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          print(Path("p2-execution-evidence.json").read_text(encoding="utf-8"), end="")
+          PY
+
+      - name: Upload execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-conformance-0aeaa98f
+          path: |
+            p2-conformance.log
+            p2-environment.txt
+            p2-execution-evidence.json
+          if-no-files-found: error
