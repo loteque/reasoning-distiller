@@ -130,6 +130,14 @@ def discover_reference_keys(schema):
     return found
 
 
+def set_path(item, path, value):
+    node = item
+    parts = path.split(".")
+    for part in parts[:-1]:
+        node = node[part]
+    node[parts[-1]] = value
+
+
 class P1dClosureFreeze(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -144,6 +152,9 @@ class P1dClosureFreeze(unittest.TestCase):
     def valid_doc(self):
         valid, _invalid = self.validator.structural_smoke_documents()
         return deepcopy(valid)
+
+    def validate(self, doc):
+        return self.validator.validate_candidate_document(doc, self.schema_validator)
 
     def test_gate_basis_and_bound_artifacts(self):
         self.assertEqual(self.d["contract"], "reasoning-distiller-pems2-closure-descriptor/1")
@@ -186,19 +197,43 @@ class P1dClosureFreeze(unittest.TestCase):
             if rule["rule"] == "reject":
                 self.assertEqual(rule.get("failure_code"), "UNDEFINED_CLOSURE_RULE")
         self.assertEqual(len(keys), len(set(keys)))
+        self.assertEqual(
+            {rule["rule_id"] for rule in self.d["reference_rules"] if rule["rule"] == "include_transitively"},
+            {
+                "pems2.root.project_id",
+                "pems2.record.provenance.primary",
+                "pems2.record.provenance.corroborating",
+                "pems2.record.provenance.context",
+                "pems2.record.provenance.untyped",
+                "pems2.source_observation.source_id",
+                "pems2.relation.from",
+                "pems2.relation.to",
+                "pems2.relation.provenance.primary",
+                "pems2.relation.provenance.corroborating",
+                "pems2.relation.provenance.context",
+                "pems2.relation.provenance.untyped",
+            },
+        )
 
     def test_validator_grounds_relation_endpoints_and_provenance(self):
         for field in ("from", "to"):
             doc = self.valid_doc()
+            relation = doc["relations"][0]
+            relation[field] = doc["records"][0]["id"]
+            self.validate(doc)
+            doc = self.valid_doc()
             doc["relations"][0][field] = doc["relations"][0]["id"]
             with self.assertRaises(AssertionError):
-                self.validator.validate_candidate_document(doc, self.schema_validator)
+                self.validate(doc)
             self.assertEqual(self.rules[f"pems2.relation.{field}"]["target_namespace"], "record")
 
-        doc = self.valid_doc()
-        doc["relations"][0]["provenance"] = {"untyped": [doc["relations"][0]["id"]]}
-        with self.assertRaises(AssertionError):
-            self.validator.validate_candidate_document(doc, self.schema_validator)
+        for scope in ("record", "relation"):
+            doc = self.valid_doc()
+            target = doc["records"][-1] if scope == "record" else doc["relations"][0]
+            target["provenance"] = {"untyped": [doc["relations"][0]["id"]]}
+            with self.assertRaises(AssertionError):
+                self.validate(doc)
+
         for rid in (
             "pems2.record.provenance.primary",
             "pems2.record.provenance.corroborating",
@@ -216,47 +251,75 @@ class P1dClosureFreeze(unittest.TestCase):
         doc = self.valid_doc()
         doc["project_id"] = doc["relations"][0]["id"]
         with self.assertRaises(AssertionError):
-            self.validator.validate_candidate_document(doc, self.schema_validator)
+            self.validate(doc)
+        self.assertEqual(self.rules["pems2.root.project_id"]["target_namespace"], "record")
         self.assertEqual(self.rules["pems2.root.project_id"]["target_kind"], "project")
 
         doc = self.valid_doc()
         observation = next(r for r in doc["records"] if r["kind"] == "source_observation")
         observation["data"]["source_id"] = doc["relations"][0]["id"]
         with self.assertRaises(AssertionError):
-            self.validator.validate_candidate_document(doc, self.schema_validator)
+            self.validate(doc)
+        self.assertEqual(self.rules["pems2.source_observation.source_id"]["target_namespace"], "record")
         self.assertEqual(self.rules["pems2.source_observation.source_id"]["target_kind"], "source")
 
-    def test_relation_supersession_namespace_is_unestablished_and_rejected(self):
-        for field in ("supersedes", "superseded_by"):
-            doc = self.valid_doc()
-            doc["relations"][0][field] = [doc["records"][0]["id"]]
-            self.validator.validate_candidate_document(doc, self.schema_validator)
-
-            doc = self.valid_doc()
-            doc["relations"][0][field] = [doc["relations"][0]["id"]]
-            self.validator.validate_candidate_document(doc, self.schema_validator)
-
-            rule = self.rules[f"pems2.relation.{field}"]
+    def test_validator_unestablished_namespaces_are_rejected(self):
+        for scope, field in (("record", "supersedes"), ("record", "superseded_by")):
+            for target_namespace in ("record", "relation"):
+                doc = self.valid_doc()
+                target = doc["records"][0]["id"] if target_namespace == "record" else doc["relations"][0]["id"]
+                doc["records"][0][field] = [target]
+                self.validate(doc)
+            rule = self.rules[f"pems2.{scope}.{field}"]
             self.assertEqual(rule["rule"], "reject")
-            self.assertEqual(rule["failure_code"], "UNDEFINED_CLOSURE_RULE")
             self.assertNotIn("target_namespace", rule)
 
+        for field in ("supersedes", "superseded_by"):
+            for target_namespace in ("record", "relation"):
+                doc = self.valid_doc()
+                target = doc["records"][0]["id"] if target_namespace == "record" else doc["relations"][0]["id"]
+                doc["relations"][0][field] = [target]
+                self.validate(doc)
+            rule = self.rules[f"pems2.relation.{field}"]
+            self.assertEqual(rule["rule"], "reject")
+            self.assertNotIn("target_namespace", rule)
+
+        probes = [
+            ("pems2.chat.project_id", "chat", "data.project_id", "scalar", {"project_id": "pems:project:p", "title": "Probe", "summary": "Probe", "started_at": "2026-08-15T00:00:00Z"}),
+            ("pems2.chat.active_role_id", "chat", "data.active_role_id", "scalar", {"project_id": "pems:project:p", "title": "Probe", "summary": "Probe", "started_at": "2026-08-15T00:00:00Z", "active_role_id": "pems:project:p"}),
+            ("pems2.role.directive_source_id", "role", "data.directive_source_id", "scalar", {"name": "Probe", "responsibility": "Probe", "directive_source_id": "pems:project:p"}),
+            ("pems2.database_column.table_id", "database_column", "data.table_id", "scalar", {"table_id": "pems:project:p", "name": "c", "data_type": "text", "nullable": False}),
+            ("pems2.pull_request.head_branch_id", "pull_request", "data.head_branch_id", "scalar", {"repository": "o/r", "number": "1", "title": "Probe", "pull_request_state": "open", "head_branch_id": "pems:project:p"}),
+            ("pems2.validation.target_id", "validation", "data.target_id", "scalar", {"summary": "Probe", "validation_state": "planned", "target_id": "pems:project:p"}),
+            ("pems2.continuation.chat_id", "continuation", "data.chat_id", "scalar", {"chat_id": "pems:project:p", "active_role_id": "pems:project:p", "current_focus": "Probe", "blocker_ids": [], "pending_owner_decision_ids": [], "high_value_record_ids": []}),
+            ("pems2.continuation.active_role_id", "continuation", "data.active_role_id", "scalar", {"chat_id": "pems:project:p", "active_role_id": "pems:project:p", "current_focus": "Probe", "blocker_ids": [], "pending_owner_decision_ids": [], "high_value_record_ids": []}),
+            ("pems2.continuation.blocker_ids", "continuation", "data.blocker_ids", "array", {"chat_id": "pems:project:p", "active_role_id": "pems:project:p", "current_focus": "Probe", "blocker_ids": [], "pending_owner_decision_ids": [], "high_value_record_ids": []}),
+            ("pems2.continuation.pending_owner_decision_ids", "continuation", "data.pending_owner_decision_ids", "array", {"chat_id": "pems:project:p", "active_role_id": "pems:project:p", "current_focus": "Probe", "blocker_ids": [], "pending_owner_decision_ids": [], "high_value_record_ids": []}),
+            ("pems2.continuation.high_value_record_ids", "continuation", "data.high_value_record_ids", "array", {"chat_id": "pems:project:p", "active_role_id": "pems:project:p", "current_focus": "Probe", "blocker_ids": [], "pending_owner_decision_ids": [], "high_value_record_ids": []}),
+            ("pems2.proposition.about_ids", "proposition", "data.about_ids", "array", {"statement": "Probe", "proposition_kind": "claim", "epistemic_role": "asserted", "about_ids": []}),
+        ]
+        for index, (rule_id, kind, path, shape, base_data) in enumerate(probes):
+            for target_namespace in ("record", "relation"):
+                doc = self.valid_doc()
+                target = doc["records"][0]["id"] if target_namespace == "record" else doc["relations"][0]["id"]
+                record = {"id": f"pems:{kind}:namespace-probe-{index}", "kind": kind, "lifecycle": "current", "data": deepcopy(base_data)}
+                set_path(record, path, [target] if shape == "array" else target)
+                doc["records"].append(record)
+                self.validate(doc)
+            rule = self.rules[rule_id]
+            self.assertEqual(rule["rule"], "reject", rule_id)
+            self.assertEqual(rule["failure_code"], "UNDEFINED_CLOSURE_RULE", rule_id)
+            self.assertNotIn("target_namespace", rule, rule_id)
+
     def test_negative_fixtures_and_fail_closed_behavior(self):
-        for case_id in (
-            "relation-supersedes-namespace-undefined",
-            "relation-superseded-by-namespace-undefined",
-        ):
-            case = next(c for c in self.f["cases"] if c["id"] == case_id)
+        for case in self.f["cases"]:
+            if case.get("expected_failure") != "UNDEFINED_CLOSURE_RULE" or "path" not in case:
+                continue
             self.assertEqual(
                 classify(self.d, case["scope"], case["path"], case.get("record_kind")),
                 (case["expected_rule"], case["expected_failure"]),
+                case["id"],
             )
-
-        unknown = next(c for c in self.f["cases"] if c["id"] == "undefined-future-record-reference")
-        self.assertEqual(
-            classify(self.d, unknown["scope"], unknown["path"], unknown["record_kind"]),
-            ("reject", "UNDEFINED_CLOSURE_RULE"),
-        )
 
         omission = next(c for c in self.f["cases"] if c["id"] == "supported-rule-omission-is-undefined")
         altered = deepcopy(self.d)
@@ -269,9 +332,9 @@ class P1dClosureFreeze(unittest.TestCase):
             ("reject", "UNDEFINED_CLOSURE_RULE"),
         )
 
-    def test_known_internal_external_and_missing_target_contracts(self):
+    def test_grounded_internal_external_and_missing_target_contracts(self):
         self.assertEqual(
-            classify(self.d, "record", "data.about_ids", "proposition")[0],
+            classify(self.d, "record", "data.source_id", "source_observation")[0],
             "include_transitively",
         )
         self.assertEqual(
@@ -280,7 +343,7 @@ class P1dClosureFreeze(unittest.TestCase):
         )
         self.assertEqual(self.d["traversal"]["external_resolution"], "forbidden_by_closure")
 
-        missing = next(c for c in self.f["cases"] if c["id"] == "missing-internal-validation-target")
+        missing = next(c for c in self.f["cases"] if c["id"] == "missing-internal-source-target")
         self.assertEqual(
             classify(self.d, missing["scope"], missing["path"], missing["record_kind"])[0],
             "include_transitively",
