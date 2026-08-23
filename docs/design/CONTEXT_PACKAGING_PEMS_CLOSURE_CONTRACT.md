@@ -57,11 +57,9 @@ P1d does not rewrite it.
 Every reference recognized by this descriptor has exactly one closure outcome:
 
 1. `include_transitively`
-   - the value is an internal PEMS graph reference;
-   - every referenced record/relation must already exist in the bound canonical
-     snapshot;
-   - the referenced item enters the projection and is itself processed under
-     this descriptor;
+   - the field has a defined internal PEMS graph target namespace;
+   - every referenced target is required in the projection and is processed
+     recursively under this descriptor;
    - missing required targets fail closed.
 
 2. `preserve_external_reference`
@@ -71,13 +69,17 @@ Every reference recognized by this descriptor has exactly one closure outcome:
      it, or convert it into another context-pack source.
 
 3. `reject`
-   - the field is reference-bearing but this descriptor version does not define
-     its semantics;
-   - the builder fails with `UNDEFINED_CLOSURE_RULE` before producing a
+   - the field is reference-bearing but this descriptor version cannot ground a
+     deterministic supported reference meaning from the bound contract;
+   - the builder fails with the rule's stable failure code before producing a
      projection.
 
 There is no "ignore", "best effort", "model decides", "copy and hope", or
 implicit fourth outcome.
+
+A field may be explicitly present in the exhaustive descriptor and still be
+`reject`. Exhaustive enumeration does not authorize P1d to invent a namespace
+that the bound PEMS/2 contract does not establish.
 
 Absent optional fields contribute no edge. `null` contributes no edge only where
 the exact bound PEMS/2 schema permits `null`.
@@ -95,7 +97,8 @@ coverage auditable.
 
 ## 4. Internal PEMS graph references
 
-The descriptor marks these classes `include_transitively`.
+The descriptor marks the following supported reference classes
+`include_transitively`.
 
 ### Document and common record references
 
@@ -104,8 +107,13 @@ The descriptor marks these classes `include_transitively`.
 - record `supersedes[]` -> records;
 - record `superseded_by[]` -> records;
 - record provenance `primary[]`, `corroborating[]`, `context[]`, and `untyped[]`
-  -> records; the existing validator requires those targets to be
+  -> records; the existing PEMS validator requires those targets to be
   `source_observation`.
+
+Record supersession traversal is directional exactly as stored. If an included
+record contains either record supersession field, that explicit reference is
+followed. P1d does not infer additional record supersession from time, lifecycle,
+or inverse lookup.
 
 ### Kind-specific record references
 
@@ -128,20 +136,51 @@ Except for target-kind requirements already enforced by the bound PEMS
 validator, P1d does not add new target-kind validation. It freezes reachability,
 not a new PEMS ontology.
 
-### Relation references
+### Relation references with grounded namespaces
 
 - `relation.from` -> record;
 - `relation.to` -> record;
 - relation provenance `primary[]`, `corroborating[]`, `context[]`, and
-  `untyped[]` -> `source_observation` records under the existing validator;
-- relation `supersedes[]` -> relations;
-- relation `superseded_by[]` -> relations.
+  `untyped[]` -> `source_observation` records under the existing validator.
 
-Supersession traversal is directional exactly as stored. If an included object
-contains either field, that explicit reference is followed. P1d does not infer
-additional supersession from time, lifecycle, or inverse lookup.
+The exact bound semantic validator rejects relation identities used as
+`relation.from`/`relation.to`, and rejects non-`source_observation` identities in
+relation provenance. The P1d conformance suite probes those behaviors rather
+than accepting the descriptor's own namespace labels as its oracle.
 
-## 5. External references remain inert PEMS data
+## 5. Relation supersession is exhaustively enumerated and rejected
+
+The bound JSON Schema exposes both:
+
+- `relation.supersedes[]`;
+- `relation.superseded_by[]`.
+
+Both are structurally `idArray` fields, so omitting them would violate the P1d
+exhaustiveness requirement. But the exact bound schema does not distinguish
+record IDs from relation IDs for either field, and the exact bound semantic
+validator does not resolve or validate either relation-supersession field.
+
+The conformance suite demonstrates that otherwise-valid PEMS/2 documents remain
+accepted by the bound validator when either relation-supersession field contains
+a record ID and also when it contains a relation ID. That observation does not
+prove that both meanings are allowed. It proves that this P1d evidence set does
+not establish a unique target namespace.
+
+Accordingly descriptor version 1 assigns both fields the explicit rule:
+
+```text
+reject -> UNDEFINED_CLOSURE_RULE
+```
+
+No `target_namespace` is attached to either rule. P1d therefore makes no
+relation-supersession namespace claim, performs no traversal through those
+fields, and does not reinterpret them as external references. A future supported
+meaning requires separately grounded PEMS semantics and a reviewed compatible
+descriptor revision or new descriptor version.
+
+This is fail-closed behavior, not an omitted rule.
+
+## 6. External references remain inert PEMS data
 
 The descriptor explicitly marks known non-graph identifiers and locators
 `preserve_external_reference`, including repository identities, paths and safe
@@ -155,10 +194,10 @@ containing record survives. They do **not** authorize the closure stage to read
 another file, query GitHub, resolve a secret, accept an owner instruction,
 establish authority, or introduce another pack source.
 
-This is intentionally conservative: graph closure follows PEMS graph identity,
-while external locators remain provenance/content.
+Graph closure follows defined PEMS graph identities. External locators remain
+provenance/content and never enter the closure work queue.
 
-## 6. Derived propositions require one explicit inverse structural rule
+## 7. Derived propositions require one explicit inverse structural rule
 
 The package-owned PEMS semantic validator requires every included derived
 proposition to have `derived_from` premise structure. That requirement cannot be
@@ -190,7 +229,7 @@ include every `supports`, `references`, `contradicts`, `depends_on`, or other
 incident relation. Such eager reverse traversal would broaden selection beyond
 the minimum graph required by the frozen semantics.
 
-## 7. Traversal and fixed-point semantics
+## 8. Traversal and fixed-point semantics
 
 Closure begins only from exact request-selected record IDs and relation IDs.
 There is no fuzzy lookup or relevance substitution.
@@ -200,6 +239,9 @@ The closure result is the least fixed point of:
 - the exact seeds;
 - all `include_transitively` rules encountered on included objects; and
 - the derived-proposition structural rule above.
+
+An encountered explicit `reject` rule terminates the build with its stable
+failure rather than adding an edge.
 
 Traversal order may differ internally, but the set result must not. A visited
 identity is the pair `(namespace, id)`, where namespace is `record` or
@@ -213,7 +255,7 @@ does not write those causes into PEMS provenance.
 
 External references never enter the work queue.
 
-## 8. Failure semantics
+## 9. Failure semantics
 
 The following failures are frozen for P1d:
 
@@ -223,6 +265,9 @@ The following failures are frozen for P1d:
   `SELECTED_SEMANTIC_ID_MISSING`;
 - encountered reference semantics without an exact P1d rule:
   `UNDEFINED_CLOSURE_RULE`;
+- encountered relation `supersedes[]` or `superseded_by[]`, whose target
+  namespace is not established by the bound PEMS/2 contract:
+  `UNDEFINED_CLOSURE_RULE`;
 - required derived-premise structure absent or the closed document violates
   bound PEMS semantic invariants:
   `PEMS_SEMANTIC_INVALID`;
@@ -231,7 +276,7 @@ The following failures are frozen for P1d:
 
 The closure algorithm never truncates to satisfy a limit.
 
-## 9. Post-closure validity
+## 10. Post-closure validity
 
 A future P3 projection implementation must validate the complete selected PEMS
 document under both the exact package-owned PEMS/2 JSON Schema and semantic
@@ -242,15 +287,28 @@ them, rewrite proposition text, manufacture relations, infer supersession,
 change lifecycle state, reclassify provenance, mutate canonical state, or admit
 new knowledge.
 
-## 10. Conformance requirements for this freeze
+## 11. Independent conformance requirements for this freeze
 
 `tests/test_context_packaging_pems_closure_p1d.py` mechanically checks that:
 
 - the bound PEMS schema and validator Git-blob identities have not drifted;
 - every frozen descriptor rule has one of the three allowed outcomes;
-- the complete expected internal and preserved-external rule inventory is
-  present with no duplicates;
+- the exact bound schema is walked independently of descriptor rule IDs:
+  - the record `allOf` dispatch table derives kind-specific data schemas;
+  - nested object references such as provenance, identity locators, and evidence
+    locators are traversed;
+  - ID-array, `_id`/`_ids`, structural endpoint, and locator/identity-shaped
+    scalar leaves are discovered from the schema;
+  - the resulting field keys must equal the descriptor field keys exactly;
 - `record.id` and `relation.id` are definitions, not closure references;
+- executable probes against the exact bound semantic validator independently
+  establish its record-endpoint, provenance, root-project, and source-kind
+  constraints;
+- executable probes demonstrate that the bound validator accepts both record-ID
+  and relation-ID values in relation supersession fields, so P1d must not claim
+  a target namespace for them;
+- both relation supersession fields are explicit `reject` rules with
+  `UNDEFINED_CLOSURE_RULE` and no `target_namespace`;
 - P0 closure pressure cases PC-09 through PC-12, PC-19, PC-20, plus PC-36 and
   PC-38 remain represented by the frozen pressure suite;
 - removing a required rule converts a supported reference into
@@ -260,6 +318,10 @@ new knowledge.
 - external locators are preserved but never traversed;
 - derived propositions have the one explicitly allowed inverse structural rule;
 - the P1c identity-only closure fixture remains out of P1d semantics.
+
+The conformance suite does not treat a hand-written list of descriptor rule IDs
+as proof of exhaustiveness. Descriptor coverage and namespace claims must be
+challenged from the independently inspected bound schema/validator behavior.
 
 Passing this suite is evidence only for the P1d contract freeze. It is not
 evidence that a P2 resolver, P3 projection implementation, P4 COVE adapter, P1e
