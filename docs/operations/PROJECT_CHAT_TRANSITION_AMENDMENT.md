@@ -1,6 +1,6 @@
 # Project Chat-Transition Amendment
 
-Status: **Normative v2 amendment**
+Status: **Normative v3 amendment**
 
 Amends:
 
@@ -8,11 +8,11 @@ Amends:
 
 Contract:
 
-- `reasoning-distiller-project-chat-transition/2`
+- `reasoning-distiller-project-chat-transition/3`
 
 Supersedes:
 
-- the prior v1 chat-transition contract.
+- `reasoning-distiller-project-chat-transition/2`.
 
 ## Purpose
 
@@ -23,8 +23,37 @@ The governing rules are:
 > **When the current role reaches a meaningful chat boundary, tell the user before silently continuing across it.**
 >
 > **Within the current bounded work unit, emit required bounded handoffs proactively. When that work unit reaches its defined completion condition, emit terminal status or handoff and stop before beginning another work unit.**
+>
+> **Resolve interactive coordination controls from the live coordination control ref independently of immutable semantic candidates or task branches.**
 
 The reminder and stop behavior exists to preserve semantic role separation, useful context isolation, and explicit scope boundaries. It is coordination behavior only.
+
+## Interactive coordination control plane
+
+Interactive coordination policy and semantic implementation evidence are distinct revision domains.
+
+Unless a task-specific governing repository contract explicitly designates another coordination control ref, the coordination control ref is the repository's live `main` branch.
+
+Before consequential interactive repository work, and again at each new role activation or bounded-work-unit activation, the active role MUST:
+
+1. resolve the exact current coordination control ref and record it as `coordination_revision`;
+2. read its current role directive and this amendment from that exact coordination revision;
+3. resolve semantic candidates, evidence refs, implementation branches, review inputs, and reconciliation inputs independently; and
+4. preserve both identities when the coordination revision differs from the semantic or candidate revision.
+
+A role MUST NOT use a candidate, evidence, or work-branch copy of a role directive or this amendment as the interactive coordination control merely because that ref is the semantic basis of the task.
+
+A later coordination revision may govern how an interactive role coordinates work around an older immutable candidate without modifying that candidate. Coordination policy does not become candidate evidence merely because it governs the surrounding workflow.
+
+If the coordination control ref cannot be resolved, or the task requires a different control ref but that ref cannot be established from governing evidence, the coordination revision is unknown and consequential continuation MUST stop or narrow rather than silently falling back to a candidate/work ref.
+
+This separation MUST NOT:
+
+- mutate immutable candidate bytes;
+- rewrite or broaden a fixed production evidence set;
+- change semantic identity or canonical standing;
+- manufacture role authority, authorization, or accepted activation evidence; or
+- cause a candidate to be treated as if it were rebased onto the coordination revision.
 
 ## Bounded work unit
 
@@ -98,9 +127,11 @@ When a meaningful chat boundary is reached inside the current bounded work unit,
 1. explicitly state that a chat boundary has been reached;
 2. identify why continuing in the same chat would weaken role separation, independence, or evidence boundaries;
 3. identify the current bounded work unit and whether the boundary is internal or terminal;
-4. recommend the appropriate next role;
-5. recommend a fresh chat or, when stronger independence is required, an isolated Project workspace/context;
-6. provide a compact bounded handoff suitable for starting that activation.
+4. identify the exact `coordination_revision` governing the interactive role;
+5. identify the semantic/candidate/evidence revision separately when distinct;
+6. recommend the appropriate next role;
+7. recommend a fresh chat or, when stronger independence is required, an isolated Project workspace/context;
+8. provide a compact bounded handoff suitable for starting that activation.
 
 A reminder SHOULD occur at the transition point, not repeatedly throughout ordinary same-role work.
 
@@ -108,7 +139,9 @@ A reminder SHOULD occur at the transition point, not repeatedly throughout ordin
 
 The handoff SHOULD include, when applicable:
 
-- repository and resolved revision;
+- repository;
+- exact `coordination_revision` and coordination control ref;
+- semantic, candidate, evidence, implementation, or reconciliation revision when distinct;
 - current bounded work unit;
 - whether the handoff is internal or terminal;
 - exact problem and constraints;
@@ -134,7 +167,7 @@ The current role directives define their local reminder behavior:
 - `agents/steward/DIRECTIVE.md`;
 - `agents/distiller/DIRECTIVE.md`.
 
-Those directives operate under this amendment's bounded-work-unit continuation and terminal-stop rules when used interactively in a Project workspace.
+Those directives operate under this amendment's coordination-revision, bounded-work-unit continuation, and terminal-stop rules when used interactively in a Project workspace.
 
 A role transition must not silently broaden the outgoing or incoming role's authority or the selected work-unit scope.
 
@@ -142,7 +175,7 @@ A role transition must not silently broaden the outgoing or incoming role's auth
 
 The production Distiller boundary remains controlled by `docs/operations/PRODUCTION_INVOCATION_CONTRACT.md`.
 
-Chat-transition reminders and bounded-work-unit coordination MUST NOT:
+Chat-transition reminders, coordination-revision selection, and bounded-work-unit coordination MUST NOT:
 
 - enter the fixed production evidence set merely because they exist in Project context;
 - be inserted into the prepared production activation bundle unless independently authorized as explicit evidence by the governing process;
@@ -151,11 +184,11 @@ Chat-transition reminders and bounded-work-unit coordination MUST NOT:
 - cause the model-side production activation to search for or infer additional project context;
 - broaden or sequence production work beyond the explicit invocation contract.
 
-For production `rd-distill`, any chat-transition reminder or work-unit stop/continuation decision belongs to the surrounding interactive coordination layer before or after the model activation.
+For production `rd-distill`, any chat-transition reminder, coordination-revision selection, or work-unit stop/continuation decision belongs to the surrounding interactive coordination layer before or after the model activation.
 
 ## Relationship to role activation
 
-A chat-transition reminder, bounded work-unit label, chat title, handoff, fresh chat, isolated Project, or role label is not proof of registered role identity, role authorization, or accepted RIL activation.
+A chat-transition reminder, coordination revision, bounded work-unit label, chat title, handoff, fresh chat, isolated Project, or role label is not proof of registered role identity, role authorization, or accepted RIL activation.
 
 Where governed role authority is required, the applicable repository role, authorization, and activation contracts remain controlling.
 
@@ -165,15 +198,17 @@ A bounded work unit limits coordination scope; it does not grant authority to pe
 
 A Project-hosted workflow conforms to this amendment when:
 
-1. the current bounded work unit is established from explicit governing or task evidence rather than naming inference;
-2. meaningful cross-role, review, remediation, evidence, execution, or independence boundaries inside that unit cause proactive user-facing bounded handoffs;
-3. the user does not need to separately request each required internal handoff;
-4. same-role ordinary continuation does not produce noisy or unnecessary chat-change prompts;
-5. each handoff identifies the current work unit, boundary type, next role/context, and exact next action when applicable;
-6. internal handoffs do not silently expand the selected work-unit scope;
-7. terminal completion or block produces a terminal status or handoff and a stop before any successor work unit begins;
-8. completion of one work unit is not treated as selection or authorization of the next;
-9. reminders and work-unit labels do not manufacture authority or activation evidence;
-10. independent review receives stronger context isolation when required;
-11. production Distiller candidate bytes and structured output remain free of chat-navigation prose;
-12. production Distiller evidence remains fixed by its governing invocation contract.
+1. interactive coordination controls are resolved from the exact live coordination control ref independently of semantic/candidate refs;
+2. candidate/work-branch copies of role directives are not silently substituted for the live coordination controls;
+3. the current bounded work unit is established from explicit governing or task evidence rather than naming inference;
+4. meaningful cross-role, review, remediation, evidence, execution, or independence boundaries inside that unit cause proactive user-facing bounded handoffs;
+5. the user does not need to separately request each required internal handoff;
+6. same-role ordinary continuation does not produce noisy or unnecessary chat-change prompts;
+7. each consequential handoff identifies the coordination revision, distinct semantic/candidate revision when applicable, current work unit, boundary type, next role/context, and exact next action when applicable;
+8. internal handoffs do not silently expand the selected work-unit scope;
+9. terminal completion or block produces a terminal status or handoff and a stop before any successor work unit begins;
+10. completion of one work unit is not treated as selection or authorization of the next;
+11. reminders, coordination refs, and work-unit labels do not manufacture authority or activation evidence;
+12. independent review receives stronger context isolation when required;
+13. production Distiller candidate bytes and structured output remain free of chat-navigation prose;
+14. production Distiller evidence remains fixed by its governing invocation contract.
