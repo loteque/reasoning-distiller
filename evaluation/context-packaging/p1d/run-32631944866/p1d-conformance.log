@@ -1,0 +1,16 @@
+test_gate_basis_and_bound_artifacts (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_gate_basis_and_bound_artifacts) ... ok
+test_grounded_internal_external_and_missing_target_contracts (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_grounded_internal_external_and_missing_target_contracts) ... ok
+test_negative_fixtures_and_fail_closed_behavior (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_negative_fixtures_and_fail_closed_behavior) ... ok
+test_p0_pressure_cases_remain_frozen (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_p0_pressure_cases_remain_frozen) ... ok
+test_p1c_is_unchanged_and_later_gates_are_excluded (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_p1c_is_unchanged_and_later_gates_are_excluded) ... ok
+test_rule_vocabulary_and_namespace_shape_are_closed (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_rule_vocabulary_and_namespace_shape_are_closed) ... ok
+test_schema_discovery_is_independent_and_exhaustive (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_schema_discovery_is_independent_and_exhaustive) ... ok
+test_structural_rule_and_traversal_are_bounded (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_structural_rule_and_traversal_are_bounded) ... ok
+test_validator_grounds_relation_endpoints_and_provenance (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_validator_grounds_relation_endpoints_and_provenance) ... ok
+test_validator_grounds_root_and_source_constraints (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_validator_grounds_root_and_source_constraints) ... ok
+test_validator_unestablished_namespaces_are_rejected (tests.test_context_packaging_pems_closure_p1d.P1dClosureFreeze.test_validator_unestablished_namespaces_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.144s
+
+OK
