@@ -6,6 +6,11 @@ on:
       - evidence/p1d-945ff72c-conformance
     paths:
       - .github/workflows/p1d-conformance-evidence.yml
+  pull_request:
+    branches:
+      - evidence/p1d-945ff72c-base
+    paths:
+      - .github/workflows/p1d-conformance-evidence.yml
 
 permissions:
   contents: read
