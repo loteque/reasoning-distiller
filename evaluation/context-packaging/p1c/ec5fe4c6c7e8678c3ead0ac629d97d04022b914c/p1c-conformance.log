@@ -1,0 +1,23 @@
+test_array_order_is_canonical (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_array_order_is_canonical) ... ok
+test_base64 (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_base64) ... ok
+test_domain_vectors (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_domain_vectors) ... ok
+test_frozen_pack_vector (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_frozen_pack_vector) ... ok
+test_p1b_identity_shape_is_not_reinterpreted (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_p1b_identity_shape_is_not_reinterpreted) ... ok
+test_pack_identity_preimage_is_non_circular (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_pack_identity_preimage_is_non_circular) ... ok
+test_payload_and_manifest_domains_are_separate (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_payload_and_manifest_domains_are_separate) ... ok
+test_raw_and_canonical_profile_request_identities (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_raw_and_canonical_profile_request_identities) ... ok
+test_raw_bytes_distinguish_newlines (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_raw_bytes_distinguish_newlines) ... ok
+test_raw_object_mismatch_fails_before_identity (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_raw_object_mismatch_fails_before_identity) ... ok
+test_raw_profile_request_bytes_are_the_validated_objects (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_raw_profile_request_bytes_are_the_validated_objects) ... ok
+test_rfc8785_rejects_nonfinite_and_lone_surrogate (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_rfc8785_rejects_nonfinite_and_lone_surrogate) ... ok
+test_rfc8785_vectors (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_rfc8785_vectors) ... ok
+test_scope_and_p1b_basis (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_scope_and_p1b_basis) ... ok
+test_standing_evidence_normalizes_p1a_hex_before_set_canonicalization (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_standing_evidence_normalizes_p1a_hex_before_set_canonicalization) ... ok
+test_toolchain_change_is_visible (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_toolchain_change_is_visible) ... ok
+test_toolchain_components_bind_exact_behavior_artifacts (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_toolchain_components_bind_exact_behavior_artifacts) ... ok
+test_toolchain_exact_roles_and_cove_requirement (tests.test_context_packaging_bytes_digests_toolchain_p1c.P1c.test_toolchain_exact_roles_and_cove_requirement) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.065s
+
+OK
