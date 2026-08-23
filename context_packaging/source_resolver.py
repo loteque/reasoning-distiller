@@ -117,12 +117,14 @@ def resolve_sources(
     if failure:
         return SourceResolutionResult(failure=failure)
 
-    # Exact duplicate bindings are one immutable source acquisition. They still
-    # count toward max_bindings because that limit applies to request bindings.
+    # Semantically equivalent complete bindings are one immutable source
+    # acquisition. Snapshot-reference equality alone is insufficient because a
+    # canonical binding can carry consistency semantics outside its P1a
+    # immutable fingerprint (currently repository_relationship).
     unique: list[Mapping[str, Any]] = []
     seen: set[tuple[Any, ...]] = set()
     for binding in bindings:
-        key = _snapshot_key(binding)
+        key = _complete_binding_key(binding)
         if key not in seen:
             seen.add(key)
             unique.append(binding)
@@ -300,6 +302,7 @@ def _validate_binding_set(
 ) -> Mapping[str, Any] | None:
     by_key: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
     canonical_by_address: dict[tuple[Any, ...], tuple[Any, ...]] = {}
+    complete_by_snapshot: dict[tuple[Any, ...], Mapping[str, Any]] = {}
 
     for binding in bindings:
         code = _validate_binding(binding)
@@ -307,6 +310,15 @@ def _validate_binding_set(
             return _failure(code, binding)
         key = _logical_key(binding)
         by_key.setdefault(key, []).append(binding)
+
+        snapshot_key = _snapshot_key(binding)
+        prior_complete = complete_by_snapshot.setdefault(snapshot_key, binding)
+        if prior_complete is not binding and not _same_binding(prior_complete, binding):
+            return _failure(
+                "CROSS_SOURCE_CONSISTENCY_UNPROVEN",
+                binding,
+                ("non-equivalent complete bindings share one snapshot reference",),
+            )
 
         if binding["source_class"] == "canonical_state":
             address = _canonical_address(binding)
@@ -709,11 +721,24 @@ def _find_binding(
     except (KeyError, TypeError):
         return None
     matches = [item for item in bindings if _snapshot_key(item) == wanted]
-    return matches[0] if matches else None
+    if not matches:
+        return None
+    if any(not _same_binding(matches[0], item) for item in matches[1:]):
+        return None
+    return matches[0]
 
 
 def _snapshot_key(binding: Mapping[str, Any]) -> tuple[Any, ...]:
     return (_source_ref_tuple(binding), _fingerprint(binding))
+
+
+def _complete_binding_key(binding: Mapping[str, Any]) -> tuple[Any, ...]:
+    relation = None
+    if binding.get("source_class") == "canonical_state":
+        item = binding.get("repository_relationship")
+        if isinstance(item, Mapping):
+            relation = (item.get("repository"), _lower_hex(item.get("commit")))
+    return (_snapshot_key(binding), relation)
 
 
 def _logical_key(binding: Mapping[str, Any]) -> tuple[str, str]:
