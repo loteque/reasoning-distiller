@@ -217,10 +217,7 @@ class P1dClosureFreeze(unittest.TestCase):
 
     def test_validator_grounds_relation_endpoints_and_provenance(self):
         for field in ("from", "to"):
-            doc = self.valid_doc()
-            relation = doc["relations"][0]
-            relation[field] = doc["records"][0]["id"]
-            self.validate(doc)
+            self.validate(self.valid_doc())
             doc = self.valid_doc()
             doc["relations"][0][field] = doc["relations"][0]["id"]
             with self.assertRaises(AssertionError):
