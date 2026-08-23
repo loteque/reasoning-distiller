@@ -1,0 +1,152 @@
+name: P3 Projection Conformance Evidence
+
+on:
+  push:
+    branches:
+      - evidence/p3-19795613-conformance
+    paths:
+      - .github/workflows/p3-19795613-conformance-evidence.yml
+  pull_request:
+    branches:
+      - evidence/p3-19795613-base
+    paths:
+      - .github/workflows/p3-19795613-conformance-evidence.yml
+
+permissions:
+  contents: read
+
+jobs:
+  p3-conformance:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: 197956138e6181ed9f9aae1d6a40b9f5084695a8
+      P2_BASE: f8177ce3d4d5b1c7edf7d3c0088db3d658b12072
+      LIVE_MAIN_BASIS: 58b99891e116b5a06dd603810c2b98ea83e328c3
+      GOVERNING_PLAN: 0803bcca5343224d6feefa53c2f1b8baf1d4a8cd
+    steps:
+      - name: Checkout immutable P3 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 197956138e6181ed9f9aae1d6a40b9f5084695a8
+          fetch-depth: 2
+
+      - name: Verify immutable candidate and bound artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(git rev-parse HEAD^)" = "$P2_BASE"
+          test "$(git hash-object context_packaging/pems_projection.py)" = "b984552d9f7da9f5c1001ebabce810fa27cafc4c"
+          test "$(git hash-object tests/test_context_packaging_pems_projection_p3.py)" = "9e13b61d05e1f0a053afc9bcdd1ca82a78732cb6"
+          test "$(git hash-object protocols/rgp/pems2-context-closure-v1.json)" = "43dd9fe88e2953d12ed0630cf6a33e53a0ecf7a3"
+          test "$(git hash-object backends/pems-cove/pems-v2.schema.json)" = "cd7683d704e8aef2842a0c1b25b453fb1dbc8030"
+          test "$(git hash-object backends/pems-cove/validate_pems2_contract.py)" = "d615bf2e95d3721b0ca312075cc0c39522f0a896"
+          test "$(git hash-object context_packaging/source_resolver.py)" = "11da98c213e783ed4c31f88392eb6a5634c9643e"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install conformance dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Execute P3 and inherited conformance
+        id: suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import struct
+          import sys
+          from pathlib import Path
+
+          from context_packaging.pems_projection import _jcs
+
+          support = Path("tests/support").resolve()
+          sys.path.insert(0, str(support))
+          from context_packaging_p1c_reference import jcs_bytes
+
+          fixture = json.loads(Path("tests/fixtures/context-packaging-bytes-digests-toolchain-p1c.json").read_text(encoding="utf-8"))
+          for vector in fixture["jcs_vectors"]:
+              expected = vector["expected"].encode("utf-8")
+              assert _jcs(vector["value"]) == expected
+              assert jcs_bytes(vector["value"]) == expected
+          for vector in fixture["jcs_ieee754_vectors"]:
+              value = struct.unpack(">d", bytes.fromhex(vector["ieee754"]))[0]
+              expected = vector["expected"].encode("ascii")
+              assert _jcs(value) == expected
+              assert jcs_bytes(value) == expected
+          print("P3 JCS parity: PASS")
+          PY
+          python -m unittest -v \
+            tests/test_context_packaging_pems_projection_p3.py \
+            tests/test_context_packaging_pems_closure_p1d.py \
+            tests/test_context_packaging_source_resolution_p2.py \
+            tests/test_context_packaging_source_resolution_p2_regression.py \
+            tests/test_context_packaging_source_identity_p1a.py \
+            2>&1 | tee p3-conformance.log
+
+      - name: Record environment
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            printf 'target_sha=%s\n' "$TARGET_SHA"
+            printf 'p2_base=%s\n' "$P2_BASE"
+            printf 'live_main_basis=%s\n' "$LIVE_MAIN_BASIS"
+            printf 'governing_plan=%s\n' "$GOVERNING_PLAN"
+            printf 'projector_blob=%s\n' "$(git hash-object context_packaging/pems_projection.py)"
+            printf 'p3_suite_blob=%s\n' "$(git hash-object tests/test_context_packaging_pems_projection_p3.py)"
+            printf 'descriptor_blob=%s\n' "$(git hash-object protocols/rgp/pems2-context-closure-v1.json)"
+            printf 'pems_schema_blob=%s\n' "$(git hash-object backends/pems-cove/pems-v2.schema.json)"
+            printf 'pems_validator_blob=%s\n' "$(git hash-object backends/pems-cove/validate_pems2_contract.py)"
+            python --version
+            python -m pip show jsonschema referencing
+            grep -E '^Ran [0-9]+ tests' p3-conformance.log || true
+          } > p3-environment.txt
+          cat p3-environment.txt
+
+      - name: Write candidate-bound result metadata
+        if: always()
+        shell: bash
+        env:
+          SUITE_OUTCOME: ${{ steps.suite.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "contract": "reasoning-distiller-p3-conformance-execution-evidence/1",
+              "candidate_commit": os.environ["TARGET_SHA"],
+              "p2_semantic_base": os.environ["P2_BASE"],
+              "live_main_basis": os.environ["LIVE_MAIN_BASIS"],
+              "governing_plan_commit": os.environ["GOVERNING_PLAN"],
+              "command": "python -m unittest -v tests/test_context_packaging_pems_projection_p3.py tests/test_context_packaging_pems_closure_p1d.py tests/test_context_packaging_source_resolution_p2.py tests/test_context_packaging_source_resolution_p2_regression.py tests/test_context_packaging_source_identity_p1a.py",
+              "jcs_parity_checked": True,
+              "outcome": os.environ.get("SUITE_OUTCOME", "unknown"),
+              "independent_review_performed": False,
+              "steward_reconciliation_performed": False,
+              "p4_started": False,
+          }
+          Path("p3-execution-evidence.json").write_text(
+              json.dumps(evidence, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          print(Path("p3-execution-evidence.json").read_text(encoding="utf-8"), end="")
+          PY
+
+      - name: Upload execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-conformance-19795613
+          path: |
+            p3-conformance.log
+            p3-environment.txt
+            p3-execution-evidence.json
+          if-no-files-found: error
