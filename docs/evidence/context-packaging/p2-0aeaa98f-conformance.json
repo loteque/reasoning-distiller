@@ -47,12 +47,49 @@
       "sha256": "sha256:509a9d1f921230ac80714c2c5010dca557d43d532bbc814eed0ca4ba4031bb9b"
     }
   },
+  "ambient_ci_observations": {
+    "classification": "NON_P2_CANDIDATE_BOUND_CHECKS",
+    "note": "These workflows ran on the execution-evidence PR/head context. They are recorded for reviewer visibility but are not substituted for the immutable-candidate P2 conformance run.",
+    "extraction_parity": {
+      "run_id": 32644475370,
+      "job_id": 97206495830,
+      "outcome": "FAIL",
+      "failure": "agents/distiller/DIRECTIVE.md expected blob d578841d64da93f0883686eda80f00fde53d5f66 but observed 81291456b127015b813af4eda4046397b4815037",
+      "attribution": "INHERITED_OUTSIDE_P2_DIFF",
+      "basis": "The observed 81291456b127015b813af4eda4046397b4815037 blob is already the live-main 58b99891e116b5a06dd603810c2b98ea83e328c3 directive blob, while the live extraction manifest still expects d578841d64da93f0883686eda80f00fde53d5f66."
+    },
+    "ril_test_suite": {
+      "run_id": 32644475332,
+      "job_id": 97206496015,
+      "python": "3.12.14",
+      "command": "python -m unittest discover -s tests -v",
+      "tests_run": 502,
+      "outcome": "FAIL",
+      "p2_tests": {
+        "tests_run": 19,
+        "outcome": "PASS"
+      },
+      "non_p2_failures": [
+        {
+          "test": "test_context_packaging_protocol_schemas_p1b.P1b.test_negative_fixtures_reject_and_classify_exactly",
+          "detail": "PS-19 expected UNKNOWN_SEMANTICS_FIELD but inherited P1b classifier returned PLANE_CLASSIFICATION_CONFLICT",
+          "attribution": "INHERITED_FROM_P1E_OUTSIDE_P2_DIFF"
+        },
+        {
+          "test": "test_runtime_isolation_p5.RuntimeIsolationP5Tests.test_audit_allows_provenance_only_repository_references",
+          "detail": "Inherited schemas/context-pack.schema.json contains a github.com/loteque/reasoning-distiller PEMS $ref and runtime-isolation audit classified it as a forbidden runtime reference",
+          "attribution": "INHERITED_FROM_P1E_OUTSIDE_P2_DIFF"
+        }
+      ]
+    }
+  },
   "scope": {
     "p3_started": false,
     "later_gate_implementation_started": false,
     "independent_review_performed": false,
     "steward_reconciliation_performed": false,
-    "production_integration_changed": false
+    "production_integration_changed": false,
+    "ambient_ci_failures_repaired": false
   },
   "disposition": {
     "execution": "P2_CONFORMANCE_EXECUTION_PASS",
