@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - evidence/context-packaging-p4-c5e265aa
+  pull_request:
+    branches:
+      - implement/context-packaging-p4
 
 permissions:
   contents: read
