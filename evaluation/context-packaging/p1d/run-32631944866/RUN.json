@@ -1,0 +1,42 @@
+{
+  "contract": "reasoning-distiller-p1d-retained-execution-evidence/1",
+  "candidate_commit": "945ff72ccee87310642ff78c4b4c8e01c46fb551",
+  "live_main_basis": "58b99891e116b5a06dd603810c2b98ea83e328c3",
+  "governing_plan": {
+    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "path": "docs/proposals/context-packaging/FINAL_PLAN.md",
+    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0"
+  },
+  "evidence_transport": {
+    "pull_request": 53,
+    "workflow_head_commit": "20f76f1c0f982f0352ba0a6b14606dfacd01277c",
+    "workflow_run_id": 32631944866,
+    "job_id": 97175954695,
+    "artifact_id": 9491279520,
+    "artifact_name": "p1d-conformance-945ff72c",
+    "artifact_sha256": "8fab5e2d63d8fff36a828176172bcd6f086c773ee51240fbb0bc94ae10a67417"
+  },
+  "suite": {
+    "path": "tests/test_context_packaging_pems_closure_p1d.py",
+    "blob": "cc4cb1cd1554e4a8665d85363fdedcd5eb92334e",
+    "command": "python -m unittest -v tests/test_context_packaging_pems_closure_p1d.py",
+    "tests_run": 11,
+    "outcome": "PASS"
+  },
+  "bound_artifacts": {
+    "descriptor_blob": "43dd9fe88e2953d12ed0630cf6a33e53a0ecf7a3",
+    "fixture_blob": "6862a62b3f8812888fa5501ce2282890e877d725",
+    "pems_schema_blob": "cd7683d704e8aef2842a0c1b25b453fb1dbc8030",
+    "pems_validator_blob": "d615bf2e95d3721b0ca312075cc0c39522f0a896"
+  },
+  "retained_files": {
+    "p1d-conformance.log": "sha256:eec5bc76cb5a74189fac1d4e9dfe6cc6652538d5ca9cfca5fa0472c81e4b92f2",
+    "p1d-environment.txt": "sha256:ce4e1d3bdac3466af5e35f918a4341277f08c90293f326f512715e5dd1419932",
+    "p1d-execution-evidence.json": "sha256:51756e2830c6c5af43c5e2a36bd2a0e290de0451ef8190623c713a020a34917a"
+  },
+  "scope": {
+    "p1d_only": true,
+    "p1e_started": false,
+    "steward_reconciliation_performed": false
+  }
+}
