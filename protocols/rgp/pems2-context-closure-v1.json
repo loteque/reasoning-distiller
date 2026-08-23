@@ -1,0 +1,543 @@
+{
+  "contract": "reasoning-distiller-pems2-closure-descriptor/1",
+  "semantic": "pems/2",
+  "scope": "P1D_CLOSURE_SEMANTICS_ONLY",
+  "governing_plan": {
+    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "path": "docs/proposals/context-packaging/FINAL_PLAN.md",
+    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0"
+  },
+  "p1c_basis": {
+    "candidate_commit": "ec5fe4c6c7e8678c3ead0ac629d97d04022b914c",
+    "steward_disposition_supplied": "P1C_STEWARD_REMEDIATION_ACCEPTED",
+    "execution_disposition": "P1C_CONFORMANCE_EXECUTION_PASS",
+    "evidence_head": "c1598b04fc1c0734437455fcde53b56f8cd3bed5",
+    "evidence_manifest_blob": "0f50bb7b7e96a13311e86c881cdf74a92df44479"
+  },
+  "pems_basis": {
+    "schema_path": "backends/pems-cove/pems-v2.schema.json",
+    "schema_git_blob_sha1": "cd7683d704e8aef2842a0c1b25b453fb1dbc8030",
+    "validator_path": "backends/pems-cove/validate_pems2_contract.py",
+    "validator_git_blob_sha1": "d615bf2e95d3721b0ca312075cc0c39522f0a896"
+  },
+  "rule_vocabulary": {
+    "include_transitively": "The field is an internal PEMS graph reference. Every referenced target is required in the projection and is processed recursively under this descriptor.",
+    "preserve_external_reference": "The field carries an opaque non-PEMS identity/locator. Copy it unchanged with its containing item; never resolve or traverse it as closure.",
+    "reject": "The reference semantics are unsupported or undefined for this descriptor version; fail closed before emitting a projection."
+  },
+  "identifier_definitions": [
+    {
+      "scope": "record",
+      "path": "id",
+      "namespace": "record"
+    },
+    {
+      "scope": "relation",
+      "path": "id",
+      "namespace": "relation"
+    }
+  ],
+  "reference_rules": [
+    {
+      "rule_id": "pems2.root.project_id",
+      "scope": "root",
+      "path": "project_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "project"
+    },
+    {
+      "rule_id": "pems2.record.supersedes",
+      "scope": "record",
+      "path": "supersedes",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.record.superseded_by",
+      "scope": "record",
+      "path": "superseded_by",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.record.provenance.primary",
+      "scope": "record",
+      "path": "provenance.primary",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "source_observation"
+    },
+    {
+      "rule_id": "pems2.record.provenance.corroborating",
+      "scope": "record",
+      "path": "provenance.corroborating",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "source_observation"
+    },
+    {
+      "rule_id": "pems2.record.provenance.context",
+      "scope": "record",
+      "path": "provenance.context",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "source_observation"
+    },
+    {
+      "rule_id": "pems2.record.provenance.untyped",
+      "scope": "record",
+      "path": "provenance.untyped",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "source_observation"
+    },
+    {
+      "rule_id": "pems2.chat.project_id",
+      "scope": "record",
+      "path": "data.project_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["chat"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.chat.active_role_id",
+      "scope": "record",
+      "path": "data.active_role_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["chat"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.role.directive_source_id",
+      "scope": "record",
+      "path": "data.directive_source_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["role"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.database_column.table_id",
+      "scope": "record",
+      "path": "data.table_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["database_column"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.pull_request.head_branch_id",
+      "scope": "record",
+      "path": "data.head_branch_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["pull_request"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.validation.target_id",
+      "scope": "record",
+      "path": "data.target_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["validation"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.continuation.chat_id",
+      "scope": "record",
+      "path": "data.chat_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["continuation"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.continuation.active_role_id",
+      "scope": "record",
+      "path": "data.active_role_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["continuation"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.continuation.blocker_ids",
+      "scope": "record",
+      "path": "data.blocker_ids",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "record_kinds": ["continuation"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.continuation.pending_owner_decision_ids",
+      "scope": "record",
+      "path": "data.pending_owner_decision_ids",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "record_kinds": ["continuation"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.continuation.high_value_record_ids",
+      "scope": "record",
+      "path": "data.high_value_record_ids",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "record_kinds": ["continuation"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.source_observation.source_id",
+      "scope": "record",
+      "path": "data.source_id",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "record_kinds": ["source_observation"],
+      "target_namespace": "record",
+      "target_kind": "source"
+    },
+    {
+      "rule_id": "pems2.proposition.about_ids",
+      "scope": "record",
+      "path": "data.about_ids",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "record_kinds": ["proposition"],
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.relation.from",
+      "scope": "relation",
+      "path": "from",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.relation.to",
+      "scope": "relation",
+      "path": "to",
+      "value_shape": "scalar",
+      "rule": "include_transitively",
+      "target_namespace": "record"
+    },
+    {
+      "rule_id": "pems2.relation.provenance.primary",
+      "scope": "relation",
+      "path": "provenance.primary",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "source_observation"
+    },
+    {
+      "rule_id": "pems2.relation.provenance.corroborating",
+      "scope": "relation",
+      "path": "provenance.corroborating",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "source_observation"
+    },
+    {
+      "rule_id": "pems2.relation.provenance.context",
+      "scope": "relation",
+      "path": "provenance.context",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "source_observation"
+    },
+    {
+      "rule_id": "pems2.relation.provenance.untyped",
+      "scope": "relation",
+      "path": "provenance.untyped",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "record",
+      "target_kind": "source_observation"
+    },
+    {
+      "rule_id": "pems2.relation.supersedes",
+      "scope": "relation",
+      "path": "supersedes",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "relation"
+    },
+    {
+      "rule_id": "pems2.relation.superseded_by",
+      "scope": "relation",
+      "path": "superseded_by",
+      "value_shape": "array",
+      "rule": "include_transitively",
+      "target_namespace": "relation"
+    },
+    {
+      "rule_id": "pems2.project.repository",
+      "scope": "record",
+      "path": "data.repository",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["project"],
+      "note": "repository identity"
+    },
+    {
+      "rule_id": "pems2.external_file.safe_locator",
+      "scope": "record",
+      "path": "data.safe_locator",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["external_file"],
+      "note": "external file locator"
+    },
+    {
+      "rule_id": "pems2.module.path",
+      "scope": "record",
+      "path": "data.path",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["module"],
+      "note": "repository/module path"
+    },
+    {
+      "rule_id": "pems2.environment_variable.external_ref",
+      "scope": "record",
+      "path": "data.external_ref",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["environment_variable"],
+      "note": "external secret/reference locator"
+    },
+    {
+      "rule_id": "pems2.branch.repository",
+      "scope": "record",
+      "path": "data.repository",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["branch"],
+      "note": "repository identity"
+    },
+    {
+      "rule_id": "pems2.branch.head_commit",
+      "scope": "record",
+      "path": "data.head_commit",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["branch"],
+      "note": "external commit identity"
+    },
+    {
+      "rule_id": "pems2.pull_request.repository",
+      "scope": "record",
+      "path": "data.repository",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["pull_request"],
+      "note": "repository identity"
+    },
+    {
+      "rule_id": "pems2.pull_request.number",
+      "scope": "record",
+      "path": "data.number",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["pull_request"],
+      "note": "external pull-request identity component"
+    },
+    {
+      "rule_id": "pems2.adjustment.authority_target",
+      "scope": "record",
+      "path": "data.authority_target",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["architecture_adjustment", "roadmap_adjustment"],
+      "note": "authority target is opaque PEMS data, not a graph traversal instruction"
+    },
+    {
+      "rule_id": "pems2.source.identity_locator.repository",
+      "scope": "record",
+      "path": "data.identity_locator.repository",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source"],
+      "note": "source locator"
+    },
+    {
+      "rule_id": "pems2.source.identity_locator.path",
+      "scope": "record",
+      "path": "data.identity_locator.path",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source"],
+      "note": "source locator"
+    },
+    {
+      "rule_id": "pems2.source.identity_locator.branch",
+      "scope": "record",
+      "path": "data.identity_locator.branch",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source"],
+      "note": "source locator"
+    },
+    {
+      "rule_id": "pems2.source.identity_locator.owner_instruction_id",
+      "scope": "record",
+      "path": "data.identity_locator.owner_instruction_id",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source"],
+      "note": "external owner-instruction locator"
+    },
+    {
+      "rule_id": "pems2.source.identity_locator.artifact_path",
+      "scope": "record",
+      "path": "data.identity_locator.artifact_path",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source"],
+      "note": "source locator"
+    },
+    {
+      "rule_id": "pems2.source.identity_locator.uri",
+      "scope": "record",
+      "path": "data.identity_locator.uri",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source"],
+      "note": "source locator"
+    },
+    {
+      "rule_id": "pems2.source_observation.evidence_locator.repository",
+      "scope": "record",
+      "path": "data.evidence_locator.repository",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source_observation"],
+      "note": "evidence locator"
+    },
+    {
+      "rule_id": "pems2.source_observation.evidence_locator.commit",
+      "scope": "record",
+      "path": "data.evidence_locator.commit",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source_observation"],
+      "note": "external commit identity"
+    },
+    {
+      "rule_id": "pems2.source_observation.evidence_locator.path",
+      "scope": "record",
+      "path": "data.evidence_locator.path",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source_observation"],
+      "note": "evidence locator"
+    },
+    {
+      "rule_id": "pems2.source_observation.evidence_locator.note_id",
+      "scope": "record",
+      "path": "data.evidence_locator.note_id",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source_observation"],
+      "note": "external note identity"
+    },
+    {
+      "rule_id": "pems2.source_observation.evidence_locator.owner_instruction_id",
+      "scope": "record",
+      "path": "data.evidence_locator.owner_instruction_id",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source_observation"],
+      "note": "external owner-instruction identity"
+    },
+    {
+      "rule_id": "pems2.source_observation.evidence_locator.artifact_path",
+      "scope": "record",
+      "path": "data.evidence_locator.artifact_path",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source_observation"],
+      "note": "evidence locator"
+    },
+    {
+      "rule_id": "pems2.source_observation.evidence_locator.uri",
+      "scope": "record",
+      "path": "data.evidence_locator.uri",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source_observation"],
+      "note": "evidence locator"
+    },
+    {
+      "rule_id": "pems2.source_observation.captured_fingerprint",
+      "scope": "record",
+      "path": "data.captured_fingerprint",
+      "value_shape": "scalar",
+      "rule": "preserve_external_reference",
+      "record_kinds": ["source_observation"],
+      "note": "opaque captured source fingerprint"
+    }
+  ],
+  "structural_rules": [
+    {
+      "rule_id": "pems2.derived_proposition.premise_relations",
+      "trigger": {
+        "scope": "record",
+        "record_kind": "proposition",
+        "path": "data.epistemic_role",
+        "equals": "derived"
+      },
+      "rule": "include_transitively",
+      "relation_match": {
+        "kind": "derived_from",
+        "from": "$trigger_record.id"
+      },
+      "multiplicity": "all_matching_relations",
+      "on_zero_matches": "reject",
+      "note": "Include every canonical derived_from relation whose from equals the included derived proposition ID. Ordinary relation rules then include every premise endpoint and referenced provenance. No other inverse-relation discovery is permitted."
+    }
+  ],
+  "traversal": {
+    "seed": "exact request-selected record_ids and relation_ids only",
+    "visited_identity": "(namespace,id) where namespace is record or relation",
+    "cycles": "terminate by visited identity; do not truncate valid cycles",
+    "multiple_causes": "include an item once while preserving every deterministic inclusion cause in the outer packaging ledger",
+    "missing_internal_target": "reject",
+    "reverse_relation_discovery": "none_except_pems2.derived_proposition.premise_relations",
+    "external_resolution": "forbidden_by_closure",
+    "model_judgment": "forbidden",
+    "limits": "projection limits are enforced by the later projection implementation; exceeding them rejects rather than truncates",
+    "absent_or_null_field": "A field that is absent, or is null where the bound PEMS/2 schema permits null, contributes no reference and no closure edge."
+  },
+  "undefined_reference_policy": "reject",
+  "undefined_reference_failure_code": "UNDEFINED_CLOSURE_RULE",
+  "missing_target_failure_code": "SELECTED_SEMANTIC_ID_MISSING",
+  "post_closure_validation": {
+    "structural_schema_required": true,
+    "semantic_validator_required": true,
+    "mutation_permitted": false
+  },
+  "scope_exclusions": [
+    "No source resolution is implemented.",
+    "No PEMS projection engine is implemented.",
+    "No profile eligibility semantics are added.",
+    "No COVE behavior is added or changed.",
+    "No persistence, rendering, production integration, canonical mutation, reconciliation, admission, authorization, or activation is performed.",
+    "The P1c closure-descriptor identity fixture remains a P1c-only identity artifact and is not rewritten."
+  ]
+}
