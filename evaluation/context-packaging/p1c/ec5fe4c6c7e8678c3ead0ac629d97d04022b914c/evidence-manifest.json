@@ -1,0 +1,45 @@
+{
+  "contract": "reasoning-distiller-p1c-conformance-evidence-manifest/1",
+  "repository": "loteque/reasoning-distiller",
+  "live_main_basis": "58b99891e116b5a06dd603810c2b98ea83e328c3",
+  "candidate_commit": "ec5fe4c6c7e8678c3ead0ac629d97d04022b914c",
+  "steward_disposition_supplied": "P1C_STEWARD_REMEDIATION_ACCEPTED",
+  "operational_role": "engineer",
+  "scope": "P1C_CONFORMANCE_EXECUTION_ONLY",
+  "command": "python -m unittest -v tests/test_context_packaging_bytes_digests_toolchain_p1c.py",
+  "workflow_run_id": 32616647712,
+  "workflow_job_id": 97138370654,
+  "workflow_conclusion": "success",
+  "test_count": 18,
+  "suite_result": "OK",
+  "tested_artifacts": {
+    "tests/test_context_packaging_bytes_digests_toolchain_p1c.py": {
+      "git_blob_sha1": "c014c9ef7d74000e0cfddb11fecf9f9e9b4d3fe4"
+    },
+    "tests/fixtures/context-packaging-bytes-digests-toolchain-p1c.json": {
+      "git_blob_sha1": "29445847407bb318bd20c987ad249d8af4434ba8"
+    },
+    "tests/support/context_packaging_p1c_reference.py": {
+      "git_blob_sha1": "04f64f873f7b9f7b62a2f4d24fb554e734b2af36"
+    }
+  },
+  "environment": {
+    "python": "3.12.14",
+    "jsonschema": "4.25.1",
+    "referencing": "0.37.0"
+  },
+  "actions_artifact": {
+    "id": 9487137693,
+    "name": "p1c-conformance-ec5fe4c6",
+    "size_in_bytes": 1753,
+    "sha256": "cfbe5503c1a1dcc42c1226ed2c766b3007954c67fd91176bc17911bec6a9b664"
+  },
+  "preserved_files": {
+    "p1c-conformance.log": "sha256:9fd0eb9762b2491d7b9a6459fe2f398b3988db5fac109e093d915f5acbbc42c0",
+    "p1c-environment.txt": "sha256:bbbbd5e6ce0dfc5e08761e35795affe5b3c6f8a7e2f507075c9ed0bd28a93e5e",
+    "p1c-execution-evidence.json": "sha256:4dbd3309334a2ab12ca03858cb0dbcf727f38cf937d85e819b88d38c881dba18"
+  },
+  "p1d_started": false,
+  "disposition": "P1C_CONFORMANCE_EXECUTION_PASS",
+  "boundary": "This evidence closes only the requested mechanical P1c conformance execution against the immutable candidate. It does not itself grant authority or authorize P1d or any later gate."
+}
