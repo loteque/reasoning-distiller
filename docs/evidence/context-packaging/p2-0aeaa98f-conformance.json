@@ -1,0 +1,63 @@
+{
+  "contract": "reasoning-distiller-p2-conformance-execution-manifest/1",
+  "candidate": {
+    "commit": "0aeaa98f6d514092aaf010afae5b1719308ed3bd",
+    "parent_p1e_candidate": "e6e9d318724a2d13e3b820f8208bdb623d61e482",
+    "implementation_branch": "implement/context-packaging-p2",
+    "verified_diff": {
+      "ahead_by": 1,
+      "added_files_only": [
+        "context_packaging/__init__.py",
+        "context_packaging/source_resolver.py",
+        "docs/design/CONTEXT_PACKAGING_SOURCE_RESOLUTION_P2.md",
+        "tests/test_context_packaging_source_resolution_p2.py"
+      ]
+    }
+  },
+  "basis": {
+    "live_main": "58b99891e116b5a06dd603810c2b98ea83e328c3",
+    "governing_plan_commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "governing_plan_blob": "8474d2da42f863f0a190fd80292085176d3f97f0"
+  },
+  "candidate_blobs": {
+    "package_init": "e24ef6331baa5b008a82906f623d49e4cc4c4a12",
+    "resolver": "54629ad352aaac545d167a30a79ff10748de1d07",
+    "implementation_note": "17c78c708fc8f03f807f216072dd3c39a777d404",
+    "suite": "2d1440909fac27b345a3dcc85be9ce5f2adfc5c9"
+  },
+  "frozen_p1b_blobs_observed_in_run": {
+    "schemas/context-source-binding.schema.json": "e5d5bc005f7a3dcd4f2f788dd08d49f3b57d4a1e",
+    "schemas/context-pack-request.schema.json": "602391284019ab680bd419c7d007e7af3cfeef53",
+    "schemas/context-profile.schema.json": "8a363d376d20375de6c985c342437e856805a69b",
+    "schemas/context-pack-failure.schema.json": "10195c52df81156a954eb9b5acee5a4f1b26f576"
+  },
+  "execution": {
+    "workflow_run_id": 32644430917,
+    "job_id": 97206380676,
+    "evidence_pr": 55,
+    "workflow_head_commit": "bf2a2409e79045501dc4157d3e72e99801666b52",
+    "python": "3.12.14",
+    "command": "python -m unittest -v tests/test_context_packaging_source_resolution_p2.py",
+    "tests_run": 19,
+    "outcome": "PASS",
+    "artifact": {
+      "id": 9494463624,
+      "name": "p2-conformance-0aeaa98f",
+      "size_in_bytes": 1803,
+      "sha256": "sha256:509a9d1f921230ac80714c2c5010dca557d43d532bbc814eed0ca4ba4031bb9b"
+    }
+  },
+  "scope": {
+    "p3_started": false,
+    "later_gate_implementation_started": false,
+    "independent_review_performed": false,
+    "steward_reconciliation_performed": false,
+    "production_integration_changed": false
+  },
+  "disposition": {
+    "execution": "P2_CONFORMANCE_EXECUTION_PASS",
+    "independent_review": "NOT_ESTABLISHED",
+    "steward_reconciliation": "NOT_ESTABLISHED",
+    "p2_closed": false
+  }
+}
