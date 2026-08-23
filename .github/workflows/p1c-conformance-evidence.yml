@@ -1,0 +1,104 @@
+name: P1c Conformance Evidence
+
+on:
+  push:
+    branches:
+      - evidence/p1c-ec5fe4c6-conformance
+    paths:
+      - .github/workflows/p1c-conformance-evidence.yml
+
+permissions:
+  contents: read
+
+jobs:
+  p1c-conformance:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: ec5fe4c6c7e8678c3ead0ac629d97d04022b914c
+      LIVE_MAIN_BASIS: 58b99891e116b5a06dd603810c2b98ea83e328c3
+      SUITE: tests/test_context_packaging_bytes_digests_toolchain_p1c.py
+    steps:
+      - name: Checkout immutable P1c candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ec5fe4c6c7e8678c3ead0ac629d97d04022b914c
+          fetch-depth: 1
+
+      - name: Verify immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          printf 'target_sha=%s\n' "$TARGET_SHA"
+          printf 'suite_blob=%s\n' "$(git hash-object "$SUITE")"
+          printf 'fixture_blob=%s\n' "$(git hash-object tests/fixtures/context-packaging-bytes-digests-toolchain-p1c.json)"
+          printf 'reference_blob=%s\n' "$(git hash-object tests/support/context_packaging_p1c_reference.py)"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install conformance dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Record environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            printf 'target_sha=%s\n' "$TARGET_SHA"
+            printf 'live_main_basis=%s\n' "$LIVE_MAIN_BASIS"
+            printf 'suite=%s\n' "$SUITE"
+            printf 'suite_blob=%s\n' "$(git hash-object "$SUITE")"
+            printf 'fixture_blob=%s\n' "$(git hash-object tests/fixtures/context-packaging-bytes-digests-toolchain-p1c.json)"
+            printf 'reference_blob=%s\n' "$(git hash-object tests/support/context_packaging_p1c_reference.py)"
+            python --version
+            python -m pip show jsonschema referencing
+          } > p1c-environment.txt
+          cat p1c-environment.txt
+
+      - name: Execute P1c conformance suite
+        id: suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v "$SUITE" 2>&1 | tee p1c-conformance.log
+
+      - name: Write result metadata
+        if: always()
+        shell: bash
+        env:
+          SUITE_OUTCOME: ${{ steps.suite.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "contract": "reasoning-distiller-p1c-conformance-execution-evidence/1",
+              "candidate_commit": os.environ["TARGET_SHA"],
+              "live_main_basis": os.environ["LIVE_MAIN_BASIS"],
+              "suite": os.environ["SUITE"],
+              "command": "python -m unittest -v tests/test_context_packaging_bytes_digests_toolchain_p1c.py",
+              "outcome": os.environ.get("SUITE_OUTCOME", "unknown"),
+              "p1d_started": False,
+          }
+          Path("p1c-execution-evidence.json").write_text(
+              json.dumps(evidence, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          print(Path("p1c-execution-evidence.json").read_text(encoding="utf-8"), end="")
+          PY
+
+      - name: Upload execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1c-conformance-ec5fe4c6
+          path: |
+            p1c-conformance.log
+            p1c-environment.txt
+            p1c-execution-evidence.json
+          if-no-files-found: error
