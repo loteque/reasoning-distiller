@@ -1,0 +1,116 @@
+name: P1e Conformance Evidence
+
+on:
+  push:
+    branches:
+      - evidence/p1e-e6e9d318-conformance
+    paths:
+      - .github/workflows/p1e-conformance-evidence.yml
+
+permissions:
+  contents: read
+
+jobs:
+  p1e-conformance:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: e6e9d318724a2d13e3b820f8208bdb623d61e482
+      LIVE_MAIN_BASIS: 58b99891e116b5a06dd603810c2b98ea83e328c3
+      GOVERNING_PLAN: 0803bcca5343224d6feefa53c2f1b8baf1d4a8cd
+      SUITE: tests/test_context_packaging_consumer_profile_eligibility_p1e.py
+    steps:
+      - name: Checkout immutable P1e candidate
+        uses: actions/checkout@v4
+        with:
+          ref: e6e9d318724a2d13e3b820f8208bdb623d61e482
+          fetch-depth: 1
+
+      - name: Verify immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          printf 'target_sha=%s\n' "$TARGET_SHA"
+          printf 'suite_blob=%s\n' "$(git hash-object "$SUITE")"
+          printf 'contract_blob=%s\n' "$(git hash-object docs/design/CONTEXT_PACKAGING_CONSUMER_PROFILE_ELIGIBILITY_CONTRACT.md)"
+          printf 'fixture_blob=%s\n' "$(git hash-object tests/fixtures/context-packaging-consumer-profile-eligibility-p1e.json)"
+          printf 'reference_blob=%s\n' "$(git hash-object tests/support/context_packaging_p1e_reference.py)"
+          printf 'eligibility_schema_blob=%s\n' "$(git hash-object schemas/context-profile-eligibility.schema.json)"
+          printf 'request_schema_blob=%s\n' "$(git hash-object schemas/context-pack-request.schema.json)"
+          printf 'failure_schema_blob=%s\n' "$(git hash-object schemas/context-pack-failure.schema.json)"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install conformance dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
+      - name: Record environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            printf 'target_sha=%s\n' "$TARGET_SHA"
+            printf 'live_main_basis=%s\n' "$LIVE_MAIN_BASIS"
+            printf 'governing_plan=%s\n' "$GOVERNING_PLAN"
+            printf 'suite=%s\n' "$SUITE"
+            printf 'suite_blob=%s\n' "$(git hash-object "$SUITE")"
+            printf 'contract_blob=%s\n' "$(git hash-object docs/design/CONTEXT_PACKAGING_CONSUMER_PROFILE_ELIGIBILITY_CONTRACT.md)"
+            printf 'fixture_blob=%s\n' "$(git hash-object tests/fixtures/context-packaging-consumer-profile-eligibility-p1e.json)"
+            printf 'reference_blob=%s\n' "$(git hash-object tests/support/context_packaging_p1e_reference.py)"
+            printf 'eligibility_schema_blob=%s\n' "$(git hash-object schemas/context-profile-eligibility.schema.json)"
+            printf 'request_schema_blob=%s\n' "$(git hash-object schemas/context-pack-request.schema.json)"
+            printf 'failure_schema_blob=%s\n' "$(git hash-object schemas/context-pack-failure.schema.json)"
+            python --version
+            python -m pip show jsonschema referencing
+          } > p1e-environment.txt
+          cat p1e-environment.txt
+
+      - name: Execute P1e conformance suite
+        id: suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v "$SUITE" 2>&1 | tee p1e-conformance.log
+
+      - name: Write result metadata
+        if: always()
+        shell: bash
+        env:
+          SUITE_OUTCOME: ${{ steps.suite.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "contract": "reasoning-distiller-p1e-conformance-execution-evidence/1",
+              "candidate_commit": os.environ["TARGET_SHA"],
+              "live_main_basis": os.environ["LIVE_MAIN_BASIS"],
+              "governing_plan_commit": os.environ["GOVERNING_PLAN"],
+              "suite": os.environ["SUITE"],
+              "command": "python -m unittest -v tests/test_context_packaging_consumer_profile_eligibility_p1e.py",
+              "outcome": os.environ.get("SUITE_OUTCOME", "unknown"),
+              "p2_started": False,
+              "steward_reconciliation_performed": False,
+          }
+          Path("p1e-execution-evidence.json").write_text(
+              json.dumps(evidence, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          print(Path("p1e-execution-evidence.json").read_text(encoding="utf-8"), end="")
+          PY
+
+      - name: Upload execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1e-conformance-e6e9d318
+          path: |
+            p1e-conformance.log
+            p1e-environment.txt
+            p1e-execution-evidence.json
+          if-no-files-found: error
