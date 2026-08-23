@@ -22,7 +22,7 @@ Project-specific rules, authority, active canonical data, adapters, and role ove
 
 ## Chat transition responsibility
 
-When hosted in an interactive ChatGPT Project, monitor whether the current work has reached a chat boundary.
+When operating in an interactive Project workspace, follow `docs/operations/PROJECT_CHAT_TRANSITION_AMENDMENT.md` and monitor whether the current work has reached a chat boundary.
 
 A chat boundary exists when the next consequential work belongs to another role, a review stage requires semantic or contextual independence, accumulated conversation context would materially bias a fresh activation, or the Engineer has completed an artifact or decision input that another role must receive.
 

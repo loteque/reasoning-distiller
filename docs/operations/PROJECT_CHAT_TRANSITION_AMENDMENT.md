@@ -1,22 +1,22 @@
-# ChatGPT Project Chat-Transition Amendment
+# Project Chat-Transition Amendment
 
 Status: **Normative v2 amendment**
 
 Amends:
 
-- `reasoning-distiller-chatgpt-project/1`
+- `reasoning-distiller-project-integration/1`
 
 Contract:
 
-- `reasoning-distiller-chatgpt-project-chat-transition/2`
+- `reasoning-distiller-project-chat-transition/2`
 
 Supersedes:
 
-- `reasoning-distiller-chatgpt-project-chat-transition/1`
+- the prior v1 chat-transition contract.
 
 ## Purpose
 
-Add an explicit proactive chat-transition responsibility to ChatGPT-hosted role work without changing repository role authority, RIL activation, production Distiller evidence, or canonical project-knowledge semantics.
+Add an explicit proactive chat-transition responsibility to interactive Project-hosted role work without changing repository role authority, RIL activation, production Distiller evidence, or canonical project-knowledge semantics.
 
 The governing rules are:
 
@@ -99,7 +99,7 @@ When a meaningful chat boundary is reached inside the current bounded work unit,
 2. identify why continuing in the same chat would weaken role separation, independence, or evidence boundaries;
 3. identify the current bounded work unit and whether the boundary is internal or terminal;
 4. recommend the appropriate next role;
-5. recommend a fresh chat or, when stronger independence is required, an isolated ChatGPT Project/context;
+5. recommend a fresh chat or, when stronger independence is required, an isolated Project workspace/context;
 6. provide a compact bounded handoff suitable for starting that activation.
 
 A reminder SHOULD occur at the transition point, not repeatedly throughout ordinary same-role work.
@@ -125,7 +125,7 @@ The handoff is coordination metadata. It does not create project authority, cano
 
 ## Role-directive integration
 
-Interactive ChatGPT hosting of repository roles MUST preserve the role-specific directives.
+Interactive Project hosting of repository roles MUST preserve the role-specific directives.
 
 The current role directives define their local reminder behavior:
 
@@ -134,7 +134,7 @@ The current role directives define their local reminder behavior:
 - `agents/steward/DIRECTIVE.md`;
 - `agents/distiller/DIRECTIVE.md`.
 
-Those directives operate under this amendment's bounded-work-unit continuation and terminal-stop rules when used interactively in a ChatGPT Project.
+Those directives operate under this amendment's bounded-work-unit continuation and terminal-stop rules when used interactively in a Project workspace.
 
 A role transition must not silently broaden the outgoing or incoming role's authority or the selected work-unit scope.
 
@@ -163,7 +163,7 @@ A bounded work unit limits coordination scope; it does not grant authority to pe
 
 ## Conformance
 
-A ChatGPT-hosted workflow conforms to this amendment when:
+A Project-hosted workflow conforms to this amendment when:
 
 1. the current bounded work unit is established from explicit governing or task evidence rather than naming inference;
 2. meaningful cross-role, review, remediation, evidence, execution, or independence boundaries inside that unit cause proactive user-facing bounded handoffs;
