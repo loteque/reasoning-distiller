@@ -6,6 +6,11 @@ on:
       - evidence/p1c-ec5fe4c6-conformance
     paths:
       - .github/workflows/p1c-conformance-evidence.yml
+  pull_request:
+    branches:
+      - evidence/p1c-ec5fe4c6-base
+    paths:
+      - .github/workflows/p1c-conformance-evidence.yml
 
 permissions:
   contents: read
