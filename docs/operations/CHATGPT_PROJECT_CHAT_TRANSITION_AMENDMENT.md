@@ -1,6 +1,6 @@
 # ChatGPT Project Chat-Transition Amendment
 
-Status: **Normative v1 amendment**
+Status: **Normative v2 amendment**
 
 Amends:
 
@@ -8,17 +8,74 @@ Amends:
 
 Contract:
 
+- `reasoning-distiller-chatgpt-project-chat-transition/2`
+
+Supersedes:
+
 - `reasoning-distiller-chatgpt-project-chat-transition/1`
 
 ## Purpose
 
 Add an explicit proactive chat-transition responsibility to ChatGPT-hosted role work without changing repository role authority, RIL activation, production Distiller evidence, or canonical project-knowledge semantics.
 
-The governing rule is:
+The governing rules are:
 
 > **When the current role reaches a meaningful chat boundary, tell the user before silently continuing across it.**
+>
+> **Within the current bounded work unit, emit required bounded handoffs proactively. When that work unit reaches its defined completion condition, emit terminal status or handoff and stop before beginning another work unit.**
 
-The reminder exists to preserve semantic role separation and useful context isolation. It is coordination behavior only.
+The reminder and stop behavior exists to preserve semantic role separation, useful context isolation, and explicit scope boundaries. It is coordination behavior only.
+
+## Bounded work unit
+
+A **bounded work unit** is the currently selected unit of consequential work whose completion is meaningful under the governing workflow or explicit task scope. Its label is not semantically significant.
+
+Examples include, when actually selected by the governing workflow or task:
+
+- an implementation phase such as `P3`;
+- a proposal or review stage such as `Stage 2`;
+- an experimental gate such as `Gate 0`;
+- one GitHub issue;
+- one experiment;
+- one proposal;
+- one reconciliation;
+- one admission operation;
+- one migration step;
+- one explicitly scoped implementation or review task.
+
+A bounded work unit may contain multiple role-bounded activations, independent reviews, remediation cycles, evidence-producing operations, or reconciliations. Those internal boundaries do not by themselves create a new work unit.
+
+Resolve the current bounded work unit from the strongest applicable evidence, in this order:
+
+1. a task-specific governing repository contract, accepted plan, or other authoritative workflow artifact that explicitly selects the current unit;
+2. an explicit user-selected scope, constrained by any narrower governing repository boundary;
+3. a durable bounded handoff or exact next-action artifact that explicitly identifies the current unit;
+4. when only one consequential action is selected and no larger unit is established, that action itself.
+
+Do not infer a broader work unit from naming conventions, adjacent phases, repository layout, remembered plans, prior chats, or the mere existence of an apparent successor step.
+
+If the current work-unit boundary cannot be established with sufficient confidence for consequential continuation, keep the boundary unknown and stop or narrow the operation rather than inventing scope.
+
+## Internal activation and terminal boundary
+
+An **internal activation** is a role-, evidence-, review-, remediation-, or execution-bounded operation performed as part of the current bounded work unit.
+
+A **terminal boundary** is reached when the current bounded work unit satisfies its governing completion condition, or when a governing contract requires the unit to terminate or block.
+
+A role MUST distinguish an internal activation boundary from a terminal work-unit boundary.
+
+Crossing an internal activation boundary may require a bounded handoff and fresh or isolated context, but it does not authorize beginning work outside the current bounded work unit.
+
+When the terminal boundary is reached, the active interactive role MUST:
+
+1. state the work unit's terminal status;
+2. provide a compact terminal bounded handoff or completion record when useful for future continuation;
+3. identify any unresolved blocker or required future receiving role when applicable;
+4. stop before beginning a sibling, successor, next phase, next gate, next issue, or other work unit.
+
+The assistant MUST NOT require the user to separately request each bounded handoff inside an established work unit. Meaningful internal boundaries proactively trigger the handoff behavior defined by this amendment.
+
+A successor work unit may begin only after it is explicitly selected by a new user request or by a governing instruction that itself authorizes and selects that successor scope. Completion of the current work unit alone never selects the next one.
 
 ## Chat-boundary conditions
 
@@ -32,17 +89,18 @@ A role SHOULD identify a chat boundary when one or more of the following materia
 6. the work is changing from analysis or review into a separately bounded implementation or governed operation;
 7. another repository contract requires a distinct activation or evidence boundary.
 
-A new chat SHOULD NOT be recommended merely because the conversation is long or because a minor subtask changed. Ordinary continuation inside the same role, scope, authority posture, and evidence boundary should remain in the current chat.
+A new chat SHOULD NOT be recommended merely because the conversation is long or because a minor subtask changed. Ordinary continuation inside the same role, scope, authority posture, evidence boundary, and bounded work unit should remain in the current chat.
 
 ## Required reminder behavior
 
-When a meaningful chat boundary is reached, the active interactive role SHOULD:
+When a meaningful chat boundary is reached inside the current bounded work unit, the active interactive role SHOULD:
 
 1. explicitly state that a chat boundary has been reached;
 2. identify why continuing in the same chat would weaken role separation, independence, or evidence boundaries;
-3. recommend the appropriate next role;
-4. recommend a fresh chat or, when stronger independence is required, an isolated ChatGPT Project/context;
-5. provide a compact bounded handoff suitable for starting that activation.
+3. identify the current bounded work unit and whether the boundary is internal or terminal;
+4. recommend the appropriate next role;
+5. recommend a fresh chat or, when stronger independence is required, an isolated ChatGPT Project/context;
+6. provide a compact bounded handoff suitable for starting that activation.
 
 A reminder SHOULD occur at the transition point, not repeatedly throughout ordinary same-role work.
 
@@ -51,6 +109,8 @@ A reminder SHOULD occur at the transition point, not repeatedly throughout ordin
 The handoff SHOULD include, when applicable:
 
 - repository and resolved revision;
+- current bounded work unit;
+- whether the handoff is internal or terminal;
 - exact problem and constraints;
 - current role and completed scope;
 - completed artifact, result, candidate, disposition, or decision input;
@@ -58,9 +118,10 @@ The handoff SHOULD include, when applicable:
 - authority evidence when the receiving operation depends on it;
 - unresolved uncertainties and disagreements;
 - receiving role and requested scope;
-- exact next action the receiving activation should perform.
+- exact next action the receiving activation should perform;
+- for a terminal handoff, the condition establishing completion or block and an explicit stop before any successor unit.
 
-The handoff is coordination metadata. It does not create project authority, canonical knowledge, or accepted RIL activation evidence.
+The handoff is coordination metadata. It does not create project authority, canonical knowledge, accepted RIL activation evidence, or authorization for a successor work unit.
 
 ## Role-directive integration
 
@@ -73,36 +134,46 @@ The current role directives define their local reminder behavior:
 - `agents/steward/DIRECTIVE.md`;
 - `agents/distiller/DIRECTIVE.md`.
 
-A role transition must not silently broaden the outgoing or incoming role's authority.
+Those directives operate under this amendment's bounded-work-unit continuation and terminal-stop rules when used interactively in a ChatGPT Project.
+
+A role transition must not silently broaden the outgoing or incoming role's authority or the selected work-unit scope.
 
 ## Distiller production exception
 
 The production Distiller boundary remains controlled by `docs/operations/PRODUCTION_INVOCATION_CONTRACT.md`.
 
-Chat-transition reminders MUST NOT:
+Chat-transition reminders and bounded-work-unit coordination MUST NOT:
 
 - enter the fixed production evidence set merely because they exist in Project context;
 - be inserted into the prepared production activation bundle unless independently authorized as explicit evidence by the governing process;
 - appear inside raw Distiller candidate bytes;
 - appear inside the Distiller structured output contract;
-- cause the model-side production activation to search for or infer additional project context.
+- cause the model-side production activation to search for or infer additional project context;
+- broaden or sequence production work beyond the explicit invocation contract.
 
-For production `rd-distill`, any chat-transition reminder belongs to the surrounding interactive coordination layer before or after the model activation.
+For production `rd-distill`, any chat-transition reminder or work-unit stop/continuation decision belongs to the surrounding interactive coordination layer before or after the model activation.
 
 ## Relationship to role activation
 
-A chat-transition reminder, chat title, handoff, fresh chat, isolated Project, or role label is not proof of registered role identity, role authorization, or accepted RIL activation.
+A chat-transition reminder, bounded work-unit label, chat title, handoff, fresh chat, isolated Project, or role label is not proof of registered role identity, role authorization, or accepted RIL activation.
 
 Where governed role authority is required, the applicable repository role, authorization, and activation contracts remain controlling.
+
+A bounded work unit limits coordination scope; it does not grant authority to perform every operation that could occur inside that scope.
 
 ## Conformance
 
 A ChatGPT-hosted workflow conforms to this amendment when:
 
-1. meaningful cross-role or independence boundaries cause a proactive user-facing transition reminder;
-2. same-role ordinary continuation does not produce noisy or unnecessary chat-change prompts;
-3. each reminder identifies the next role/context and provides a bounded handoff;
-4. reminders do not manufacture authority or activation evidence;
-5. independent review receives stronger context isolation when required;
-6. production Distiller candidate bytes and structured output remain free of chat-navigation prose;
-7. production Distiller evidence remains fixed by its governing invocation contract.
+1. the current bounded work unit is established from explicit governing or task evidence rather than naming inference;
+2. meaningful cross-role, review, remediation, evidence, execution, or independence boundaries inside that unit cause proactive user-facing bounded handoffs;
+3. the user does not need to separately request each required internal handoff;
+4. same-role ordinary continuation does not produce noisy or unnecessary chat-change prompts;
+5. each handoff identifies the current work unit, boundary type, next role/context, and exact next action when applicable;
+6. internal handoffs do not silently expand the selected work-unit scope;
+7. terminal completion or block produces a terminal status or handoff and a stop before any successor work unit begins;
+8. completion of one work unit is not treated as selection or authorization of the next;
+9. reminders and work-unit labels do not manufacture authority or activation evidence;
+10. independent review receives stronger context isolation when required;
+11. production Distiller candidate bytes and structured output remain free of chat-navigation prose;
+12. production Distiller evidence remains fixed by its governing invocation contract.
