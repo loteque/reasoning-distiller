@@ -1,0 +1,109 @@
+name: P2 Remediation Conformance Evidence
+
+on:
+  push:
+    branches:
+      - evidence/p2-f8177ce3-conformance
+    paths:
+      - .github/workflows/p2-f8177ce3-conformance-evidence.yml
+  pull_request:
+    branches:
+      - evidence/p2-f8177ce3-base
+    paths:
+      - .github/workflows/p2-f8177ce3-conformance-evidence.yml
+
+permissions:
+  contents: read
+
+jobs:
+  p2-conformance:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: f8177ce3d4d5b1c7edf7d3c0088db3d658b12072
+      REVIEWED_P2_PARENT: 0aeaa98f6d514092aaf010afae5b1719308ed3bd
+      PARENT_P1E: e6e9d318724a2d13e3b820f8208bdb623d61e482
+      LIVE_MAIN_BASIS: 58b99891e116b5a06dd603810c2b98ea83e328c3
+      GOVERNING_PLAN: 0803bcca5343224d6feefa53c2f1b8baf1d4a8cd
+    steps:
+      - name: Checkout immutable remediation candidate
+        uses: actions/checkout@v4
+        with:
+          ref: f8177ce3d4d5b1c7edf7d3c0088db3d658b12072
+          fetch-depth: 1
+
+      - name: Verify immutable candidate and inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          {
+            printf 'target_sha=%s\n' "$TARGET_SHA"
+            printf 'reviewed_p2_parent=%s\n' "$REVIEWED_P2_PARENT"
+            printf 'parent_p1e=%s\n' "$PARENT_P1E"
+            printf 'live_main_basis=%s\n' "$LIVE_MAIN_BASIS"
+            printf 'governing_plan=%s\n' "$GOVERNING_PLAN"
+            printf 'resolver_blob=%s\n' "$(git hash-object context_packaging/source_resolver.py)"
+            printf 'p2_suite_blob=%s\n' "$(git hash-object tests/test_context_packaging_source_resolution_p2.py)"
+            printf 'regression_suite_blob=%s\n' "$(git hash-object tests/test_context_packaging_source_resolution_p2_regression.py)"
+            printf 'p1a_suite_blob=%s\n' "$(git hash-object tests/test_context_packaging_source_identity_p1a.py)"
+            printf 'p1a_contract_blob=%s\n' "$(git hash-object docs/design/CONTEXT_PACKAGING_SOURCE_IDENTITY_CONTRACT.md)"
+          } | tee p2-environment.txt
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Execute P2 and inherited P1a suites
+        id: suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            tests/test_context_packaging_source_resolution_p2.py \
+            tests/test_context_packaging_source_resolution_p2_regression.py \
+            tests/test_context_packaging_source_identity_p1a.py \
+            2>&1 | tee p2-conformance.log
+
+      - name: Write candidate-bound result metadata
+        if: always()
+        shell: bash
+        env:
+          SUITE_OUTCOME: ${{ steps.suite.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = {
+              "contract": "reasoning-distiller-p2-conformance-execution-evidence/1",
+              "candidate_commit": os.environ["TARGET_SHA"],
+              "reviewed_p2_parent": os.environ["REVIEWED_P2_PARENT"],
+              "parent_p1e_candidate": os.environ["PARENT_P1E"],
+              "live_main_basis": os.environ["LIVE_MAIN_BASIS"],
+              "governing_plan_commit": os.environ["GOVERNING_PLAN"],
+              "command": "python -m unittest -v tests/test_context_packaging_source_resolution_p2.py tests/test_context_packaging_source_resolution_p2_regression.py tests/test_context_packaging_source_identity_p1a.py",
+              "outcome": os.environ.get("SUITE_OUTCOME", "unknown"),
+              "remediation_of_disposition": "P2_INDEPENDENT_REVIEW_CHANGES_REQUIRED",
+              "independent_review_performed": False,
+              "steward_reconciliation_performed": False,
+              "p3_started": False,
+          }
+          Path("p2-execution-evidence.json").write_text(
+              json.dumps(evidence, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          print(Path("p2-execution-evidence.json").read_text(encoding="utf-8"), end="")
+          PY
+
+      - name: Upload execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-conformance-f8177ce3
+          path: |
+            p2-conformance.log
+            p2-environment.txt
+            p2-execution-evidence.json
+          if-no-files-found: error
