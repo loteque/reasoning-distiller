@@ -1,0 +1,59 @@
+{
+  "contract": "reasoning-distiller-p1e-conformance-execution-manifest/1",
+  "candidate": {
+    "commit": "e6e9d318724a2d13e3b820f8208bdb623d61e482",
+    "parent_p1d_candidate": "945ff72ccee87310642ff78c4b4c8e01c46fb551",
+    "implementation_branch": "implement/context-packaging-p1e",
+    "verified_diff": {
+      "ahead_by": 1,
+      "added_files_only": [
+        "docs/design/CONTEXT_PACKAGING_CONSUMER_PROFILE_ELIGIBILITY_CONTRACT.md",
+        "tests/fixtures/context-packaging-consumer-profile-eligibility-p1e.json",
+        "tests/support/context_packaging_p1e_reference.py",
+        "tests/test_context_packaging_consumer_profile_eligibility_p1e.py"
+      ]
+    }
+  },
+  "basis": {
+    "live_main": "58b99891e116b5a06dd603810c2b98ea83e328c3",
+    "governing_plan_commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "governing_plan_blob": "8474d2da42f863f0a190fd80292085176d3f97f0"
+  },
+  "candidate_blobs": {
+    "contract": "90df44806a63b7c48554a7fcef14c1e9d277a50d",
+    "fixture": "38f2f34c556dab6fdef38f27677c9aab891ccd1b",
+    "reference_evaluator": "070cf60de38a0ac49294572d01fe906485b636e5",
+    "suite": "a7b1b38e48a6a2110e5393f78ffe353173fafd23"
+  },
+  "frozen_p1b_blobs_observed_in_run": {
+    "schemas/context-profile-eligibility.schema.json": "ad8ba5839136fe7e1080d1d7e26ca351202864dc",
+    "schemas/context-pack-request.schema.json": "602391284019ab680bd419c7d007e7af3cfeef53",
+    "schemas/context-pack-failure.schema.json": "10195c52df81156a954eb9b5acee5a4f1b26f576"
+  },
+  "execution": {
+    "workflow_run_id": 32641476928,
+    "job_id": 97199116460,
+    "evidence_pr": 54,
+    "workflow_head_commit": "e6671db10c366138d2aea159ec9562643c80c6ec",
+    "command": "python -m unittest -v tests/test_context_packaging_consumer_profile_eligibility_p1e.py",
+    "tests_run": 8,
+    "outcome": "PASS",
+    "artifact": {
+      "id": 9493710836,
+      "name": "p1e-conformance-e6e9d318",
+      "sha256": "sha256:05aa290581fd83c53e8a4b05ec5ff64d9259182fe2103e8d876a583c909166f7"
+    }
+  },
+  "scope": {
+    "p2_started": false,
+    "later_gate_implementation_started": false,
+    "steward_reconciliation_performed": false,
+    "production_integration_changed": false
+  },
+  "disposition": {
+    "execution": "P1E_CONFORMANCE_EXECUTION_PASS",
+    "independent_review": "NOT_ESTABLISHED",
+    "steward_reconciliation": "NOT_ESTABLISHED",
+    "p1e_closed": false
+  }
+}
