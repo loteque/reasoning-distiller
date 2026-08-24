@@ -1,0 +1,202 @@
+name: P6 3d10c8d Engineer candidate evidence
+
+on:
+  push:
+    branches:
+      - evidence/context-packaging-p6-3d10c8d-engineer-20260824
+  pull_request:
+    branches:
+      - implement/context-packaging-p6
+
+permissions:
+  contents: read
+
+jobs:
+  p6-engineer-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact P6 semantic candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 3d10c8d37f3c8e82728b95c197a3f6541fa94518
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+
+      - name: Verify exact candidate identity and P6 blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "3d10c8d37f3c8e82728b95c197a3f6541fa94518"
+          git merge-base --is-ancestor d96071ab833179948e5f9526cdb63c15c6451ff4 HEAD
+          test "$(git rev-parse HEAD:context_packaging/persistence_adapter.py)" = "808903dd2c5aced74ced4a28992c0d6145bdfdaf"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_persistence_adapter_p6.py)" = "a1b638459d7475d7cad3e1898a5a52df570f32b5"
+          test "$(git rev-parse HEAD:context_packaging/__init__.py)" = "dcccf586fe935d033c8867097bffb69b254cb3c8"
+          test "$(git rev-parse HEAD:context_packaging/pack_builder.py)" = "c7a87dae852de2cb58393fa3bc6dd9241a2155f0"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_pack_builder_p5.py)" = "5fd7fc17a01877f4add060357a6b28ee0eb0e096"
+          expected=$'context_packaging/__init__.py\ncontext_packaging/persistence_adapter.py\ntests/test_context_packaging_persistence_adapter_p6.py'
+          actual="$(git diff --name-only d96071ab833179948e5f9526cdb63c15c6451ff4..HEAD)"
+          test "$actual" = "$expected"
+          {
+            echo "candidate=$(git rev-parse HEAD)"
+            echo "closed_p5_base=d96071ab833179948e5f9526cdb63c15c6451ff4"
+            echo "persistence_adapter_blob=$(git rev-parse HEAD:context_packaging/persistence_adapter.py)"
+            echo "p6_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_persistence_adapter_p6.py)"
+            echo "init_blob=$(git rev-parse HEAD:context_packaging/__init__.py)"
+            echo "p5_builder_preserved_blob=$(git rev-parse HEAD:context_packaging/pack_builder.py)"
+            echo "p5_test_preserved_blob=$(git rev-parse HEAD:tests/test_context_packaging_pack_builder_p5.py)"
+            echo "changed_files_begin"
+            printf '%s\n' "$actual"
+            echo "changed_files_end"
+          } | tee p6-candidate-identity.txt
+
+      - name: Run exact P6 persistence suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_context_packaging_persistence_adapter_p6.py 2>&1 | tee p6-gate.txt
+
+      - name: Run unaffected P0-P5 regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests=()
+          for test_file in tests/test_context_packaging_*.py; do
+            case "$test_file" in
+              tests/test_context_packaging_protocol_schemas_p1b.py|tests/test_context_packaging_persistence_adapter_p6.py) continue ;;
+            esac
+            tests+=("$test_file")
+          done
+          printf '%s\n' "${tests[@]}" | tee p0-p5-regression-files.txt
+          python -m pytest -q "${tests[@]}" -k 'not test_p5_runtime_implementation_is_unchanged_by_amendment' 2>&1 | tee p0-p5-regressions.txt
+
+      - name: Run P6 gate pressure probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' | tee p6-pressure-probes.txt
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+
+          from context_packaging import (
+              IMMUTABLE_OUTPUT_COLLISION,
+              NO_CHANGE,
+              PERSISTED,
+              ImmutableOutputCollisionError,
+              PersistenceBoundaryError,
+              persist_immutable_artifact,
+          )
+
+          with TemporaryDirectory() as td:
+              root = Path(td) / 'derived'
+              root.mkdir()
+              payload = b'canonical P5 bytes are opaque to persistence\n'
+              first = persist_immutable_artifact(
+                  payload, output_root=root, relative_path='pack.bin'
+              )
+              assert first.status == PERSISTED
+              replay = persist_immutable_artifact(
+                  payload, output_root=root, relative_path='pack.bin'
+              )
+              assert replay.status == NO_CHANGE
+              assert (root / 'pack.bin').read_bytes() == payload
+              print('P6_IDEMPOTENT_REPLAY_PASS status=' + replay.status)
+
+              try:
+                  persist_immutable_artifact(
+                      b'different', output_root=root, relative_path='pack.bin'
+                  )
+              except ImmutableOutputCollisionError as exc:
+                  assert exc.code == IMMUTABLE_OUTPUT_COLLISION
+              else:
+                  raise AssertionError('different existing bytes did not collide')
+              assert (root / 'pack.bin').read_bytes() == payload
+              print('P6_IMMUTABLE_COLLISION_PASS code=' + IMMUTABLE_OUTPUT_COLLISION)
+
+              lifecycle = Path(td) / 'project-knowledge' / 'canonical'
+              lifecycle.mkdir(parents=True)
+              try:
+                  persist_immutable_artifact(
+                      payload,
+                      output_root=lifecycle,
+                      relative_path='pack.bin',
+                      prohibited_roots=[lifecycle],
+                  )
+              except PersistenceBoundaryError:
+                  pass
+              else:
+                  raise AssertionError('prohibited lifecycle store accepted output')
+              assert not (lifecycle / 'pack.bin').exists()
+              print('P6_LIFECYCLE_STORE_BOUNDARY_PASS')
+          PY
+
+      - name: Preserve inherited red 1 - P1b PS-19 classifier mismatch
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py > inherited-red-p1b-ps19.txt 2>&1
+          status=$?
+          set -e
+          cat inherited-red-p1b-ps19.txt
+          echo "classification=P1B_PS19_CLASSIFIER_MISMATCH" | tee inherited-red-p1b-ps19.status
+          echo "exit_status=$status" | tee -a inherited-red-p1b-ps19.status
+
+      - name: Preserve inherited red 2 - legacy runtime-isolation mutable schema reference
+        shell: bash
+        run: |
+          set +e
+          python -m unittest -v tests/test_runtime_isolation_p5.py > inherited-red-runtime-isolation.txt 2>&1
+          status=$?
+          set -e
+          cat inherited-red-runtime-isolation.txt
+          echo "classification=LEGACY_V1_RUNTIME_ISOLATION_MUTABLE_SCHEMA_REFERENCE" | tee inherited-red-runtime-isolation.status
+          echo "exit_status=$status" | tee -a inherited-red-runtime-isolation.status
+
+      - name: Preserve inherited red 3 - extraction-parity Distiller directive mismatch
+        shell: bash
+        run: |
+          set +e
+          python tests/check_corpus_integrity.py > inherited-red-extraction-parity.txt 2>&1
+          status=$?
+          set -e
+          cat inherited-red-extraction-parity.txt
+          actual="$(git rev-parse HEAD:agents/distiller/DIRECTIVE.md)"
+          expected="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('docs/extraction/copied-artifacts.json').read_text(encoding='utf-8'))
+          item = next(x for x in manifest['artifacts'] if x['destination'] == 'agents/distiller/DIRECTIVE.md')
+          print(item['source_blob_sha'])
+          PY
+          )"
+          {
+            echo "classification=EXTRACTION_PARITY_DISTILLER_DIRECTIVE_MISMATCH"
+            echo "exit_status=$status"
+            echo "distiller_directive_expected_blob=$expected"
+            echo "distiller_directive_actual_blob=$actual"
+          } | tee inherited-red-extraction-parity.status
+
+      - name: Upload candidate-bound Engineer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p6-3d10c8d-engineer-evidence
+          path: |
+            p6-candidate-identity.txt
+            p6-gate.txt
+            p0-p5-regression-files.txt
+            p0-p5-regressions.txt
+            p6-pressure-probes.txt
+            inherited-red-p1b-ps19.txt
+            inherited-red-p1b-ps19.status
+            inherited-red-runtime-isolation.txt
+            inherited-red-runtime-isolation.status
+            inherited-red-extraction-parity.txt
+            inherited-red-extraction-parity.status
+          if-no-files-found: error
