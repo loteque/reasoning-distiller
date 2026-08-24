@@ -3,7 +3,9 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
+import context_packaging.persistence_adapter as persistence_adapter
 from context_packaging.persistence_adapter import (
     IMMUTABLE_OUTPUT_COLLISION,
     NO_CHANGE,
@@ -36,6 +38,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                 artifact,
                 output_root=output_root,
                 relative_path="pack.jcs.json",
+                prohibited_roots=[],
             )
             target = output_root / "pack.jcs.json"
             self.assertEqual(first.status, PERSISTED)
@@ -48,6 +51,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                 artifact,
                 output_root=output_root,
                 relative_path="pack.jcs.json",
+                prohibited_roots=[],
             )
             after_stat = target.stat()
             self.assertEqual(replay.status, NO_CHANGE)
@@ -76,6 +80,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                     b"different",
                     output_root=output_root,
                     relative_path="pack.jcs.json",
+                    prohibited_roots=[],
                 )
 
             self.assertEqual(caught.exception.code, IMMUTABLE_OUTPUT_COLLISION)
@@ -92,6 +97,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                     b"artifact",
                     output_root=output_root,
                     relative_path="../escape.bin",
+                    prohibited_roots=[],
                 )
 
             self.assertFalse((tmp_path / "escape.bin").exists())
@@ -111,6 +117,64 @@ class P6PersistenceAdapterTests(unittest.TestCase):
 
             self.assertFalse((lifecycle_root / "pack.jcs.json").exists())
 
+    def test_lifecycle_boundary_evidence_cannot_be_omitted(self):
+        with tempfile.TemporaryDirectory() as td:
+            lifecycle_root = Path(td) / "project-knowledge" / "canonical"
+            lifecycle_root.mkdir(parents=True)
+
+            with self.assertRaises(PersistenceBoundaryError):
+                persist_immutable_artifact(
+                    b"artifact",
+                    output_root=lifecycle_root,
+                    relative_path="pack.jcs.json",
+                )
+
+            self.assertFalse((lifecycle_root / "pack.jcs.json").exists())
+
+    def test_parent_swap_cannot_redirect_publication_outside_output_root(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp_path = Path(td)
+            output_root = tmp_path / "derived"
+            output_root.mkdir()
+            checked_parent = output_root / "sub"
+            checked_parent.mkdir()
+            moved_parent = tmp_path / "checked-parent-moved-out"
+            outside = tmp_path / "outside"
+            outside.mkdir()
+            target = checked_parent / "pack.bin"
+            real_open = os.open
+            swapped = False
+
+            def swap_before_publication(path, flags, mode=0o777, *, dir_fd=None):
+                nonlocal swapped
+                path_value = Path(path)
+                if path_value == output_root and not swapped:
+                    fd = real_open(path, flags, mode, dir_fd=dir_fd)
+                    checked_parent.rename(moved_parent)
+                    checked_parent.symlink_to(outside, target_is_directory=True)
+                    swapped = True
+                    return fd
+                if path_value == target and flags & os.O_CREAT and not swapped:
+                    checked_parent.rename(moved_parent)
+                    checked_parent.symlink_to(outside, target_is_directory=True)
+                    swapped = True
+                return real_open(path, flags, mode, dir_fd=dir_fd)
+
+            with mock.patch.object(
+                persistence_adapter.os, "open", side_effect=swap_before_publication
+            ):
+                with self.assertRaises(PersistenceBoundaryError):
+                    persist_immutable_artifact(
+                        b"artifact",
+                        output_root=output_root,
+                        relative_path="sub/pack.bin",
+                        prohibited_roots=[],
+                    )
+
+            self.assertTrue(swapped)
+            self.assertFalse((outside / "pack.bin").exists())
+            self.assertFalse((moved_parent / "pack.bin").exists())
+
     def test_path_name_does_not_create_semantic_standing(self):
         with tempfile.TemporaryDirectory() as td:
             output_root = Path(td) / "derived"
@@ -120,6 +184,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                 b"ordinary derived bytes",
                 output_root=output_root,
                 relative_path="canonical-authorized-activation-approved.jcs.json",
+                prohibited_roots=[],
             )
 
             self.assertEqual(result.status, PERSISTED)
@@ -152,6 +217,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                     "text would require an encoding decision",  # type: ignore[arg-type]
                     output_root=output_root,
                     relative_path="pack.jcs.json",
+                    prohibited_roots=[],
                 )
 
             self.assertEqual(list(output_root.iterdir()), [])
@@ -166,6 +232,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                     b"artifact",
                     output_root=output_root,
                     relative_path="nested/pack.jcs.json",
+                    prohibited_roots=[],
                 )
 
             self.assertFalse((output_root / "nested").exists())
@@ -182,6 +249,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                 baseline.serialized_pack,
                 output_root=output_root,
                 relative_path="pack.jcs.json",
+                prohibited_roots=[],
             )
             self.assertEqual(persisted.status, PERSISTED)
 
@@ -202,6 +270,7 @@ class P6PersistenceAdapterTests(unittest.TestCase):
                 replay_build.serialized_pack,
                 output_root=output_root,
                 relative_path="pack.jcs.json",
+                prohibited_roots=[],
             )
             self.assertEqual(exact_replay.status, NO_CHANGE)
 
