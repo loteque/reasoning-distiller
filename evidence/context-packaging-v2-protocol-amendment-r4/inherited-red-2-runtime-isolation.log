@@ -1,0 +1,22 @@
+test_audit_allows_provenance_only_repository_references (tests.test_runtime_isolation_p5.RuntimeIsolationP5Tests.test_audit_allows_provenance_only_repository_references) ... FAIL
+test_audit_rejects_executable_remote_reference (tests.test_runtime_isolation_p5.RuntimeIsolationP5Tests.test_audit_rejects_executable_remote_reference) ... ok
+test_guarded_admission_pressure_suite_runs_locally_with_network_blocked (tests.test_runtime_isolation_p5.RuntimeIsolationP5Tests.test_guarded_admission_pressure_suite_runs_locally_with_network_blocked) ... ok
+test_installed_runtime_survives_removal_of_retrieval_artifacts (tests.test_runtime_isolation_p5.RuntimeIsolationP5Tests.test_installed_runtime_survives_removal_of_retrieval_artifacts) ... ok
+test_pems_backend_contract_runs_from_installed_tree_with_network_blocked (tests.test_runtime_isolation_p5.RuntimeIsolationP5Tests.test_pems_backend_contract_runs_from_installed_tree_with_network_blocked) ... ok
+test_rgp_validator_runs_from_installed_tree_with_network_blocked (tests.test_runtime_isolation_p5.RuntimeIsolationP5Tests.test_rgp_validator_runs_from_installed_tree_with_network_blocked) ... ok
+
+======================================================================
+FAIL: test_audit_allows_provenance_only_repository_references (tests.test_runtime_isolation_p5.RuntimeIsolationP5Tests.test_audit_allows_provenance_only_repository_references)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/runner/work/reasoning-distiller/reasoning-distiller/tests/test_runtime_isolation_p5.py", line 100, in test_audit_allows_provenance_only_repository_references
+    self.assertEqual(result["status"], "PASS", result)
+AssertionError: 'FAIL' != 'PASS'
+- FAIL
++ PASS
+ : {'contract': 'reasoning-distiller-runtime-isolation-audit/1', 'status': 'FAIL', 'scanned_files': 68, 'violations': [{'path': 'schemas/context-pack.schema.json', 'reason': 'forbidden-runtime-reference:$.$defs.knowledgeItem.properties.pems.$ref:github.com/loteque/reasoning-distiller'}]}
+
+----------------------------------------------------------------------
+Ran 6 tests in 1.238s
+
+FAILED (failures=1)

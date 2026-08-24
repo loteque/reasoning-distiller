@@ -1,0 +1,46 @@
+{
+  "admission_performed": false,
+  "amendment_gate_pass": true,
+  "candidate_sha": "8abe0fb4f96f12fa6ed9503a99753d93442cdf0e",
+  "canonical_mutation_performed": false,
+  "contract": "reasoning-distiller-context-packaging-v2-execution-evidence/1",
+  "dependency_install_exit_code": 0,
+  "inherited_reds": {
+    "extraction_parity_distiller_directive": {
+      "actual_blob": "81291456b127015b813af4eda4046397b4815037",
+      "exit_code": 1,
+      "expected_blob": "d578841d64da93f0883686eda80f00fde53d5f66",
+      "log": "evidence/context-packaging-v2-protocol-amendment-r4/inherited-red-3-extraction-parity.log"
+    },
+    "p1b_ps19": {
+      "exact_known_mismatch": true,
+      "exit_code": 1,
+      "log": "evidence/context-packaging-v2-protocol-amendment-r4/inherited-red-1-p1b.log"
+    },
+    "runtime_isolation_v1_schema": {
+      "exit_code": 1,
+      "log": "evidence/context-packaging-v2-protocol-amendment-r4/inherited-red-2-runtime-isolation.log",
+      "old_v1_schema_violation_present": true,
+      "v2_registry_violation_absent": true
+    }
+  },
+  "inherited_reds_preserved": true,
+  "p5_remediation_performed": false,
+  "p5_runtime_builder_blob": "b0e806e966598e6d819b6d52c643efa23cdb6ef9",
+  "p6_performed": false,
+  "setup_python_outcome": "success",
+  "unaffected_p0_p4": {
+    "exit_code": 0,
+    "log": "evidence/context-packaging-v2-protocol-amendment-r4/unaffected-p0-p4.log",
+    "p1b_known_red_excluded": true,
+    "tests_run": 98
+  },
+  "v2_amendment": {
+    "exit_code": 0,
+    "log": "evidence/context-packaging-v2-protocol-amendment-r4/v2-amendment.log",
+    "tests_run": 22
+  },
+  "workflow_commit_sha": "0c823ec217e7dae222513b8df6e684ef069b9274",
+  "workflow_run_attempt": 1,
+  "workflow_run_id": 32690627033
+}
