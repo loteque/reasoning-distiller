@@ -10,6 +10,12 @@ from .cove_adapter import (
     decode_cove_pems,
     encode_cove_pems,
 )
+from .pack_builder import (
+    PACK_BUILDER_CONTRACT,
+    PACK_CONTRACT,
+    ContextPackBuildResult,
+    build_context_pack,
+)
 from .pems_projection import (
     PemsProjectionResult,
     ProjectedKnowledge,
@@ -26,8 +32,11 @@ from .source_resolver import (
 __all__ = [
     "AdapterResult",
     "COVE_SEMANTIC",
+    "ContextPackBuildResult",
     "CoveAdapterError",
     "CoveSemanticTuple",
+    "PACK_BUILDER_CONTRACT",
+    "PACK_CONTRACT",
     "PEMS_SEMANTIC",
     "PemsProjectionResult",
     "ProjectedKnowledge",
@@ -36,6 +45,7 @@ __all__ = [
     "SERIALIZER",
     "SUPPORTED_TUPLES",
     "SourceResolutionResult",
+    "build_context_pack",
     "decode_cove_pems",
     "encode_cove_pems",
     "project_pems",
