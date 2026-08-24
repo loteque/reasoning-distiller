@@ -1,0 +1,207 @@
+name: Evidence Context Packaging V2 Protocol Amendment R3
+
+on:
+  push:
+    branches:
+      - 'evidence/context-packaging-v2-protocol-amendment-r3'
+    paths:
+      - '.github/workflows/evidence-context-packaging-v2-protocol-amendment-r3.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  candidate-bound-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evidence child
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Bind workflow commit to immutable candidate
+        run: test "$(git rev-parse HEAD^)" = "d80026ea6b72067e21ea7a992f7c72fa896dff08"
+
+      - name: Set up Python
+        id: setup
+        continue-on-error: true
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Execute and durably record candidate-bound evidence
+        shell: bash
+        env:
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+        run: |
+          set +e
+          root='evidence/context-packaging-v2-protocol-amendment-r3'
+          mkdir -p "$root"
+
+          python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2 > "$root/install.log" 2>&1
+          install_status=$?
+
+          if [ "$install_status" -eq 0 ]; then
+            python -m unittest -v \
+              tests.test_context_packaging_protocol_schemas_v2 \
+              tests.test_context_packaging_v2_bytes_digests_toolchain \
+              tests.test_context_packaging_v2_reconciled_conformance \
+              > "$root/v2-amendment.log" 2>&1
+            v2_status=$?
+
+            python -m unittest -v \
+              tests.test_context_packaging_pressure_cases_p0 \
+              tests.test_context_packaging_source_identity_p1a \
+              tests.test_context_packaging_bytes_digests_toolchain_p1c \
+              tests.test_context_packaging_pems_closure_p1d \
+              tests.test_context_packaging_consumer_profile_eligibility_p1e \
+              tests.test_context_packaging_source_resolution_p2 \
+              tests.test_context_packaging_source_resolution_p2_regression \
+              tests.test_context_packaging_pems_projection_p3 \
+              tests.test_context_packaging_cove_adapter_p4 \
+              > "$root/unaffected-p0-p4.log" 2>&1
+            green_status=$?
+
+            python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py > "$root/inherited-red-1-p1b.log" 2>&1
+            red1_status=$?
+
+            python -m unittest -v tests/test_runtime_isolation_p5.py > "$root/inherited-red-2-runtime-isolation.log" 2>&1
+            red2_status=$?
+
+            python tests/check_corpus_integrity.py > "$root/inherited-red-3-extraction-parity.log" 2>&1
+            red3_status=$?
+          else
+            v2_status=125
+            green_status=125
+            red1_status=125
+            red2_status=125
+            red3_status=125
+            for file in v2-amendment.log unaffected-p0-p4.log inherited-red-1-p1b.log inherited-red-2-runtime-isolation.log inherited-red-3-extraction-parity.log; do
+              printf 'not run: dependency installation failed\n' > "$root/$file"
+            done
+          fi
+
+          distiller_actual="$(git rev-parse HEAD:agents/distiller/DIRECTIVE.md)"
+          distiller_expected="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('docs/extraction/copied-artifacts.json').read_text(encoding='utf-8'))
+          print(next(x for x in manifest['artifacts'] if x['destination'] == 'agents/distiller/DIRECTIVE.md')['source_blob_sha'])
+          PY
+          )"
+
+          export ROOT="$root"
+          export INSTALL_STATUS="$install_status"
+          export V2_STATUS="$v2_status"
+          export GREEN_STATUS="$green_status"
+          export RED1_STATUS="$red1_status"
+          export RED2_STATUS="$red2_status"
+          export RED3_STATUS="$red3_status"
+          export DISTILLER_ACTUAL="$distiller_actual"
+          export DISTILLER_EXPECTED="$distiller_expected"
+
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path(os.environ['ROOT'])
+          def unittest_count(name):
+              text = (root / name).read_text(errors='replace')
+              matches = re.findall(r'Ran (\d+) tests?', text)
+              return int(matches[-1]) if matches else None
+
+          red1_text = (root / 'inherited-red-1-p1b.log').read_text(errors='replace')
+          red2_text = (root / 'inherited-red-2-runtime-isolation.log').read_text(errors='replace')
+          report = {
+              'contract': 'reasoning-distiller-context-packaging-v2-execution-evidence/1',
+              'candidate_sha': 'd80026ea6b72067e21ea7a992f7c72fa896dff08',
+              'workflow_commit_sha': os.environ['GITHUB_SHA'],
+              'workflow_run_id': int(os.environ['GITHUB_RUN_ID']),
+              'workflow_run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'setup_python_outcome': os.environ['SETUP_OUTCOME'],
+              'dependency_install_exit_code': int(os.environ['INSTALL_STATUS']),
+              'v2_amendment': {
+                  'exit_code': int(os.environ['V2_STATUS']),
+                  'tests_run': unittest_count('v2-amendment.log'),
+                  'log': str(root / 'v2-amendment.log'),
+              },
+              'unaffected_p0_p4': {
+                  'exit_code': int(os.environ['GREEN_STATUS']),
+                  'tests_run': unittest_count('unaffected-p0-p4.log'),
+                  'p1b_known_red_excluded': True,
+                  'log': str(root / 'unaffected-p0-p4.log'),
+              },
+              'inherited_reds': {
+                  'p1b_ps19': {
+                      'exit_code': int(os.environ['RED1_STATUS']),
+                      'expected_marker_present': 'UNKNOWN_SEMANTICS_FIELD' in red1_text,
+                      'observed_marker_present': 'PLANE_CLASSIFICATION_CONFLICT' in red1_text,
+                      'case_marker_present': 'PS-19' in red1_text,
+                      'log': str(root / 'inherited-red-1-p1b.log'),
+                  },
+                  'runtime_isolation_v1_schema': {
+                      'exit_code': int(os.environ['RED2_STATUS']),
+                      'mutable_main_marker_present': '/blob/main/' in red2_text or 'blob/main' in red2_text,
+                      'log': str(root / 'inherited-red-2-runtime-isolation.log'),
+                  },
+                  'extraction_parity_distiller_directive': {
+                      'exit_code': int(os.environ['RED3_STATUS']),
+                      'expected_blob': os.environ['DISTILLER_EXPECTED'],
+                      'actual_blob': os.environ['DISTILLER_ACTUAL'],
+                      'log': str(root / 'inherited-red-3-extraction-parity.log'),
+                  },
+              },
+              'p5_runtime_builder_blob': 'b0e806e966598e6d819b6d52c643efa23cdb6ef9',
+              'p5_remediation_performed': False,
+              'p6_performed': False,
+              'admission_performed': False,
+              'canonical_mutation_performed': False,
+          }
+          reds = report['inherited_reds']
+          report['inherited_reds_preserved'] = (
+              reds['p1b_ps19']['exit_code'] != 0
+              and reds['p1b_ps19']['expected_marker_present']
+              and reds['p1b_ps19']['observed_marker_present']
+              and reds['p1b_ps19']['case_marker_present']
+              and reds['runtime_isolation_v1_schema']['exit_code'] != 0
+              and reds['runtime_isolation_v1_schema']['mutable_main_marker_present']
+              and reds['extraction_parity_distiller_directive']['exit_code'] != 0
+              and reds['extraction_parity_distiller_directive']['expected_blob'] == 'd578841d64da93f0883686eda80f00fde53d5f66'
+              and reds['extraction_parity_distiller_directive']['actual_blob'] == '81291456b127015b813af4eda4046397b4815037'
+          )
+          report['amendment_gate_pass'] = (
+              report['setup_python_outcome'] == 'success'
+              and report['dependency_install_exit_code'] == 0
+              and report['v2_amendment']['exit_code'] == 0
+              and report['unaffected_p0_p4']['exit_code'] == 0
+              and report['inherited_reds_preserved']
+          )
+          (root / 'report.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          PY
+
+          cat "$root/report.json"
+          cat "$root/v2-amendment.log"
+          cat "$root/unaffected-p0-p4.log"
+          cat "$root/inherited-red-1-p1b.log"
+          cat "$root/inherited-red-2-runtime-isolation.log"
+          cat "$root/inherited-red-3-extraction-parity.log"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$root"
+          git commit -m 'record final context packaging v2 amendment execution evidence'
+          commit_status=$?
+          if [ "$commit_status" -eq 0 ]; then
+            git push origin HEAD:refs/heads/evidence/context-packaging-v2-protocol-amendment-r3
+            push_status=$?
+          else
+            push_status=125
+          fi
+
+          gate="$(python -c 'import json; print(str(json.load(open("evidence/context-packaging-v2-protocol-amendment-r3/report.json"))["amendment_gate_pass"]).lower())')"
+          if [ "$gate" != 'true' ] || [ "$commit_status" -ne 0 ] || [ "$push_status" -ne 0 ]; then
+            exit 1
+          fi
+          exit 0
