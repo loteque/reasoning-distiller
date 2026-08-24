@@ -1,0 +1,162 @@
+name: Evidence Context Packaging V2 Protocol Amendment R2
+
+on:
+  push:
+    branches:
+      - 'evidence/context-packaging-v2-protocol-amendment-r2'
+    paths:
+      - '.github/workflows/evidence-context-packaging-v2-protocol-amendment-r2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  candidate-bound-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evidence child
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Bind workflow commit to immutable candidate
+        run: |
+          test "$(git rev-parse HEAD^)" = "4a7e6e4c2a5caf5e418fa539a7ccaba707c4931b"
+
+      - name: Set up Python
+        id: setup
+        continue-on-error: true
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Execute and durably record candidate-bound evidence
+        shell: bash
+        env:
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+        run: |
+          set +e
+          mkdir -p evidence/context-packaging-v2-protocol-amendment
+
+          python -m pip install --disable-pip-version-check jsonschema==4.25.1 \
+            > evidence/context-packaging-v2-protocol-amendment/install.log 2>&1
+          install_status=$?
+
+          if [ "$install_status" -eq 0 ]; then
+            python -m unittest -v \
+              tests.test_context_packaging_protocol_schemas_v2 \
+              tests.test_context_packaging_v2_bytes_digests_toolchain \
+              > evidence/context-packaging-v2-protocol-amendment/v2-amendment.log 2>&1
+            v2_status=$?
+
+            python -m unittest -v \
+              tests.test_context_packaging_pressure_cases_p0 \
+              tests.test_context_packaging_source_identity_p1a \
+              tests.test_context_packaging_protocol_schemas_p1b \
+              tests.test_context_packaging_bytes_digests_toolchain_p1c \
+              tests.test_context_packaging_pems_closure_p1d \
+              tests.test_context_packaging_consumer_profile_eligibility_p1e \
+              tests.test_context_packaging_source_resolution_p2 \
+              tests.test_context_packaging_source_resolution_p2_regression \
+              tests.test_context_packaging_pems_projection_p3 \
+              tests.test_context_packaging_cove_adapter_p4 \
+              > evidence/context-packaging-v2-protocol-amendment/p0-p4-regressions.log 2>&1
+            regression_status=$?
+
+            python -m unittest -v \
+              tests.test_context_packaging_pack_builder_p5 \
+              tests.test_runtime_isolation_p5 \
+              > evidence/context-packaging-v2-protocol-amendment/p5-inherited.log 2>&1
+            p5_status=$?
+          else
+            v2_status=125
+            regression_status=125
+            p5_status=125
+            printf 'not run: dependency installation failed\n' > evidence/context-packaging-v2-protocol-amendment/v2-amendment.log
+            printf 'not run: dependency installation failed\n' > evidence/context-packaging-v2-protocol-amendment/p0-p4-regressions.log
+            printf 'not run: dependency installation failed\n' > evidence/context-packaging-v2-protocol-amendment/p5-inherited.log
+          fi
+
+          export INSTALL_STATUS="$install_status"
+          export V2_STATUS="$v2_status"
+          export REGRESSION_STATUS="$regression_status"
+          export P5_STATUS="$p5_status"
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path('evidence/context-packaging-v2-protocol-amendment')
+          def count_tests(name):
+              text = (root / name).read_text(errors='replace')
+              matches = re.findall(r'Ran (\d+) tests?', text)
+              return int(matches[-1]) if matches else None
+
+          report = {
+              'contract': 'reasoning-distiller-context-packaging-v2-execution-evidence/1',
+              'candidate_sha': '4a7e6e4c2a5caf5e418fa539a7ccaba707c4931b',
+              'workflow_commit_sha': os.environ['GITHUB_SHA'],
+              'workflow_run_id': int(os.environ['GITHUB_RUN_ID']),
+              'workflow_run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'setup_python_outcome': os.environ['SETUP_OUTCOME'],
+              'dependency_install_exit_code': int(os.environ['INSTALL_STATUS']),
+              'v2_amendment': {
+                  'exit_code': int(os.environ['V2_STATUS']),
+                  'tests_run': count_tests('v2-amendment.log'),
+                  'log': 'evidence/context-packaging-v2-protocol-amendment/v2-amendment.log',
+              },
+              'unaffected_p0_p4_regressions': {
+                  'exit_code': int(os.environ['REGRESSION_STATUS']),
+                  'tests_run': count_tests('p0-p4-regressions.log'),
+                  'log': 'evidence/context-packaging-v2-protocol-amendment/p0-p4-regressions.log',
+              },
+              'inherited_p5_classification': {
+                  'exit_code': int(os.environ['P5_STATUS']),
+                  'tests_run': count_tests('p5-inherited.log'),
+                  'gating_for_amendment': False,
+                  'remediation_performed': False,
+                  'log': 'evidence/context-packaging-v2-protocol-amendment/p5-inherited.log',
+              },
+              'prohibited_scope': {
+                  'p5_remediation': False,
+                  'p6': False,
+                  'admission': False,
+                  'canonical_mutation': False,
+              },
+          }
+          report['amendment_gate_pass'] = (
+              report['setup_python_outcome'] == 'success'
+              and report['dependency_install_exit_code'] == 0
+              and report['v2_amendment']['exit_code'] == 0
+              and report['unaffected_p0_p4_regressions']['exit_code'] == 0
+          )
+          (root / 'report.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          PY
+
+          cat evidence/context-packaging-v2-protocol-amendment/report.json
+          cat evidence/context-packaging-v2-protocol-amendment/v2-amendment.log
+          cat evidence/context-packaging-v2-protocol-amendment/p0-p4-regressions.log
+          cat evidence/context-packaging-v2-protocol-amendment/p5-inherited.log
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add evidence/context-packaging-v2-protocol-amendment
+          git commit -m "record context packaging v2 amendment execution evidence"
+          commit_status=$?
+          if [ "$commit_status" -eq 0 ]; then
+            git push origin HEAD:refs/heads/evidence/context-packaging-v2-protocol-amendment-r2
+            push_status=$?
+          else
+            push_status=125
+          fi
+
+          if [ "$SETUP_OUTCOME" != 'success' ] || \
+             [ "$install_status" -ne 0 ] || \
+             [ "$v2_status" -ne 0 ] || \
+             [ "$regression_status" -ne 0 ] || \
+             [ "$commit_status" -ne 0 ] || \
+             [ "$push_status" -ne 0 ]; then
+            exit 1
+          fi
+          exit 0
