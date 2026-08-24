@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - evidence/context-packaging-p5-d96071ab-engineer-20260824
+  pull_request:
+    branches:
+      - implement/context-packaging-p5-remediation-v2
 
 permissions:
   contents: read
