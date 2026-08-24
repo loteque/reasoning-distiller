@@ -1,0 +1,16 @@
+FAIL agents/distiller/DIRECTIVE.md: expected blob d578841d64da93f0883686eda80f00fde53d5f66, got 81291456b127015b813af4eda4046397b4815037
+PASS schemas/rgp-output.schema.json f59067dc152f29bec911941562831266fbabed2b
+PASS validators/validate_distillation.py a9bcc452a561c37fff818f92b1527d1c534878b6
+PASS validators/rgp_validator.py 5675c652b6ad894fe3e1388a4290d2965b2540a0
+PASS evaluation/corpus/voxel-engine/phase0/PHASE0_BASELINE.md f8a130bef35b818197320bb7bde93dac051d71f5
+PASS evaluation/corpus/voxel-engine/phase0/phase1-inputs.json 7b343786418923648ebc3aa2b6a78bda8b993bf7
+PASS evaluation/corpus/voxel-engine/phase0/expected.yaml 3436454b60e3235bf2305a5dc62e8849670a2661
+PASS evaluation/corpus/voxel-engine/phase0/SCORING.md 017eaf8ab1fa8e4b9646616d924fc6a9aa7c2b05
+PASS tests/fixtures/invalid-empty-premise.json cf3c05d41b92ab4d33e29b8ece2ae357f67a85cf
+PASS tests/fixtures/invalid-empty-provenance.json c2e4087cf395aee35da0be061f99089dcb35efd2
+PASS tests/fixtures/invalid-legacy-authority-field.json 3b51f2b6a99bfe37c465e41ec7e60f57d26ac776
+PASS tests/fixtures/invalid-legacy-validated-by-relation.json 76c877e87efa89b983e455884ad19b85e002d3bb
+PASS tests/fixtures/invalid-missing-premise-reference.json ecb83eab33c08066af013ef832046fe498e86bff
+PASS tests/fixtures/invalid-observation-without-primary-provenance.json ee4c0974c4304ef30bfc21c15bb06549f84769d1
+PASS tests/fixtures/invalid-premise-cycle.json 9ddb73199cd94cd040afb2bbafb7d3ff33ad5117
+PASS tests/fixtures/valid-derived.json 850b9490731c7c579b71355edbc63b35c33ab85e

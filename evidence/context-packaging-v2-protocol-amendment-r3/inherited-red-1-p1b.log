@@ -1,0 +1,36 @@
+.F...                                                                    [100%]
+=================================== FAILURES ===================================
+____________ P1b.test_negative_fixtures_reject_and_classify_exactly ____________
+
+s = <test_context_packaging_protocol_schemas_p1b.P1b testMethod=test_negative_fixtures_reject_and_classify_exactly>
+
+    def test_negative_fixtures_reject_and_classify_exactly(s):
+     e=s.e;repo=e['repository_source'];can=e['canonical_source'];op=e['operational_source'];logical=lr(can);bases={'profile':e['profile'],'repository_source':repo,'operational_source':op,'failure':e['failure'],'receipt':e['receipt'],'eligibility':e['eligibility'],'result_success':{'contract':'reasoning-distiller-context-pack-result/1','request_id':'r','status':'success','pack':{'contract':'reasoning-distiller-context-pack/1','pack_identity_sha256':'sha256:'+'a'*64}}}
+     codes=set(s.sc['context-pack-failure.schema.json']['properties']['code']['enum'])
+     for c in s.fx['negative_cases']:
+      t,m=c['target'],c['mutation']
+      if t=='request' and m['path'][:1]==['slot_bindings']:
+       x={'slot_id':'x','plane':'control','source_ref':sr(repo)};x['source_ref']=deepcopy(m['value']);errs=s.sub('context-pack-request.schema.json','controlSlotBinding',x)
+      elif t=='request' and m['path'][:2]==['knowledge_selection','snapshots']:
+       x={'canonical_snapshot_ref':sr(can),'record_ids':[],'relation_ids':[]};x['canonical_snapshot_ref']=deepcopy(m['value']);errs=s.sub('context-pack-request.schema.json','knowledgeSnapshotSelection',x)
+      elif t=='request':
+       x={'snapshots':[{'canonical_snapshot_ref':sr(can),'record_ids':[],'relation_ids':[]}],m['field']:deepcopy(m['value'])};errs=s.sub('context-pack-request.schema.json','knowledgeSelection',x)
+      elif t=='pack' and m['path'][:2]==['control_plane','items']:
+       x={'source_ref':sr(repo),'payload':{'encoding':'base64','data':'YQ==','raw_sha256':repo['raw_sha256']}};x['source_ref']=deepcopy(m['value']);errs=s.sub('context-pack.schema.json','opaqueItem',x)
+      elif t=='pack':
+       x={'canonical_snapshot_ref':sr(can),'semantic':'pems/2','serializer':'jcs/1','pems':e['minimal_pems']};x['canonical_snapshot_ref']=deepcopy(m['value']);errs=s.sub('context-pack.schema.json','knowledgeItem',x)
+      else:errs=s.val({'profile':'context-profile.schema.json','repository_source':'context-source-binding.schema.json','operational_source':'context-source-binding.schema.json','failure':'context-pack-failure.schema.json','receipt':'context-pack-receipt.schema.json','eligibility':'context-profile-eligibility.schema.json','result_success':'context-pack-result.schema.json'}[t],mut(bases[t],m))
+>     s.assertTrue(errs,c['id']);actual=classify(c,errs);s.assertEqual(actual,c['expected_failure_code'],c['id']);s.assertIn(actual,codes)
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     AssertionError: 'PLANE_CLASSIFICATION_CONFLICT' != 'UNKNOWN_SEMANTICS_FIELD'
+E     - PLANE_CLASSIFICATION_CONFLICT
+E     + UNKNOWN_SEMANTICS_FIELD
+E      : PS-19
+
+tests/test_context_packaging_protocol_schemas_p1b.py:78: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly - AssertionError: 'PLANE_CLASSIFICATION_CONFLICT' != 'UNKNOWN_SEMANTICS_FIELD'
+- PLANE_CLASSIFICATION_CONFLICT
++ UNKNOWN_SEMANTICS_FIELD
+ : PS-19
+1 failed, 4 passed in 0.33s

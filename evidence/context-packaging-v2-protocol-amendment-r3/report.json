@@ -1,0 +1,47 @@
+{
+  "admission_performed": false,
+  "amendment_gate_pass": false,
+  "candidate_sha": "d80026ea6b72067e21ea7a992f7c72fa896dff08",
+  "canonical_mutation_performed": false,
+  "contract": "reasoning-distiller-context-packaging-v2-execution-evidence/1",
+  "dependency_install_exit_code": 0,
+  "inherited_reds": {
+    "extraction_parity_distiller_directive": {
+      "actual_blob": "81291456b127015b813af4eda4046397b4815037",
+      "exit_code": 1,
+      "expected_blob": "d578841d64da93f0883686eda80f00fde53d5f66",
+      "log": "evidence/context-packaging-v2-protocol-amendment-r3/inherited-red-3-extraction-parity.log"
+    },
+    "p1b_ps19": {
+      "case_marker_present": true,
+      "exit_code": 1,
+      "expected_marker_present": true,
+      "log": "evidence/context-packaging-v2-protocol-amendment-r3/inherited-red-1-p1b.log",
+      "observed_marker_present": true
+    },
+    "runtime_isolation_v1_schema": {
+      "exit_code": 1,
+      "log": "evidence/context-packaging-v2-protocol-amendment-r3/inherited-red-2-runtime-isolation.log",
+      "mutable_main_marker_present": false
+    }
+  },
+  "inherited_reds_preserved": false,
+  "p5_remediation_performed": false,
+  "p5_runtime_builder_blob": "b0e806e966598e6d819b6d52c643efa23cdb6ef9",
+  "p6_performed": false,
+  "setup_python_outcome": "success",
+  "unaffected_p0_p4": {
+    "exit_code": 0,
+    "log": "evidence/context-packaging-v2-protocol-amendment-r3/unaffected-p0-p4.log",
+    "p1b_known_red_excluded": true,
+    "tests_run": 98
+  },
+  "v2_amendment": {
+    "exit_code": 0,
+    "log": "evidence/context-packaging-v2-protocol-amendment-r3/v2-amendment.log",
+    "tests_run": 22
+  },
+  "workflow_commit_sha": "c320761215221f14a0302ab0b84fe7d707995160",
+  "workflow_run_attempt": 1,
+  "workflow_run_id": 32690492630
+}
