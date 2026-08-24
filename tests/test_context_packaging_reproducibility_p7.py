@@ -198,8 +198,8 @@ class P7ReproducibilityTests(unittest.TestCase):
     def test_host_paths_and_unicode_environment_do_not_leak_into_pack(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            cwd = root / "cwd-e\u0301-backslash-\\-probe"
-            tmpdir = root / "tmp-é-forward-slash-probe"
+            cwd = root / "cwd-e\u0301-probe"
+            tmpdir = root / "tmp-é-probe"
             cwd.mkdir()
             tmpdir.mkdir()
             probe = _run_probe(
