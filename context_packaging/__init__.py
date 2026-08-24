@@ -26,6 +26,15 @@ from .pems_projection import (
     ProjectionCause,
     project_pems,
 )
+from .persistence_adapter import (
+    IMMUTABLE_OUTPUT_COLLISION,
+    NO_CHANGE,
+    PERSISTED,
+    ImmutableOutputCollisionError,
+    PersistenceBoundaryError,
+    PersistenceResult,
+    persist_immutable_artifact,
+)
 from .source_resolver import (
     AdapterResult,
     ResolvedSource,
@@ -39,6 +48,9 @@ __all__ = [
     "ContextPackBuildResult",
     "CoveAdapterError",
     "CoveSemanticTuple",
+    "IMMUTABLE_OUTPUT_COLLISION",
+    "ImmutableOutputCollisionError",
+    "NO_CHANGE",
     "PACK_BUILDER_CONTRACT",
     "PACK_BUILDER_CONTRACT_V1",
     "PACK_BUILDER_CONTRACT_V2",
@@ -46,6 +58,9 @@ __all__ = [
     "PACK_CONTRACT_V1",
     "PACK_CONTRACT_V2",
     "PEMS_SEMANTIC",
+    "PERSISTED",
+    "PersistenceBoundaryError",
+    "PersistenceResult",
     "PemsProjectionResult",
     "ProjectedKnowledge",
     "ProjectionCause",
@@ -56,6 +71,7 @@ __all__ = [
     "build_context_pack",
     "decode_cove_pems",
     "encode_cove_pems",
+    "persist_immutable_artifact",
     "project_pems",
     "resolve_sources",
 ]
