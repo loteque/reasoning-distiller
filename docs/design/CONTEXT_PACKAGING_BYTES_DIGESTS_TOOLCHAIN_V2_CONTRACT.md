@@ -47,7 +47,7 @@ The `/2` pack schema binds:
 urn:reasoning-distiller:schema-resource:pems-v2:git-blob:cd7683d704e8aef2842a0c1b25b453fb1dbc8030
 ```
 
-The package-owned resource registry is blob `7db4e20781f044fadc403da431328a95b2700c46` at `schemas/resources/context-packaging-v2-resource-registry.json`. Resolution registers the exact PEMS schema blob `cd7683d704e8aef2842a0c1b25b453fb1dbc8030`, raw SHA-256 `sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3`, under that immutable alias without network retrieval.
+The package-owned resource registry is blob `3afb30b240d0d26d4deb21938e379a2a570b26ab` at `schemas/resources/context-packaging-v2-resource-registry.json`. Resolution registers the exact PEMS schema blob `cd7683d704e8aef2842a0c1b25b453fb1dbc8030`, raw SHA-256 `sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3`, under that immutable alias without network retrieval.
 
 The historical PEMS `$id` containing `/blob/main/` is not the `/2` resource identity.
 

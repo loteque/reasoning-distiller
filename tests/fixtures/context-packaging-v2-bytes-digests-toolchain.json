@@ -22,11 +22,11 @@
     "resource_id": "urn:reasoning-distiller:schema-resource:pems-v2:git-blob:cd7683d704e8aef2842a0c1b25b453fb1dbc8030",
     "source_blob": "cd7683d704e8aef2842a0c1b25b453fb1dbc8030",
     "raw_sha256": "sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3",
-    "registry_blob": "7db4e20781f044fadc403da431328a95b2700c46"
+    "registry_blob": "3afb30b240d0d26d4deb21938e379a2a570b26ab"
   },
   "contracts": {
     "bytes_digests_toolchain": "reasoning-distiller-context-pack-bytes-digests-toolchain/2",
-    "bytes_digests_toolchain_blob": "44f0233a2adfe8e23c7b6e43935f1bcc59d93a67",
+    "bytes_digests_toolchain_blob": "d1a4aa16d44d32bc6af1c0ef909138f7c1fa354c",
     "pack_builder": "reasoning-distiller-context-pack-builder/2",
     "pack_builder_behavior_blob": "f037625990497bd4eb491238367516a4c61b4e0c",
     "pack_builder_behavior_raw_sha256": "sha256:b99020add18a9ab64cb0e42c3450a02807cb5b080127fe0f9a49eac4588fc7ed",
