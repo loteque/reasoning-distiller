@@ -9,6 +9,8 @@ activation, or canonical mutation.
 from __future__ import annotations
 
 from copy import deepcopy
+import hashlib
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from . import pack_builder_v1 as _v1
@@ -40,6 +42,7 @@ _PEMS_V2_BLOB = "cd7683d704e8aef2842a0c1b25b453fb1dbc8030"
 _PEMS_V2_RAW_SHA256 = (
     "sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3"
 )
+_PACK_BUILDER_V1_BLOB = "b0e806e966598e6d819b6d52c643efa23cdb6ef9"
 
 
 def build_context_pack(
@@ -121,6 +124,7 @@ def _build_v2(
     toolchain_components: Sequence[Mapping[str, Any]],
 ) -> ContextPackBuildResult:
     try:
+        _verify_pack_builder_v1_identity()
         _preflight_v2(profile_raw, profile, request_raw, request)
         source_index = _v1._index_resolved_sources(resolved_sources)
         control_items, control_ledger, control_bindings = _v1._build_control_plane(
@@ -190,6 +194,33 @@ def _build_v2(
                 "pack",
                 f"invalid P5 build input: {type(exc).__name__}",
             )
+        )
+
+
+def _verify_pack_builder_v1_identity() -> None:
+    source = getattr(_v1, "__file__", None)
+    if not isinstance(source, str) or not source:
+        raise _BuildFailure(
+            "TOOLCHAIN_IDENTITY_MISMATCH",
+            "pack_builder/2 dependency source is unavailable",
+            stage="toolchain",
+        )
+    try:
+        raw = Path(source).read_bytes()
+    except OSError as exc:
+        raise _BuildFailure(
+            "TOOLCHAIN_IDENTITY_MISMATCH",
+            "pack_builder/2 dependency source is unavailable",
+            stage="toolchain",
+        ) from exc
+    actual = hashlib.sha1(
+        b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
+    ).hexdigest()
+    if actual != _PACK_BUILDER_V1_BLOB:
+        raise _BuildFailure(
+            "TOOLCHAIN_IDENTITY_MISMATCH",
+            "pack_builder/2 dependency identity mismatch",
+            stage="toolchain",
         )
 
 
