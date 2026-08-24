@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - evidence/context-packaging-p7-d8ef5280-engineer-20260824
+  pull_request:
+    branches:
+      - implement/context-packaging-p7
 
 permissions:
   contents: read
