@@ -21,6 +21,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 P5_TEST = ROOT / "tests/test_context_packaging_pack_builder_p5.py"
+PRESSURE_CASES = ROOT / "tests/fixtures/context-packaging-pressure-cases-v1.json"
 sys.path.insert(0, str(ROOT))
 
 
@@ -221,30 +222,42 @@ class P7ReproducibilityTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, serialized)
 
-    def test_toolchain_identity_change_is_visible_and_incompatible_change_fails(self):
-        p5 = _load_p5_fixture_module()
-        baseline = p5._build(p5._fixture(semantic_item=True))
-        self.assertTrue(baseline.ok, baseline.failure)
+    def test_pc36_undeclared_toolchain_change_is_not_replay_equivalent(self):
+        pressure = json.loads(PRESSURE_CASES.read_text(encoding="utf-8"))
+        pc36 = next(case for case in pressure["cases"] if case["id"] == "PC-36")
+        self.assertEqual(pc36["expected_result"], "FAIL")
+        self.assertEqual(pc36["failure_class"], "TOOLCHAIN_IDENTITY_MISMATCH")
+        self.assertIn("not declared explicitly compatible", pc36["fixture_precondition"])
 
-        changed_fx = p5._fixture(semantic_item=True)
-        validator = next(
-            component
-            for component in changed_fx["components"]
-            if component["role"] == "pems_validator"
-        )
-        validator["immutable_identity"] = "git-blob:" + "0" * 40
-        validator["raw_sha256"] = "sha256:" + "0" * 64
-        changed = p5._build(changed_fx)
-        self.assertTrue(changed.ok, changed.failure)
-        self.assertNotEqual(changed.serialized_pack, baseline.serialized_pack)
-        self.assertNotEqual(
-            changed.pack["identity"]["manifest_sha256"],
-            baseline.pack["identity"]["manifest_sha256"],
-        )
-        self.assertNotEqual(
-            changed.pack["identity"]["pack_identity_sha256"],
-            baseline.pack["identity"]["pack_identity_sha256"],
-        )
+        p5 = _load_p5_fixture_module()
+        for role, use_cove in (("pems_validator", False), ("cove_adapter", True)):
+            with self.subTest(role=role):
+                baseline_fx = p5._fixture(semantic_item=True, cove=use_cove)
+                baseline = p5._build(baseline_fx)
+                self.assertTrue(baseline.ok, baseline.failure)
+
+                changed_fx = p5._fixture(semantic_item=True, cove=use_cove)
+                component = next(
+                    item for item in changed_fx["components"] if item["role"] == role
+                )
+                component["immutable_identity"] = "git-blob:" + "0" * 40
+                component["raw_sha256"] = "sha256:" + "0" * 64
+                changed = p5._build(changed_fx)
+                self.assertTrue(changed.ok, changed.failure)
+
+                self.assertNotEqual(
+                    changed.pack["toolchain"],
+                    baseline.pack["toolchain"],
+                )
+                self.assertNotEqual(changed.serialized_pack, baseline.serialized_pack)
+                self.assertNotEqual(
+                    changed.pack["identity"]["manifest_sha256"],
+                    baseline.pack["identity"]["manifest_sha256"],
+                )
+                self.assertNotEqual(
+                    changed.pack["identity"]["pack_identity_sha256"],
+                    baseline.pack["identity"]["pack_identity_sha256"],
+                )
 
         incompatible_fx = p5._fixture(semantic_item=True)
         closure = next(
