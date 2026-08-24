@@ -1,0 +1,92 @@
+name: P7 d8ef5280 Engineer diagnostic
+
+on:
+  push:
+    branches:
+      - evidence/context-packaging-p7-d8ef5280-engineer-20260824
+
+permissions:
+  contents: read
+
+jobs:
+  p7-diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact P7 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: d8ef5280bad5ffd98f0db58c91fbe5fe3aa37a12
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+
+      - name: Verify candidate scope and behavior artifact identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "d8ef5280bad5ffd98f0db58c91fbe5fe3aa37a12"
+          expected='tests/test_context_packaging_reproducibility_p7.py'
+          actual="$(git diff --name-only 091e9ac97f0a068045acbcc57e90a934d24f9f7a..HEAD)"
+          test "$actual" = "$expected"
+          {
+            echo "candidate=$(git rev-parse HEAD)"
+            echo "p7_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_reproducibility_p7.py)"
+            echo "p5_builder_blob=$(git rev-parse HEAD:context_packaging/pack_builder.py)"
+            echo "persistence_adapter_blob=$(git rev-parse HEAD:context_packaging/persistence_adapter.py)"
+            echo "pems_validator_blob=$(git rev-parse HEAD:backends/pems-cove/validate_pems2_contract.py)"
+            echo "pems_validator_raw_sha256=sha256:$(sha256sum backends/pems-cove/validate_pems2_contract.py | awk '{print $1}')"
+            echo "cove_adapter_blob=$(git rev-parse HEAD:context_packaging/cove_adapter.py)"
+            echo "cove_adapter_raw_sha256=sha256:$(sha256sum context_packaging/cove_adapter.py | awk '{print $1}')"
+          } | tee p7-candidate-identities.txt
+
+      - name: Run current exact P7 suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_context_packaging_reproducibility_p7.py 2>&1 | tee p7-current-suite.txt
+
+      - name: Probe PC-36 undeclared toolchain incompatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' | tee p7-pc36-probe.txt
+          import importlib.util
+          from pathlib import Path
+
+          path = Path('tests/test_context_packaging_pack_builder_p5.py').resolve()
+          spec = importlib.util.spec_from_file_location('p7_pc36_fixture', path)
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          def require_mismatch(fx, role):
+              component = next(x for x in fx['components'] if x['role'] == role)
+              component['immutable_identity'] = 'git-blob:' + '0' * 40
+              component['raw_sha256'] = 'sha256:' + '0' * 64
+              result = module._build(fx)
+              if result.ok:
+                  raise AssertionError(role + ' undeclared identity change was accepted')
+              assert result.failure['code'] == 'TOOLCHAIN_IDENTITY_MISMATCH', result.failure
+              assert result.failure['stage'] == 'toolchain', result.failure
+              print('PC36_' + role.upper() + '_FAIL_CLOSED_PASS')
+
+          require_mismatch(module._fixture(semantic_item=True), 'pems_validator')
+          require_mismatch(module._fixture(semantic_item=True, cove=True), 'cove_adapter')
+          require_mismatch(module._fixture(semantic_item=True), 'closure_descriptor')
+          PY
+
+      - name: Upload P7 diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p7-d8ef5280-engineer-diagnostic
+          path: |
+            p7-candidate-identities.txt
+            p7-current-suite.txt
+            p7-pc36-probe.txt
+          if-no-files-found: warn
