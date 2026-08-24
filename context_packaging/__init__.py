@@ -12,7 +12,11 @@ from .cove_adapter import (
 )
 from .pack_builder import (
     PACK_BUILDER_CONTRACT,
+    PACK_BUILDER_CONTRACT_V1,
+    PACK_BUILDER_CONTRACT_V2,
     PACK_CONTRACT,
+    PACK_CONTRACT_V1,
+    PACK_CONTRACT_V2,
     ContextPackBuildResult,
     build_context_pack,
 )
@@ -36,7 +40,11 @@ __all__ = [
     "CoveAdapterError",
     "CoveSemanticTuple",
     "PACK_BUILDER_CONTRACT",
+    "PACK_BUILDER_CONTRACT_V1",
+    "PACK_BUILDER_CONTRACT_V2",
     "PACK_CONTRACT",
+    "PACK_CONTRACT_V1",
+    "PACK_CONTRACT_V2",
     "PEMS_SEMANTIC",
     "PemsProjectionResult",
     "ProjectedKnowledge",
