@@ -1,0 +1,238 @@
+{
+  "contract": "reasoning-distiller-p7-reproducibility-execution-manifest/1",
+  "candidate": {
+    "commit": "0fb11fe7fb18d615549dc8ce8b86044e95e4bc1a",
+    "parent_closed_p6_candidate": "091e9ac97f0a068045acbcc57e90a934d24f9f7a",
+    "implementation_branch": "implement/context-packaging-p7",
+    "semantic_diff_files": [
+      ".gitattributes",
+      "tests/test_context_packaging_reproducibility_p7.py"
+    ],
+    "blobs": {
+      ".gitattributes": "9cb20139f8e143d54ee1acb1d7f3e1d4a87a4c22",
+      "tests/test_context_packaging_reproducibility_p7.py": "36257d0e7606d8768c6f3948b84e4705a78f2471",
+      "context_packaging/pack_builder.py": "c7a87dae852de2cb58393fa3bc6dd9241a2155f0",
+      "context_packaging/persistence_adapter.py": "58350007067f0443b65758992b1a17323123271d",
+      "tests/test_context_packaging_pack_builder_p5.py": "5fd7fc17a01877f4add060357a6b28ee0eb0e096"
+    },
+    "p5_builder_preserved": true,
+    "p6_persistence_adapter_preserved": true,
+    "runtime_source_algorithm_changes": false
+  },
+  "basis": {
+    "coordination_main": "80b6e89ad2efe84b088ca06b908a257c449fac15",
+    "governing_plan_commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "governing_plan_blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "closed_p6_semantic_candidate": "091e9ac97f0a068045acbcc57e90a934d24f9f7a",
+    "p6_engineer_execution_evidence": "0bb93c9f31de65ba4fae9d0c3c815f7d44d0fdc8",
+    "p6_independent_review_evidence": "e7a4b02d26fb6685bbf4948a9e8963010974045d",
+    "p6_independent_disposition": "P6_INDEPENDENT_REVIEW_PASS",
+    "p6_steward_reconciliation": "95b9c91ea3cab40858c389d238000b550880d255",
+    "p6_steward_disposition": "P6_STEWARD_RECONCILIATION_ACCEPTED"
+  },
+  "gate": {
+    "scope": "P7_REPRODUCIBILITY_ONLY",
+    "required_host_perturbations": [
+      "locale",
+      "runtime_ordering",
+      "filesystem_enumeration_order",
+      "path_separator",
+      "unicode_environment",
+      "temporary_path",
+      "toolchain_identity"
+    ],
+    "exit_condition": "contracted equivalent inputs remain byte-identical and incompatible toolchain replay changes fail visibly",
+    "toolchain_replay_layering": {
+      "pure_builder_may_construct_new_identity_for_changed_behavior_component": true,
+      "changed_undeclared_behavior_component_is_not_replay_equivalent": true,
+      "closure_descriptor_identity_mismatch_fails_builder": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "compatibility_is_not_inferred_from_success_or_equal_bytes": true
+    }
+  },
+  "implementation": {
+    "reproducibility_test_file": "tests/test_context_packaging_reproducibility_p7.py",
+    "identity_bound_byte_transport_file": ".gitattributes",
+    "identity_bound_artifacts_with_text_conversion_disabled": [
+      "backends/pems-cove/pems-v2.schema.json",
+      "backends/pems-cove/validate_pems2_contract.py",
+      "protocols/rgp/pems2-context-closure-v1.json",
+      "context_packaging/pems_projection.py",
+      "context_packaging/pack_builder.py",
+      "context_packaging/cove_adapter.py",
+      "admission/apply_admission_transaction.py"
+    ],
+    "windows_checkout_line_ending_remediation": "exact behavior artifacts whose raw Git bytes define toolchain identity are marked -text so checkout-time text conversion cannot alter the runtime bytes",
+    "p5_builder_semantics_changed": false,
+    "p6_persistence_semantics_changed": false
+  },
+  "execution": {
+    "evidence_pr": 72,
+    "evidence_pr_merged": false,
+    "evidence_branch": "evidence/p7-0fb11fe7-engineer-20260824",
+    "workflow_head_commit": "212455c2ad14e32ca9376e4f31f26a2f34867a0e",
+    "workflow_run_id": 32768500929,
+    "workflow_conclusion": "success",
+    "exact_candidate_checkout": "0fb11fe7fb18d615549dc8ce8b86044e95e4bc1a",
+    "jobs": {
+      "linux": 97563314686,
+      "windows": 97563314625,
+      "regressions": 97563314456,
+      "cross_host": 97563502892
+    },
+    "linux": {
+      "runner": "Ubuntu 24.04.4",
+      "runner_image": "ubuntu-24.04@20260816.277.1",
+      "git": "2.55.0",
+      "python": "3.12.14",
+      "byte_transport_verification": "PASS",
+      "pytest": {
+        "tests_passed": 4,
+        "subtests_passed": 2,
+        "outcome": "PASS"
+      },
+      "unittest": {
+        "tests_passed": 4,
+        "outcome": "PASS"
+      },
+      "native_host_probe": "PASS",
+      "path_separator": "/"
+    },
+    "windows": {
+      "runner": "Microsoft Windows Server 2025 Datacenter 10.0.26100",
+      "runner_image": "windows-2025-vs2026@20260818.207.1",
+      "git": "2.55.0.windows.4",
+      "python": "3.12.10",
+      "byte_transport_verification": "PASS",
+      "git_check_attr_text_unset_for_all_identity_bound_artifacts": true,
+      "pytest": {
+        "tests_passed": 4,
+        "subtests_passed": 2,
+        "outcome": "PASS"
+      },
+      "unittest": {
+        "tests_passed": 4,
+        "outcome": "PASS"
+      },
+      "native_host_probe": "PASS",
+      "path_separator": "\\"
+    },
+    "cross_host": {
+      "outcome": "PASS",
+      "marker": "P7_CROSS_HOST_BYTE_IDENTITY_PASS",
+      "serialized_pack_sha256": "sha256:18342ab665edc1010fa8bc608cb4df3d66049eda2882b1a061dc3a7b739bf041",
+      "pack_identity_sha256": "sha256:a235dc025b30c2eaa7c416af300e9f2ae72778bb2bc60a4aec91efb2e03ff3ff",
+      "serialized_pack_bytes_identical": true,
+      "pack_identity_identical": true,
+      "different_host_path_separators_observed": true,
+      "different_python_patch_versions_observed": true
+    },
+    "unaffected_p0_p6_regressions": {
+      "tests_passed": 150,
+      "tests_deselected": 2,
+      "subtests_passed": 160,
+      "outcome": "PASS",
+      "deselected": [
+        "tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment",
+        "tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly"
+      ]
+    },
+    "inherited_red_reproduction": {
+      "id": "P1B_PS19_CLASSIFIER_MISMATCH",
+      "exit_status": 1,
+      "observed": "PLANE_CLASSIFICATION_CONFLICT",
+      "expected": "UNKNOWN_SEMANTICS_FIELD",
+      "marker": "P1B_PS19_CLASSIFIER_MISMATCH_REPRODUCED"
+    },
+    "artifacts": [
+      {
+        "id": 9535318287,
+        "name": "p7-host-Linux",
+        "size_bytes": 5073,
+        "sha256": "sha256:51d73ef835ad8fa79504ed4cdbed53933ab33d09fcb90aaf0cc0d0bf88c1a583"
+      },
+      {
+        "id": 9535327008,
+        "name": "p7-host-Windows",
+        "size_bytes": 5102,
+        "sha256": "sha256:2877b3bdb1748981e0ce8c205dfe771f7b6047f318b638ce662c2187166b56bf"
+      },
+      {
+        "id": 9535333940,
+        "name": "p7-cross-host-comparison",
+        "size_bytes": 351,
+        "sha256": "sha256:92ea45cd7a216441114cfea1193903cccba173d4f6893aedc023b6c86f69d4fd"
+      },
+      {
+        "id": 9535318365,
+        "name": "p7-regressions",
+        "size_bytes": 1522,
+        "sha256": "sha256:9b3e30b5357f02f2b01d908ab20abdb65b65f85edfc012551e559a5fbcd9396c"
+      }
+    ]
+  },
+  "diagnostic_history": [
+    {
+      "candidate": "d8ef5280bad5ffd98f0db58c91fbe5fe3aa37a12",
+      "pr": 70,
+      "run_id": 32767870547,
+      "classification": "SUPERSEDED_DIAGNOSTIC",
+      "finding": "initial PC-36 diagnostic incorrectly required the pure builder itself to reject every changed validator/COVE identity; live P1c and Stage 2 contracts place replay compatibility at the P7 gate while permitting a different pack identity"
+    },
+    {
+      "candidate": "c935b46bfc9c2302ae8afadf90a3f7b773443fa4",
+      "pr": 71,
+      "run_id": 32768156274,
+      "classification": "SUPERSEDED_DIAGNOSTIC",
+      "finding": "Windows checkout text conversion changed exact identity-bound behavior bytes, causing frozen toolchain identity mismatch before packaging; remediated by candidate 0fb11fe7 with -text attributes"
+    }
+  ],
+  "standing_ci_observation": {
+    "ril_test_suite": {
+      "run_id": 32768500878,
+      "job_id": 97563313708,
+      "conclusion": "failure",
+      "tests_run": 562,
+      "failures": 3,
+      "p7_tests_observed_passing": 4,
+      "failure_classification": [
+        "P1B_PS19_CLASSIFIER_MISMATCH",
+        "EXPECTED_AMENDMENT_TO_P5_TRANSITION_SENTINEL",
+        "LEGACY_V1_RUNTIME_ISOLATION_MUTABLE_SCHEMA_REFERENCE"
+      ],
+      "additional_p7_local_failure_observed": false
+    },
+    "extraction_parity": {
+      "run_id": 32768500873,
+      "job_id": 97563316992,
+      "conclusion": "failure",
+      "pre_failure_steps": {
+        "rgp_fixture_parity": "PASS",
+        "project_knowledge_package_contract": "PASS",
+        "framework_isolation_and_authority_boundary": "PASS"
+      },
+      "classified_as": "EXTRACTION_PARITY_DISTILLER_DIRECTIVE_MISMATCH",
+      "expected_blob": "d578841d64da93f0883686eda80f00fde53d5f66",
+      "actual_blob": "81291456b127015b813af4eda4046397b4815037",
+      "additional_p7_local_failure_observed": false
+    }
+  },
+  "scope": {
+    "p7_reproducibility_started": true,
+    "p7_engineer_execution_complete": true,
+    "p8_authority_memory_isolation_started": false,
+    "p9_rendering_started": false,
+    "p10_production_integration_started": false,
+    "admission_started": false,
+    "canonical_mutation_started": false,
+    "authority_mutation_started": false,
+    "steward_reconciliation_started": false,
+    "successor_activation_started": false
+  },
+  "disposition": {
+    "execution": "P7_REPRODUCIBILITY_ENGINEER_EXECUTION_PASS",
+    "independent_review": "NOT_ESTABLISHED",
+    "steward_reconciliation": "NOT_ESTABLISHED",
+    "p7_closed": false,
+    "authority_note": "Engineer execution evidence is implementation evidence only; it does not close P7, establish independent review, authorize Steward reconciliation, or activate a successor gate."
+  }
+}
