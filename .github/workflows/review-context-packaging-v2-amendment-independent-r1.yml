@@ -1,0 +1,161 @@
+name: Independent Review Context Packaging V2 Amendment R1
+
+on:
+  push:
+    branches:
+      - review/context-packaging-v2-amendment-independent-r1
+
+permissions:
+  contents: read
+
+jobs:
+  independent-review:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Bind review workflow to immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "8abe0fb4f96f12fa6ed9503a99753d93442cdf0e"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install review dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+
+      - name: Independently verify frozen v1 and R4 resource basis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          schemas = root / 'schemas'
+
+          def git_blob_sha(data: bytes) -> str:
+              return hashlib.sha1(b'blob ' + str(len(data)).encode('ascii') + b'\0' + data).hexdigest()
+
+          v1 = {
+              'context-pack-failure.schema.json': '10195c52df81156a954eb9b5acee5a4f1b26f576',
+              'context-pack-receipt.schema.json': 'b8ef42aec266acd87c5a0b45740e7122c30114e5',
+              'context-pack-request.schema.json': '602391284019ab680bd419c7d007e7af3cfeef53',
+              'context-pack-result.schema.json': '7a3566b3b4db97119ea88d75c2b5622d151ba3a4',
+              'context-pack.schema.json': '4b240a5698294ce1a217ad758b4031830740fc29',
+              'context-profile-eligibility.schema.json': 'ad8ba5839136fe7e1080d1d7e26ca351202864dc',
+              'context-profile.schema.json': '8a363d376d20375de6c985c342437e856805a69b',
+              'context-source-binding.schema.json': 'e5d5bc005f7a3dcd4f2f788dd08d49f3b57d4a1e',
+          }
+          for name, expected in v1.items():
+              actual = git_blob_sha((schemas / name).read_bytes())
+              assert actual == expected, (name, actual, expected)
+
+          pems_path = root / 'backends/pems-cove/pems-v2.schema.json'
+          pems_bytes = pems_path.read_bytes()
+          pems_blob = git_blob_sha(pems_bytes)
+          pems_raw = 'sha256:' + hashlib.sha256(pems_bytes).hexdigest()
+          expected_blob = 'cd7683d704e8aef2842a0c1b25b453fb1dbc8030'
+          expected_raw = 'sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3'
+          expected_resource = 'urn:reasoning-distiller:schema-resource:pems-v2:git-blob:' + expected_blob
+          assert pems_blob == expected_blob, (pems_blob, expected_blob)
+          assert pems_raw == expected_raw, (pems_raw, expected_raw)
+
+          registry_path = schemas / 'resources/context-packaging-v2-resource-registry.json'
+          registry_text = registry_path.read_text(encoding='utf-8')
+          registry = json.loads(registry_text)
+          assert registry['contract'] == 'reasoning-distiller-context-schema-resource-registry/1'
+          assert registry['scope'] == 'context-packaging-v2-r4'
+          assert len(registry['resources']) == 1
+          item = registry['resources'][0]
+          assert item == {
+              'resource_id': expected_resource,
+              'semantic': 'pems/2',
+              'repository': 'loteque/reasoning-distiller',
+              'path': 'backends/pems-cove/pems-v2.schema.json',
+              'git_blob': expected_blob,
+              'raw_sha256': expected_raw,
+              'resolution': 'register_exact_blob_bytes_under_resource_id',
+              'network_resolution': False,
+          }
+          assert 'github.com' not in registry_text
+          assert '/blob/main/' not in registry_text
+
+          pack_text = (schemas / 'context-pack-v2.schema.json').read_text(encoding='utf-8')
+          assert expected_resource in pack_text
+          assert 'github.com/loteque/reasoning-distiller/blob/main/backends/pems-cove/pems-v2.schema.json' not in pack_text
+
+          for name in (
+              'context-profile-v2.schema.json',
+              'context-pack-request-v2.schema.json',
+              'context-pack-v2.schema.json',
+              'context-pack-result-v2.schema.json',
+          ):
+              text = (schemas / name).read_text(encoding='utf-8')
+              assert '/blob/main/' not in text, name
+
+          builder = (root / 'context_packaging/pack_builder.py').read_bytes()
+          assert git_blob_sha(builder) == 'b0e806e966598e6d819b6d52c643efa23cdb6ef9'
+          print('independent static basis checks: PASS')
+          PY
+
+      - name: Execute amendment conformance suite
+        run: |
+          python -m unittest -v \
+            tests.test_context_packaging_protocol_schemas_v2 \
+            tests.test_context_packaging_v2_bytes_digests_toolchain \
+            tests.test_context_packaging_v2_reconciled_conformance
+
+      - name: Execute unaffected P0-P4 regressions
+        run: |
+          python -m unittest -v \
+            tests.test_context_packaging_pressure_cases_p0 \
+            tests.test_context_packaging_source_identity_p1a \
+            tests.test_context_packaging_bytes_digests_toolchain_p1c \
+            tests.test_context_packaging_pems_closure_p1d \
+            tests.test_context_packaging_consumer_profile_eligibility_p1e \
+            tests.test_context_packaging_source_resolution_p2 \
+            tests.test_context_packaging_source_resolution_p2_regression \
+            tests.test_context_packaging_pems_projection_p3 \
+            tests.test_context_packaging_cove_adapter_p4
+
+      - name: Reproduce and classify inherited reds separately
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py > /tmp/p1b-red.log 2>&1
+          p1b=$?
+          python -m unittest -v tests/test_runtime_isolation_p5.py > /tmp/runtime-red.log 2>&1
+          runtime=$?
+          python tests/check_corpus_integrity.py > /tmp/parity-red.log 2>&1
+          parity=$?
+          set -e
+
+          test "$p1b" -ne 0
+          grep -q 'PS-19' /tmp/p1b-red.log
+          grep -q 'UNKNOWN_SEMANTICS_FIELD' /tmp/p1b-red.log
+          grep -q 'PLANE_CLASSIFICATION_CONFLICT' /tmp/p1b-red.log
+
+          test "$runtime" -ne 0
+          grep -q 'schemas/context-pack.schema.json' /tmp/runtime-red.log
+          grep -q 'forbidden-runtime-reference' /tmp/runtime-red.log
+          if grep -q 'schemas/resources/context-packaging-v2-resource-registry.json' /tmp/runtime-red.log; then
+            cat /tmp/runtime-red.log
+            exit 1
+          fi
+
+          test "$parity" -ne 0
+          grep -q 'd578841d64da93f0883686eda80f00fde53d5f66' /tmp/parity-red.log
+          grep -q '81291456b127015b813af4eda4046397b4815037' /tmp/parity-red.log
+
+          cat /tmp/p1b-red.log
+          cat /tmp/runtime-red.log
+          cat /tmp/parity-red.log
+          printf '%s\n' 'independent inherited-red classification: PASS'
