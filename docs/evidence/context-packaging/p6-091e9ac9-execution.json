@@ -1,0 +1,184 @@
+{
+  "contract": "reasoning-distiller-p6-persistence-execution-manifest/1",
+  "candidate": {
+    "commit": "091e9ac97f0a068045acbcc57e90a934d24f9f7a",
+    "parent_reviewed_p6_candidate": "99724c025d09714c7d369ddeda0a33be8078f602",
+    "parent_closed_p5_candidate": "d96071ab833179948e5f9526cdb63c15c6451ff4",
+    "implementation_branch": "implement/context-packaging-p6",
+    "semantic_diff_files": [
+      "context_packaging/__init__.py",
+      "context_packaging/persistence_adapter.py",
+      "tests/test_context_packaging_persistence_adapter_p6.py"
+    ],
+    "remediation_diff_files": [
+      "context_packaging/persistence_adapter.py",
+      "tests/test_context_packaging_persistence_adapter_p6.py"
+    ],
+    "blobs": {
+      "context_packaging/persistence_adapter.py": "58350007067f0443b65758992b1a17323123271d",
+      "tests/test_context_packaging_persistence_adapter_p6.py": "e067ba772e9323c2a3bdfd93ddf343c4fadf2a28",
+      "context_packaging/__init__.py": "dcccf586fe935d033c8867097bffb69b254cb3c8",
+      "context_packaging/pack_builder.py": "c7a87dae852de2cb58393fa3bc6dd9241a2155f0",
+      "tests/test_context_packaging_pack_builder_p5.py": "5fd7fc17a01877f4add060357a6b28ee0eb0e096"
+    },
+    "p5_builder_preserved": true,
+    "p5_test_preserved": true
+  },
+  "basis": {
+    "coordination_main": "80b6e89ad2efe84b088ca06b908a257c449fac15",
+    "governing_plan_commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "governing_plan_blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "closed_p5_semantic_candidate": "d96071ab833179948e5f9526cdb63c15c6451ff4",
+    "p5_engineer_execution_evidence": "866683e8b6779513d5d4424693e997e5417ad57d",
+    "p5_independent_review_evidence": "bc8f7c62739dfec992bd5ba1f604a9eefff46f5b",
+    "p5_independent_disposition": "P5_INDEPENDENT_REVIEW_PASS",
+    "p5_steward_reconciliation": "f11af7f0b2a5fa954ed8af10b726003cbbf55f87",
+    "p5_steward_disposition": "P5_STEWARD_RECONCILIATION_ACCEPTED"
+  },
+  "review_remediation_basis": {
+    "rejected_candidate": "99724c025d09714c7d369ddeda0a33be8078f602",
+    "rejected_candidate_engineer_execution_evidence": "99911c51bb6858a4732f35afe054c800d0b99acc",
+    "independent_review_evidence": "8477717ef909bc06c2f25d5965a93107f61a9340",
+    "independent_review_branch": "review/p6-99724c02-independent-review-20260824",
+    "independent_disposition": "P6_INDEPENDENT_REVIEW_CHANGES_REQUIRED",
+    "p6_local_blockers": [
+      {
+        "id": "P6_LIFECYCLE_BOUNDARY_EVIDENCE_OPTIONAL",
+        "observation": "prohibited_roots could be omitted, leaving lifecycle-store exclusion unestablished while persistence still succeeded",
+        "remediation": "prohibited_roots omission now fails closed; callers must explicitly supply their complete lifecycle-boundary set, including an explicit empty set when applicable"
+      },
+      {
+        "id": "P6_PARENT_REPLACEMENT_PUBLICATION_ESCAPE",
+        "observation": "a checked parent directory could be replaced before pathname publication, redirecting the actual write outside output_root",
+        "remediation": "publication is anchored to a verified output-root file descriptor and uses Linux openat2 resolve-beneath/no-symlink constraints; unavailable race-resistant support fails closed"
+      }
+    ]
+  },
+  "implementation": {
+    "operation": "optional immutable derived-artifact filesystem persistence",
+    "separate_from_p5_builder": true,
+    "exact_replay_status": "NO_CHANGE",
+    "different_existing_bytes_failure": "IMMUTABLE_OUTPUT_COLLISION",
+    "overwrite_on_collision": false,
+    "caller_declared_output_root": true,
+    "caller_supplied_complete_prohibited_lifecycle_roots_required": true,
+    "omitted_lifecycle_boundary_evidence_fails_closed": true,
+    "path_escape_rejected": true,
+    "symlink_traversal_rejected": true,
+    "race_resistant_publication": "linux-openat2-resolve-beneath-no-symlinks",
+    "race_resistant_primitive_unavailable_fails_closed": true,
+    "implicit_parent_creation": false,
+    "semantic_or_canonical_standing_from_storage": false,
+    "cache_or_output_discovery_by_p5_builder": false
+  },
+  "execution": {
+    "workflow_run_id": 32750484738,
+    "job_id": 97506011880,
+    "evidence_pr": 69,
+    "evidence_pr_merged": false,
+    "workflow_head_commit": "f50d87c80e100630b9bf0b97241eb48f28d5408a",
+    "exact_candidate_checkout": "091e9ac97f0a068045acbcc57e90a934d24f9f7a",
+    "candidate_identity_verification": "PASS",
+    "exact_p6_suite_pytest": {
+      "command": "python -m pytest -q tests/test_context_packaging_persistence_adapter_p6.py",
+      "tests_passed": 10,
+      "outcome": "PASS"
+    },
+    "exact_p6_suite_unittest": {
+      "command": "python -m unittest -v tests/test_context_packaging_persistence_adapter_p6.py",
+      "tests_passed": 10,
+      "outcome": "PASS"
+    },
+    "unaffected_p0_p5_regressions": {
+      "tests_passed": 136,
+      "tests_deselected": 1,
+      "subtests_passed": 160,
+      "outcome": "PASS",
+      "deselected_transition_sentinel": "tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment"
+    },
+    "p6_pressure_probes": {
+      "idempotent_replay": "PASS:NO_CHANGE",
+      "immutable_collision": "PASS:IMMUTABLE_OUTPUT_COLLISION",
+      "omitted_lifecycle_boundary_evidence": "PASS:FAIL_CLOSED_NO_WRITE",
+      "parent_directory_replacement": "PASS:FAIL_CLOSED_NO_WRITE_OUTSIDE_OR_MOVED_PARENT"
+    },
+    "inherited_transition_sentinel": {
+      "classification": "EXPECTED_AMENDMENT_TO_P5_TRANSITION_SENTINEL",
+      "exit_status": 1,
+      "amendment_expected_p5_blob": "b0e806e966598e6d819b6d52c643efa23cdb6ef9",
+      "closed_p5_builder_blob": "c7a87dae852de2cb58393fa3bc6dd9241a2155f0"
+    },
+    "inherited_reds": [
+      {
+        "id": "P1B_PS19_CLASSIFIER_MISMATCH",
+        "exit_status": 1,
+        "observed": "PLANE_CLASSIFICATION_CONFLICT",
+        "expected": "UNKNOWN_SEMANTICS_FIELD"
+      },
+      {
+        "id": "LEGACY_V1_RUNTIME_ISOLATION_MUTABLE_SCHEMA_REFERENCE",
+        "exit_status": 1,
+        "observed": "schemas/context-pack.schema.json knowledgeItem.pems.$ref references github.com/loteque/reasoning-distiller"
+      },
+      {
+        "id": "EXTRACTION_PARITY_DISTILLER_DIRECTIVE_MISMATCH",
+        "exit_status": 1,
+        "expected_blob": "d578841d64da93f0883686eda80f00fde53d5f66",
+        "actual_blob": "81291456b127015b813af4eda4046397b4815037"
+      }
+    ],
+    "artifact": {
+      "id": 9528794806,
+      "name": "p6-091e9ac9-engineer-evidence",
+      "size_bytes": 6657,
+      "sha256": "sha256:b0d92c739c9a6660d6c9290ec3e5a84c2a45e43b82b150621c850d4977d63ba0"
+    }
+  },
+  "standing_ci_observation": {
+    "ril_test_suite": {
+      "run_id": 32750484724,
+      "job_id": 97506011215,
+      "tests_run": 558,
+      "failures": 3,
+      "errors": 0,
+      "failure_classification": [
+        "P1B_PS19_CLASSIFIER_MISMATCH",
+        "EXPECTED_AMENDMENT_TO_P5_TRANSITION_SENTINEL",
+        "LEGACY_V1_RUNTIME_ISOLATION_MUTABLE_SCHEMA_REFERENCE"
+      ],
+      "p6_tests_observed_passing": 10,
+      "additional_p6_local_failure_observed": false
+    },
+    "extraction_parity": {
+      "run_id": 32750484752,
+      "job_id": 97506011804,
+      "conclusion": "failure",
+      "pre_failure_steps": {
+        "rgp_fixture_parity": "PASS",
+        "project_knowledge_package_contract": "PASS",
+        "framework_isolation_and_authority_boundary": "PASS"
+      },
+      "classified_as": "EXTRACTION_PARITY_DISTILLER_DIRECTIVE_MISMATCH",
+      "expected_blob": "d578841d64da93f0883686eda80f00fde53d5f66",
+      "actual_blob": "81291456b127015b813af4eda4046397b4815037"
+    }
+  },
+  "scope": {
+    "p6_persistence_adapter_remediated": true,
+    "p7_reproducibility_started": false,
+    "p8_authority_memory_isolation_started": false,
+    "p9_rendering_started": false,
+    "p10_production_integration_started": false,
+    "admission_started": false,
+    "canonical_mutation_started": false,
+    "authority_mutation_started": false,
+    "steward_reconciliation_started": false,
+    "successor_activation_started": false
+  },
+  "disposition": {
+    "execution": "P6_PERSISTENCE_ADAPTER_ENGINEER_EXECUTION_PASS",
+    "independent_review": "NOT_ESTABLISHED",
+    "steward_reconciliation": "NOT_ESTABLISHED",
+    "p6_closed": false
+  }
+}
