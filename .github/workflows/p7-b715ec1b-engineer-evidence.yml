@@ -1,0 +1,189 @@
+name: P7 b715ec1b Engineer remediation evidence
+
+on:
+  pull_request:
+    branches:
+      - implement/context-packaging-p7-remediation
+
+permissions:
+  contents: read
+
+jobs:
+  p7-host-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out exact remediated P7 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: b715ec1bede5f7148c4a7108da86505639f73091
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+
+      - name: Verify exact candidate, bounded scope, transitive identity, and byte transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "b715ec1bede5f7148c4a7108da86505639f73091"
+          test "$(git merge-base 091e9ac97f0a068045acbcc57e90a934d24f9f7a HEAD)" = "091e9ac97f0a068045acbcc57e90a934d24f9f7a"
+          expected=$'.gitattributes\ncontext_packaging/pack_builder.py\ntests/test_context_packaging_reproducibility_p7.py'
+          actual="$(git diff --name-only 091e9ac97f0a068045acbcc57e90a934d24f9f7a..HEAD)"
+          test "$actual" = "$expected"
+          test "$(git rev-parse HEAD:.gitattributes)" = "89c07463e5b89bd1acf03f3dd45b3badd890dbc6"
+          test "$(git rev-parse HEAD:context_packaging/pack_builder.py)" = "eedc2c92f23f814c4c1294c25b6f0d60dcbf6ef5"
+          test "$(git rev-parse HEAD:context_packaging/pack_builder_v1.py)" = "b0e806e966598e6d819b6d52c643efa23cdb6ef9"
+          test "$(git rev-parse HEAD:context_packaging/persistence_adapter.py)" = "58350007067f0443b65758992b1a17323123271d"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_pack_builder_p5.py)" = "5fd7fc17a01877f4add060357a6b28ee0eb0e096"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_reproducibility_p7.py)" = "8c4a0fb63b4703817e6f5a822d6e8fa33f576826"
+          for path in \
+            backends/pems-cove/pems-v2.schema.json \
+            backends/pems-cove/validate_pems2_contract.py \
+            protocols/rgp/pems2-context-closure-v1.json \
+            context_packaging/pems_projection.py \
+            context_packaging/pack_builder.py \
+            context_packaging/pack_builder_v1.py \
+            context_packaging/cove_adapter.py \
+            admission/apply_admission_transaction.py
+          do
+            test "$(git check-attr text -- "$path")" = "$path: text: unset"
+          done
+          python - <<'PY' | tee "p7-transitive-identity-${RUNNER_OS}.txt"
+          import hashlib
+          from pathlib import Path
+          helper = Path("context_packaging/pack_builder_v1.py").read_bytes()
+          blob = hashlib.sha1(b"blob " + str(len(helper)).encode("ascii") + b"\0" + helper).hexdigest()
+          assert blob == "b0e806e966598e6d819b6d52c643efa23cdb6ef9", blob
+          top = Path("context_packaging/pack_builder.py").read_text(encoding="utf-8")
+          assert f'_PACK_BUILDER_V1_BLOB = "{blob}"' in top
+          print("P7_PACK_BUILDER_TRANSITIVE_IDENTITY_BOUND")
+          print("pack_builder_v1_blob=" + blob)
+          PY
+          {
+            echo "candidate=$(git rev-parse HEAD)"
+            echo "gitattributes_blob=$(git rev-parse HEAD:.gitattributes)"
+            echo "p7_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_reproducibility_p7.py)"
+            echo "pack_builder_blob=$(git rev-parse HEAD:context_packaging/pack_builder.py)"
+            echo "pack_builder_v1_blob=$(git rev-parse HEAD:context_packaging/pack_builder_v1.py)"
+            echo "persistence_adapter_blob=$(git rev-parse HEAD:context_packaging/persistence_adapter.py)"
+            echo "runner_os=${RUNNER_OS}"
+          } > "p7-identities-${RUNNER_OS}.txt"
+
+      - name: Run exact P7 pytest gate
+        shell: bash
+        run: python -m pytest -q tests/test_context_packaging_reproducibility_p7.py 2>&1 | tee "p7-pytest-${RUNNER_OS}.txt"
+
+      - name: Run exact P7 unittest gate
+        shell: bash
+        run: python -m unittest -v tests.test_context_packaging_reproducibility_p7 2>&1 | tee "p7-unittest-${RUNNER_OS}.txt"
+
+      - name: Capture native-host deterministic probe
+        shell: bash
+        env:
+          P7_ORDERING: reverse
+          P7_ENUM_ORDER: reverse
+          P7_UNICODE_HOST_TEXT: "host-native-é-é-/\\"
+          PYTHONUTF8: "1"
+        run: python tests/test_context_packaging_reproducibility_p7.py --p7-probe > "p7-host-probe-${RUNNER_OS}.json"
+
+      - name: Upload host evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p7-remediation-host-${{ runner.os }}
+          path: |
+            p7-identities-${{ runner.os }}.txt
+            p7-transitive-identity-${{ runner.os }}.txt
+            p7-pytest-${{ runner.os }}.txt
+            p7-unittest-${{ runner.os }}.txt
+            p7-host-probe-${{ runner.os }}.json
+          if-no-files-found: warn
+
+  p7-cross-host:
+    needs: p7-host-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: p7-remediation-host-Linux
+          path: linux
+      - name: Download Windows evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: p7-remediation-host-Windows
+          path: windows
+      - name: Compare native-host canonical bytes
+        shell: bash
+        run: |
+          python - <<'PY' | tee p7-cross-host.txt
+          import json
+          from pathlib import Path
+          linux = json.loads(Path('linux/p7-host-probe-Linux.json').read_text())
+          windows = json.loads(Path('windows/p7-host-probe-Windows.json').read_text())
+          for field in ('serialized_pack_b64', 'serialized_pack_sha256', 'pack_identity_sha256'):
+              assert linux[field] == windows[field], (field, linux[field], windows[field])
+          assert linux['host_path_separator'] == '/', linux
+          assert windows['host_path_separator'] == '\\', windows
+          print('P7_CROSS_HOST_BYTE_IDENTITY_PASS')
+          print('serialized_pack_sha256=' + linux['serialized_pack_sha256'])
+          print('pack_identity_sha256=' + linux['pack_identity_sha256'])
+          print('linux_separator=' + repr(linux['host_path_separator']))
+          print('windows_separator=' + repr(windows['host_path_separator']))
+          PY
+      - name: Upload cross-host comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: p7-remediation-cross-host-comparison
+          path: p7-cross-host.txt
+
+  p7-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact remediated P7 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: b715ec1bede5f7148c4a7108da86505639f73091
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Run unaffected P0-P6 context-packaging regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(find tests -maxdepth 1 -type f -name 'test_context_packaging_*.py' -print | sort | grep -v 'test_context_packaging_reproducibility_p7.py')
+          python -m pytest -q "${tests[@]}" -k 'not test_p5_runtime_implementation_is_unchanged_by_amendment and not test_negative_fixtures_reject_and_classify_exactly' 2>&1 | tee p7-regressions.txt
+      - name: Reproduce inherited P1b PS-19 classifier mismatch separately
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly 2>&1 | tee p7-inherited-ps19.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -eq 1
+          grep -F 'PS-19' p7-inherited-ps19.txt
+          grep -F 'PLANE_CLASSIFICATION_CONFLICT' p7-inherited-ps19.txt
+          grep -F 'UNKNOWN_SEMANTICS_FIELD' p7-inherited-ps19.txt
+          echo 'P1B_PS19_CLASSIFIER_MISMATCH_REPRODUCED' | tee -a p7-inherited-ps19.txt
+      - name: Upload regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p7-remediation-regressions
+          path: |
+            p7-regressions.txt
+            p7-inherited-ps19.txt
+          if-no-files-found: warn
