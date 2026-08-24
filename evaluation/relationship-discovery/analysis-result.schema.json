@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/reasoning-distiller-relationship-analysis-result.schema.json",
+  "title": "Reasoning Distiller Relationship Analysis Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "benchmark_id", "algorithm_id", "batch_id", "input_batch_digest", "analyzer", "assessed_pair_count", "assessed_hypothesis_count", "candidate_relations", "status", "result_digest"],
+  "properties": {
+    "contract": {"const": "reasoning-distiller-relationship-analysis-result/1"},
+    "benchmark_id": {"type": "string", "minLength": 1},
+    "algorithm_id": {"const": "A0-exhaustive/1"},
+    "batch_id": {"type": "string", "pattern": "^A0-B[0-9]{2}-B[0-9]{2}$"},
+    "input_batch_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "analyzer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "model", "authority"],
+      "properties": {
+        "protocol": {"const": "reasoning-distiller-fixed-relation-analyzer/1"},
+        "model": {"type": "string", "minLength": 1},
+        "authority": {"const": "none"}
+      }
+    },
+    "assessed_pair_count": {"type": "integer", "minimum": 1},
+    "assessed_hypothesis_count": {"type": "integer", "minimum": 7},
+    "candidate_relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from_record_id", "from_record_digest", "type", "to_record_id", "to_record_digest", "rationale"],
+        "properties": {
+          "from_record_id": {"type": "string", "minLength": 1},
+          "from_record_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "type": {"enum": ["supports", "depends_on", "supersedes", "contradicts"]},
+          "to_record_id": {"type": "string", "minLength": 1},
+          "to_record_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "rationale": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "status": {"const": "COMPLETE"},
+    "result_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}
