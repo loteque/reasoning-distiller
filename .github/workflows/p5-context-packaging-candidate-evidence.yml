@@ -1,0 +1,95 @@
+name: P5 context-packaging candidate evidence
+
+on:
+  push:
+    branches:
+      - evidence/context-packaging-p5-4a6f7fd9
+  pull_request:
+    branches:
+      - implement/context-packaging-p5
+
+permissions:
+  contents: read
+
+jobs:
+  p5-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact semantic candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 4a6f7fd90a4ec901815a794f11e1a84938acaf7e
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema referencing
+
+      - name: Verify candidate identity and P5 blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "4a6f7fd90a4ec901815a794f11e1a84938acaf7e"
+          test "$(git rev-parse HEAD^)" = "c5e265aa2c572b6156c987bfa75e3740c097f2ec"
+          test "$(git rev-parse HEAD:context_packaging/pack_builder.py)" = "a50aad19ef08fafb2ea4ec63a4a3ecb05568499d"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_pack_builder_p5.py)" = "abf3ffff83f459c42d9377af5846fb0386ed0200"
+          test "$(git rev-parse HEAD:context_packaging/__init__.py)" = "d758a0ba698add4e0ac79574b150e0f8d8b19084"
+          test "$(git rev-parse HEAD:docs/design/CONTEXT_PACKAGING_PURE_PACK_BUILDER_P5.md)" = "d6c4ee4c52a94550f2396943f7b133fc42663af8"
+          {
+            echo "candidate=$(git rev-parse HEAD)"
+            echo "parent=$(git rev-parse HEAD^)"
+            echo "builder_blob=$(git rev-parse HEAD:context_packaging/pack_builder.py)"
+            echo "p5_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_pack_builder_p5.py)"
+            echo "init_blob=$(git rev-parse HEAD:context_packaging/__init__.py)"
+            echo "design_blob=$(git rev-parse HEAD:docs/design/CONTEXT_PACKAGING_PURE_PACK_BUILDER_P5.md)"
+          } > p5-candidate-evidence.txt
+
+      - name: Run exact P5 gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_context_packaging_pack_builder_p5.py 2>&1 | tee p5-gate.txt
+
+      - name: Run unaffected P1-P4 context-packaging regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests=()
+          for test_file in tests/test_context_packaging_*.py; do
+            case "$test_file" in
+              tests/test_context_packaging_protocol_schemas_p1b.py|tests/test_context_packaging_pack_builder_p5.py) continue ;;
+            esac
+            tests+=("$test_file")
+          done
+          python -m pytest -q "${tests[@]}" 2>&1 | tee p1-p4-regressions.txt
+
+      - name: Reproduce inherited P1b PS-19 red observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py > p1b-ps19-red.txt 2>&1
+          status=$?
+          set -e
+          cat p1b-ps19-red.txt
+          test "$status" -eq 1
+          grep -F "PS-19" p1b-ps19-red.txt
+          grep -F "PLANE_CLASSIFICATION_CONFLICT" p1b-ps19-red.txt
+          grep -F "UNKNOWN_SEMANTICS_FIELD" p1b-ps19-red.txt
+          grep -F "1 failed" p1b-ps19-red.txt
+
+      - name: Upload candidate-bound evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p5-context-packaging-4a6f7fd9-evidence
+          path: |
+            p5-candidate-evidence.txt
+            p5-gate.txt
+            p1-p4-regressions.txt
+            p1b-ps19-red.txt
+          if-no-files-found: warn
