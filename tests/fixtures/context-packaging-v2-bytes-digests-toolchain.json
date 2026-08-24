@@ -1,0 +1,65 @@
+{
+  "contract": "reasoning-distiller-context-pack-bytes-digests-toolchain-suite/2",
+  "governing": {
+    "plan_commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "plan_blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "stage3_commit": "0b9853ffaccff73817f553001d3368a4384478d8",
+    "stage3_blob": "8f3b6ac5caf1a864088ba1e018bf2b39aeadf219"
+  },
+  "schema_basis": {
+    "schemas/context-profile-v2.schema.json": "58794d4dc5251be4444b84b56f474ff5544e6e10",
+    "schemas/context-pack-request-v2.schema.json": "372c8f65cee97999db626632944c6d57a42738b7",
+    "schemas/context-pack-v2.schema.json": "810c921c086f11b2e35f7d21c9d9f5251405898b",
+    "schemas/context-pack-result-v2.schema.json": "8759a26030fe37fb07852f969f296b5265a18995"
+  },
+  "shared_v1_basis": {
+    "schemas/context-pack-failure.schema.json": "10195c52df81156a954eb9b5acee5a4f1b26f576",
+    "schemas/context-pack-receipt.schema.json": "b8ef42aec266acd87c5a0b45740e7122c30114e5",
+    "schemas/context-profile-eligibility.schema.json": "ad8ba5839136fe7e1080d1d7e26ca351202864dc",
+    "schemas/context-source-binding.schema.json": "e5d5bc005f7a3dcd4f2f788dd08d49f3b57d4a1e"
+  },
+  "pems_resource": {
+    "resource_id": "urn:reasoning-distiller:schema-resource:pems-v2:git-blob:cd7683d704e8aef2842a0c1b25b453fb1dbc8030",
+    "source_blob": "cd7683d704e8aef2842a0c1b25b453fb1dbc8030",
+    "raw_sha256": "sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3",
+    "registry_blob": "7db4e20781f044fadc403da431328a95b2700c46"
+  },
+  "contracts": {
+    "bytes_digests_toolchain": "reasoning-distiller-context-pack-bytes-digests-toolchain/2",
+    "bytes_digests_toolchain_blob": "44f0233a2adfe8e23c7b6e43935f1bcc59d93a67",
+    "pack_builder": "reasoning-distiller-context-pack-builder/2",
+    "pack_builder_behavior_blob": "f037625990497bd4eb491238367516a4c61b4e0c",
+    "pack_builder_behavior_raw_sha256": "sha256:b99020add18a9ab64cb0e42c3450a02807cb5b080127fe0f9a49eac4588fc7ed",
+    "identity_preimage": "reasoning-distiller-context-pack-identity-preimage/1",
+    "receipt": "reasoning-distiller-context-pack-receipt/1"
+  },
+  "identity_preimage_reuse_requires": [
+    "member_set_unchanged",
+    "member_meanings_unchanged",
+    "canonical_serialization_and_framing_unchanged",
+    "hash_algorithm_and_framing_unchanged",
+    "domain_semantics_unchanged"
+  ],
+  "digest_expectations": {
+    "stable_if_exact_preimage_unchanged": ["raw_source_sha256", "canonical_state_binding_sha256", "selected_pems_sha256", "cove_payload_sha256", "payload_set_sha256"],
+    "changes_when_versioned_preimage_changes": ["profile_sha256", "request_sha256", "manifest_sha256", "pack_identity_sha256", "serialized_pack_sha256"],
+    "new_domain_for_pems_ref": false
+  },
+  "sample": {
+    "profile_source": "tests/fixtures/context-packaging-v2-profile-source.json",
+    "request_source": "tests/fixtures/context-packaging-v2-request-source.json",
+    "expected_profile_raw_sha256": "sha256:42b9ac89b237d69bce233893c56568298b046ee95b1a8c6a478aeb8ad1586aa0",
+    "expected_request_raw_sha256": "sha256:2ce3eeed02030c4a03b3d8f90fe0683b79f518bbd958b26154c26bf37d1e257f",
+    "expected_identity": {
+      "profile_sha256": "sha256:39112ae6f3d0116c6dc84f1150085ff8148f2905eebff33944014cc9af000bb3",
+      "request_sha256": "sha256:ec968f9d67f12833eae01eb7b2cc7a700ca9841fb9232fd6cb8930a2d1216b34",
+      "canonical_state_binding_sha256s": ["sha256:eb3d934fb0a39c61c3d28f71d00152af76347c7e148797c28240223ffa5c9d46"],
+      "selected_pems_sha256": "sha256:a6d5ff0dd48dae8974d517bed6d7f88483a779c316c6b8965b1ca86ca4115614",
+      "manifest_sha256": "sha256:b63b1e7a9599d5db63ae673662c4f20f51d6a076c923e5b921dc0eba7c89fb8d",
+      "payload_set_sha256": "sha256:cf267273fc523d162205ac50fcb76ed8694950a634da21c3676ef48e7b3c9551",
+      "pack_identity_sha256": "sha256:6b8d95a778b8ee108f9ed196e5b6fdd3498e71ee9bec048a213e227b53ab2c95"
+    },
+    "expected_serialized_pack_sha256": "sha256:bfbcce605435602127f78fb20cda55a2de985d6c7e20cc108a69ad6ccf89d8d3",
+    "expected_canonical_ledger_subject_kinds": ["record", "relation", "snapshot"]
+  }
+}
