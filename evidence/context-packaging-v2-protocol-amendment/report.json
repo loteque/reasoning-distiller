@@ -1,0 +1,33 @@
+{
+  "amendment_gate_pass": false,
+  "candidate_sha": "4a7e6e4c2a5caf5e418fa539a7ccaba707c4931b",
+  "contract": "reasoning-distiller-context-packaging-v2-execution-evidence/1",
+  "dependency_install_exit_code": 0,
+  "inherited_p5_classification": {
+    "exit_code": 1,
+    "gating_for_amendment": false,
+    "log": "evidence/context-packaging-v2-protocol-amendment/p5-inherited.log",
+    "remediation_performed": false,
+    "tests_run": 6
+  },
+  "prohibited_scope": {
+    "admission": false,
+    "canonical_mutation": false,
+    "p5_remediation": false,
+    "p6": false
+  },
+  "setup_python_outcome": "success",
+  "unaffected_p0_p4_regressions": {
+    "exit_code": 1,
+    "log": "evidence/context-packaging-v2-protocol-amendment/p0-p4-regressions.log",
+    "tests_run": 103
+  },
+  "v2_amendment": {
+    "exit_code": 0,
+    "log": "evidence/context-packaging-v2-protocol-amendment/v2-amendment.log",
+    "tests_run": 14
+  },
+  "workflow_commit_sha": "dbb139923c71be2a213a5d44762b56bb8e274c1e",
+  "workflow_run_attempt": 1,
+  "workflow_run_id": 32690236435
+}
