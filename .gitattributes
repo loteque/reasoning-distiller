@@ -1,0 +1,10 @@
+# P7 reproducibility: these artifacts are hashed as exact behavior bytes.
+# Disable checkout-time text conversion so Git blob bytes remain the runtime bytes
+# on every host, including Windows configurations with core.autocrlf enabled.
+backends/pems-cove/pems-v2.schema.json -text
+backends/pems-cove/validate_pems2_contract.py -text
+protocols/rgp/pems2-context-closure-v1.json -text
+context_packaging/pems_projection.py -text
+context_packaging/pack_builder.py -text
+context_packaging/cove_adapter.py -text
+admission/apply_admission_transaction.py -text
