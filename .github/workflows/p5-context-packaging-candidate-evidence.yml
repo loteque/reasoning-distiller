@@ -6,7 +6,7 @@ on:
       - evidence/context-packaging-p5-4a6f7fd9
   pull_request:
     branches:
-      - implement/context-packaging-p5
+      - evidence/context-packaging-p5-4a6f7fd9
 
 permissions:
   contents: read
