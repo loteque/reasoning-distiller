@@ -1,0 +1,206 @@
+name: Independent Review Context Packaging V2 Amendment R2
+
+on:
+  push:
+    branches:
+      - review/context-packaging-v2-amendment-independent-r2
+
+permissions:
+  contents: write
+
+jobs:
+  independent-review:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Bind review workflow to immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "8abe0fb4f96f12fa6ed9503a99753d93442cdf0e"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Execute independent review and record evidence
+        shell: bash
+        run: |
+          set -u
+          root='evidence/context-packaging-v2-amendment-independent-r2'
+          mkdir -p "$root"
+
+          python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2 > "$root/install.log" 2>&1
+          install_status=$?
+          if [ "$install_status" -ne 0 ]; then
+            cat "$root/install.log"
+            exit "$install_status"
+          fi
+
+          python - <<'PY' > "$root/static-basis.log" 2>&1
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('.')
+          schemas = root / 'schemas'
+
+          def git_blob_sha(data: bytes) -> str:
+              return hashlib.sha1(b'blob ' + str(len(data)).encode('ascii') + b'\0' + data).hexdigest()
+
+          v1 = {
+              'context-pack-failure.schema.json': '10195c52df81156a954eb9b5acee5a4f1b26f576',
+              'context-pack-receipt.schema.json': 'b8ef42aec266acd87c5a0b45740e7122c30114e5',
+              'context-pack-request.schema.json': '602391284019ab680bd419c7d007e7af3cfeef53',
+              'context-pack-result.schema.json': '7a3566b3b4db97119ea88d75c2b5622d151ba3a4',
+              'context-pack.schema.json': '4b240a5698294ce1a217ad758b4031830740fc29',
+              'context-profile-eligibility.schema.json': 'ad8ba5839136fe7e1080d1d7e26ca351202864dc',
+              'context-profile.schema.json': '8a363d376d20375de6c985c342437e856805a69b',
+              'context-source-binding.schema.json': 'e5d5bc005f7a3dcd4f2f788dd08d49f3b57d4a1e',
+          }
+          for name, expected in v1.items():
+              actual = git_blob_sha((schemas / name).read_bytes())
+              assert actual == expected, (name, actual, expected)
+
+          pems_path = root / 'backends/pems-cove/pems-v2.schema.json'
+          pems_bytes = pems_path.read_bytes()
+          expected_blob = 'cd7683d704e8aef2842a0c1b25b453fb1dbc8030'
+          expected_raw = 'sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3'
+          expected_resource = 'urn:reasoning-distiller:schema-resource:pems-v2:git-blob:' + expected_blob
+          assert git_blob_sha(pems_bytes) == expected_blob
+          assert 'sha256:' + hashlib.sha256(pems_bytes).hexdigest() == expected_raw
+
+          registry_path = schemas / 'resources/context-packaging-v2-resource-registry.json'
+          registry_text = registry_path.read_text(encoding='utf-8')
+          registry = json.loads(registry_text)
+          assert registry['contract'] == 'reasoning-distiller-context-schema-resource-registry/1'
+          assert registry['scope'] == 'context-packaging-v2-r4'
+          assert registry['resources'] == [{
+              'resource_id': expected_resource,
+              'semantic': 'pems/2',
+              'repository': 'loteque/reasoning-distiller',
+              'path': 'backends/pems-cove/pems-v2.schema.json',
+              'git_blob': expected_blob,
+              'raw_sha256': expected_raw,
+              'resolution': 'register_exact_blob_bytes_under_resource_id',
+              'network_resolution': False,
+          }]
+          assert 'github.com' not in registry_text
+          assert '/blob/main/' not in registry_text
+
+          pack_text = (schemas / 'context-pack-v2.schema.json').read_text(encoding='utf-8')
+          assert expected_resource in pack_text
+          assert 'github.com/loteque/reasoning-distiller/blob/main/backends/pems-cove/pems-v2.schema.json' not in pack_text
+          for name in (
+              'context-profile-v2.schema.json',
+              'context-pack-request-v2.schema.json',
+              'context-pack-v2.schema.json',
+              'context-pack-result-v2.schema.json',
+          ):
+              assert '/blob/main/' not in (schemas / name).read_text(encoding='utf-8'), name
+
+          builder = (root / 'context_packaging/pack_builder.py').read_bytes()
+          assert git_blob_sha(builder) == 'b0e806e966598e6d819b6d52c643efa23cdb6ef9'
+          print('STATIC_BASIS_PASS')
+          PY
+          static_status=$?
+
+          python -m unittest -v \
+            tests.test_context_packaging_protocol_schemas_v2 \
+            tests.test_context_packaging_v2_bytes_digests_toolchain \
+            tests.test_context_packaging_v2_reconciled_conformance \
+            > "$root/v2-amendment.log" 2>&1
+          v2_status=$?
+
+          python -m unittest -v \
+            tests.test_context_packaging_pressure_cases_p0 \
+            tests.test_context_packaging_source_identity_p1a \
+            tests.test_context_packaging_bytes_digests_toolchain_p1c \
+            tests.test_context_packaging_pems_closure_p1d \
+            tests.test_context_packaging_consumer_profile_eligibility_p1e \
+            tests.test_context_packaging_source_resolution_p2 \
+            tests.test_context_packaging_source_resolution_p2_regression \
+            tests.test_context_packaging_pems_projection_p3 \
+            tests.test_context_packaging_cove_adapter_p4 \
+            > "$root/unaffected-p0-p4.log" 2>&1
+          green_status=$?
+
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py > "$root/inherited-red-1-p1b.log" 2>&1
+          red1_status=$?
+          python -m unittest -v tests/test_runtime_isolation_p5.py > "$root/inherited-red-2-runtime-isolation.log" 2>&1
+          red2_status=$?
+          python tests/check_corpus_integrity.py > "$root/inherited-red-3-extraction-parity.log" 2>&1
+          red3_status=$?
+
+          export ROOT="$root" STATIC_STATUS="$static_status" V2_STATUS="$v2_status" GREEN_STATUS="$green_status"
+          export RED1_STATUS="$red1_status" RED2_STATUS="$red2_status" RED3_STATUS="$red3_status"
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path(os.environ['ROOT'])
+          def text(name): return (root / name).read_text(errors='replace')
+          def count(name):
+              m = re.findall(r'Ran (\d+) tests?', text(name))
+              return int(m[-1]) if m else None
+
+          p1b = text('inherited-red-1-p1b.log')
+          runtime = text('inherited-red-2-runtime-isolation.log')
+          parity = text('inherited-red-3-extraction-parity.log')
+          inherited = (
+              int(os.environ['RED1_STATUS']) != 0
+              and all(x in p1b for x in ('PS-19', 'UNKNOWN_SEMANTICS_FIELD', 'PLANE_CLASSIFICATION_CONFLICT'))
+              and int(os.environ['RED2_STATUS']) != 0
+              and 'schemas/context-pack.schema.json' in runtime
+              and 'forbidden-runtime-reference' in runtime
+              and 'schemas/resources/context-packaging-v2-resource-registry.json' not in runtime
+              and int(os.environ['RED3_STATUS']) != 0
+              and 'd578841d64da93f0883686eda80f00fde53d5f66' in parity
+              and '81291456b127015b813af4eda4046397b4815037' in parity
+          )
+          report = {
+              'contract': 'reasoning-distiller-context-packaging-v2-independent-review-execution/1',
+              'candidate_sha': '8abe0fb4f96f12fa6ed9503a99753d93442cdf0e',
+              'workflow_commit_sha': os.environ['GITHUB_SHA'],
+              'workflow_run_id': int(os.environ['GITHUB_RUN_ID']),
+              'static_basis': {'exit_code': int(os.environ['STATIC_STATUS']), 'pass': int(os.environ['STATIC_STATUS']) == 0},
+              'v2_amendment': {'exit_code': int(os.environ['V2_STATUS']), 'tests_run': count('v2-amendment.log')},
+              'unaffected_p0_p4': {'exit_code': int(os.environ['GREEN_STATUS']), 'tests_run': count('unaffected-p0-p4.log')},
+              'inherited_reds_preserved': inherited,
+              'p5_remediation_performed': False,
+              'p6_performed': False,
+              'admission_performed': False,
+              'canonical_mutation_performed': False,
+          }
+          report['independent_review_gate_pass'] = (
+              report['static_basis']['pass']
+              and report['v2_amendment']['exit_code'] == 0
+              and report['v2_amendment']['tests_run'] == 22
+              and report['unaffected_p0_p4']['exit_code'] == 0
+              and report['unaffected_p0_p4']['tests_run'] == 98
+              and inherited
+          )
+          (root / 'report.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          PY
+
+          cat "$root/report.json"
+          cat "$root/static-basis.log"
+          cat "$root/v2-amendment.log"
+          cat "$root/unaffected-p0-p4.log"
+          cat "$root/inherited-red-1-p1b.log"
+          cat "$root/inherited-red-2-runtime-isolation.log"
+          cat "$root/inherited-red-3-extraction-parity.log"
+
+          gate="$(python -c 'import json; print(str(json.load(open("evidence/context-packaging-v2-amendment-independent-r2/report.json"))["independent_review_gate_pass"]).lower())')"
+          test "$gate" = 'true' || exit 1
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$root"
+          git commit -m 'record independent context packaging v2 amendment review execution'
+          git push origin HEAD:refs/heads/review/context-packaging-v2-amendment-independent-r2
