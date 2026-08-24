@@ -68,6 +68,66 @@ jobs:
           printf '%s\n' "${tests[@]}" | tee p1-p4-regression-files.txt
           python -m pytest -q "${tests[@]}" 2>&1 | tee p1-p4-regressions.txt
 
+      - name: Run independent P5 semantic pressure probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' | tee p5-semantic-probes.txt
+          import copy
+          import json
+          from context_packaging import ProjectedKnowledge
+          from tests.test_context_packaging_pack_builder_p5 import _build, _fixture
+          from tests.test_context_packaging_pems_projection_p3 import valid_doc, run as p3_run
+
+          # Probe 1: P1c requires lowercase SHA-256 spelling in newly emitted canonical packs.
+          fx = _fixture()
+          canonical = next(item for item in fx['request']['source_bindings'] if item['source_class'] == 'canonical_state')
+          upper_pems = 'sha256:' + canonical['pems_sha256'][7:].upper()
+          canonical['pems_sha256'] = upper_pems
+          selection_ref = fx['request']['knowledge_selection']['snapshots'][0]['canonical_snapshot_ref']
+          selection_ref['pems_sha256'] = upper_pems
+          projected = fx['projected'][0]
+          projected_ref = copy.deepcopy(projected.canonical_snapshot_ref)
+          projected_ref['pems_sha256'] = upper_pems
+          fx['projected'] = [ProjectedKnowledge(projected_ref, projected.pems, projected.causes)]
+          fx['request_raw'] = json.dumps(fx['request'], ensure_ascii=False, indent=2, sort_keys=True).encode('utf-8')
+          result = _build(fx)
+          assert result.ok
+          emitted_pems = next(item for item in result.pack['source_registry'] if item['source_class'] == 'canonical_state')['pems_sha256']
+          assert emitted_pems == upper_pems
+          print('P1C_LOWERCASE_OUTPUT_CONTRADICTION source_registry.pems_sha256=' + emitted_pems)
+
+          fx = _fixture()
+          validator = next(item for item in fx['components'] if item['role'] == 'pems_validator')
+          upper_tool = 'sha256:' + validator['raw_sha256'][7:].upper()
+          validator['raw_sha256'] = upper_tool
+          result = _build(fx)
+          assert result.ok
+          emitted_tool = next(item for item in result.pack['toolchain']['components'] if item['role'] == 'pems_validator')['raw_sha256']
+          assert emitted_tool == upper_tool
+          print('P1C_LOWERCASE_OUTPUT_CONTRADICTION toolchain.pems_validator.raw_sha256=' + emitted_tool)
+
+          # Probe 2: P1d/P3 identity is (namespace,id); a record and relation may share one string ID.
+          doc = valid_doc()
+          collision_id = 'pems:proposition:a'
+          doc['relations'][0]['id'] = collision_id
+          p3 = p3_run(doc, relation_ids=[collision_id])
+          assert p3.ok, p3.failure
+          assert any(r['id'] == collision_id for r in p3.items[0].pems['records'])
+          assert any(r['id'] == collision_id for r in p3.items[0].pems['relations'])
+          assert ('record', collision_id) in {(c.namespace, c.semantic_id) for c in p3.items[0].causes}
+          assert ('relation', collision_id) in {(c.namespace, c.semantic_id) for c in p3.items[0].causes}
+
+          fx = _fixture()
+          base_ref = fx['projected'][0].canonical_snapshot_ref
+          fx['projected'] = [ProjectedKnowledge(base_ref, p3.items[0].pems, p3.items[0].causes)]
+          p5 = _build(fx)
+          assert not p5.ok
+          assert p5.failure['code'] == 'PEMS_SEMANTIC_INVALID', p5.failure
+          print('P1D_P3_NAMESPACE_COLLISION_REJECTED_BY_P5 code=' + p5.failure['code'])
+          print('P1D_P3_NAMESPACE_COLLISION_REJECTED_BY_P5 diagnostic=' + p5.failure['diagnostics'][0])
+          PY
+
       - name: Preserve inherited red 1 - P1b PS-19 classifier mismatch
         shell: bash
         run: |
@@ -121,6 +181,7 @@ jobs:
             p5-gate.txt
             p1-p4-regression-files.txt
             p1-p4-regressions.txt
+            p5-semantic-probes.txt
             inherited-red-p1b-ps19.txt
             inherited-red-p1b-ps19.status
             inherited-red-runtime-isolation.txt
