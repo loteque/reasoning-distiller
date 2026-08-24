@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from . import pack_builder_v1 as _v1
+from . import source_resolver as _source_resolver
 from .cove_adapter import CoveAdapterError, encode_cove_pems
 from .pems_projection import ProjectedKnowledge, _strict_json
 from .source_resolver import ResolvedSource, _snapshot_key
@@ -43,6 +44,7 @@ _PEMS_V2_RAW_SHA256 = (
     "sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3"
 )
 _PACK_BUILDER_V1_BLOB = "b0e806e966598e6d819b6d52c643efa23cdb6ef9"
+_SOURCE_RESOLVER_BLOB = "11da98c213e783ed4c31f88392eb6a5634c9643e"
 
 
 def build_context_pack(
@@ -125,6 +127,7 @@ def _build_v2(
 ) -> ContextPackBuildResult:
     try:
         _verify_pack_builder_v1_identity()
+        _verify_source_resolver_identity()
         _preflight_v2(profile_raw, profile, request_raw, request)
         source_index = _v1._index_resolved_sources(resolved_sources)
         control_items, control_ledger, control_bindings = _v1._build_control_plane(
@@ -220,6 +223,42 @@ def _verify_pack_builder_v1_identity() -> None:
         raise _BuildFailure(
             "TOOLCHAIN_IDENTITY_MISMATCH",
             "pack_builder/2 dependency identity mismatch",
+            stage="toolchain",
+        )
+
+
+def _verify_source_resolver_identity() -> None:
+    if (
+        _v1._snapshot_key is not _source_resolver._snapshot_key
+        or _snapshot_key is not _source_resolver._snapshot_key
+    ):
+        raise _BuildFailure(
+            "TOOLCHAIN_IDENTITY_MISMATCH",
+            "pack_builder/2 source_resolver dependency binding mismatch",
+            stage="toolchain",
+        )
+    source = getattr(_source_resolver, "__file__", None)
+    if not isinstance(source, str) or not source:
+        raise _BuildFailure(
+            "TOOLCHAIN_IDENTITY_MISMATCH",
+            "pack_builder/2 source_resolver dependency source is unavailable",
+            stage="toolchain",
+        )
+    try:
+        raw = Path(source).read_bytes()
+    except OSError as exc:
+        raise _BuildFailure(
+            "TOOLCHAIN_IDENTITY_MISMATCH",
+            "pack_builder/2 source_resolver dependency source is unavailable",
+            stage="toolchain",
+        ) from exc
+    actual = hashlib.sha1(
+        b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw
+    ).hexdigest()
+    if actual != _SOURCE_RESOLVER_BLOB:
+        raise _BuildFailure(
+            "TOOLCHAIN_IDENTITY_MISMATCH",
+            "pack_builder/2 source_resolver dependency identity mismatch",
             stage="toolchain",
         )
 

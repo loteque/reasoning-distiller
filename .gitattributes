@@ -7,5 +7,6 @@ protocols/rgp/pems2-context-closure-v1.json -text
 context_packaging/pems_projection.py -text
 context_packaging/pack_builder.py -text
 context_packaging/pack_builder_v1.py -text
+context_packaging/source_resolver.py -text
 context_packaging/cove_adapter.py -text
 admission/apply_admission_transaction.py -text
