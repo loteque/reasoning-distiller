@@ -18,11 +18,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 P5_TEST = ROOT / "tests/test_context_packaging_pack_builder_p5.py"
 PRESSURE_CASES = ROOT / "tests/fixtures/context-packaging-pressure-cases-v1.json"
 sys.path.insert(0, str(ROOT))
+
+import context_packaging.pack_builder as pack_builder_v2
 
 
 def _load_p5_fixture_module():
@@ -270,6 +273,45 @@ class P7ReproducibilityTests(unittest.TestCase):
         self.assertFalse(incompatible.ok)
         self.assertEqual(incompatible.failure["code"], "TOOLCHAIN_IDENTITY_MISMATCH")
         self.assertEqual(incompatible.failure["stage"], "toolchain")
+
+    def test_pack_builder_transitive_identity_rejects_changed_dependency(self):
+        p5 = _load_p5_fixture_module()
+        baseline_fx = p5._fixture(semantic_item=True)
+        baseline = p5._build(baseline_fx)
+        self.assertTrue(baseline.ok, baseline.failure)
+
+        changed_fx = p5._fixture(semantic_item=True)
+        recorded_builder = dict(
+            next(
+                component
+                for component in changed_fx["components"]
+                if component["role"] == "pack_builder"
+            )
+        )
+        source_path = Path(pack_builder_v2._v1.__file__)
+        source_raw = source_path.read_bytes()
+        with tempfile.TemporaryDirectory() as td:
+            mutated = Path(td) / "pack_builder_v1.py"
+            mutated.write_bytes(
+                source_raw
+                + b"\n# P7 adversarial behavior-bearing dependency mutation\n"
+                + b"_CONTROL_CLASSES.add('canonical_state')\n"
+            )
+            with patch.object(pack_builder_v2._v1, "__file__", str(mutated)):
+                changed = p5._build(changed_fx)
+
+        self.assertFalse(changed.ok)
+        self.assertEqual(changed.failure["code"], "TOOLCHAIN_IDENTITY_MISMATCH")
+        self.assertEqual(changed.failure["stage"], "toolchain")
+        self.assertIn("dependency identity mismatch", changed.failure["diagnostics"][0])
+        self.assertEqual(
+            next(
+                component
+                for component in changed_fx["components"]
+                if component["role"] == "pack_builder"
+            ),
+            recorded_builder,
+        )
 
 
 if __name__ == "__main__":
