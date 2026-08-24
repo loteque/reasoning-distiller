@@ -1,0 +1,127 @@
+name: P5 a8a0592a independent candidate evidence
+
+on:
+  push:
+    branches:
+      - evidence/context-packaging-p5-a8a0592a-independent-20260823
+
+permissions:
+  contents: read
+
+jobs:
+  p5-independent-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact P5 semantic candidate
+        uses: actions/checkout@v4
+        with:
+          ref: a8a0592a69b325d411b36bbc97deadee796c3fd7
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+
+      - name: Verify exact candidate identity and P5 blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "a8a0592a69b325d411b36bbc97deadee796c3fd7"
+          test "$(git rev-parse HEAD^)" = "c5e265aa2c572b6156c987bfa75e3740c097f2ec"
+          test "$(git rev-parse HEAD:context_packaging/pack_builder.py)" = "b0e806e966598e6d819b6d52c643efa23cdb6ef9"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_pack_builder_p5.py)" = "66f8e4f227a1e0bf64ce3b6722ee90cdf7a04493"
+          test "$(git rev-parse HEAD:context_packaging/__init__.py)" = "d758a0ba698add4e0ac79574b150e0f8d8b19084"
+          test "$(git rev-parse HEAD:docs/design/CONTEXT_PACKAGING_PURE_PACK_BUILDER_P5.md)" = "e186060e4e8477adddc0f1164dbe4f4a66cb98b5"
+          {
+            echo "candidate=$(git rev-parse HEAD)"
+            echo "parent=$(git rev-parse HEAD^)"
+            echo "builder_blob=$(git rev-parse HEAD:context_packaging/pack_builder.py)"
+            echo "p5_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_pack_builder_p5.py)"
+            echo "init_blob=$(git rev-parse HEAD:context_packaging/__init__.py)"
+            echo "design_blob=$(git rev-parse HEAD:docs/design/CONTEXT_PACKAGING_PURE_PACK_BUILDER_P5.md)"
+          } | tee p5-candidate-identity.txt
+
+      - name: Run exact P5 suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_context_packaging_pack_builder_p5.py 2>&1 | tee p5-gate.txt
+
+      - name: Run unaffected P1-P4 context-packaging regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests=()
+          for test_file in tests/test_context_packaging_*.py; do
+            case "$test_file" in
+              tests/test_context_packaging_protocol_schemas_p1b.py|tests/test_context_packaging_pack_builder_p5.py) continue ;;
+            esac
+            tests+=("$test_file")
+          done
+          printf '%s\n' "${tests[@]}" | tee p1-p4-regression-files.txt
+          python -m pytest -q "${tests[@]}" 2>&1 | tee p1-p4-regressions.txt
+
+      - name: Preserve inherited red 1 - P1b PS-19 classifier mismatch
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py > inherited-red-p1b-ps19.txt 2>&1
+          status=$?
+          set -e
+          cat inherited-red-p1b-ps19.txt
+          echo "exit_status=$status" | tee inherited-red-p1b-ps19.status
+
+      - name: Preserve inherited red 2 - runtime-isolation schema issue
+        shell: bash
+        run: |
+          set +e
+          python -m unittest -v tests/test_runtime_isolation_p5.py > inherited-red-runtime-isolation.txt 2>&1
+          status=$?
+          set -e
+          cat inherited-red-runtime-isolation.txt
+          echo "exit_status=$status" | tee inherited-red-runtime-isolation.status
+
+      - name: Preserve inherited red 3 - extraction-parity Distiller directive issue
+        shell: bash
+        run: |
+          set +e
+          python tests/check_corpus_integrity.py > inherited-red-extraction-parity.txt 2>&1
+          status=$?
+          set -e
+          cat inherited-red-extraction-parity.txt
+          actual="$(git rev-parse HEAD:agents/distiller/DIRECTIVE.md)"
+          expected="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('docs/extraction/copied-artifacts.json').read_text(encoding='utf-8'))
+          item = next(x for x in manifest['artifacts'] if x['destination'] == 'agents/distiller/DIRECTIVE.md')
+          print(item['source_blob_sha'])
+          PY
+          )"
+          {
+            echo "exit_status=$status"
+            echo "distiller_directive_expected_blob=$expected"
+            echo "distiller_directive_actual_blob=$actual"
+          } | tee inherited-red-extraction-parity.status
+
+      - name: Upload candidate-bound evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p5-a8a0592a-independent-evidence
+          path: |
+            p5-candidate-identity.txt
+            p5-gate.txt
+            p1-p4-regression-files.txt
+            p1-p4-regressions.txt
+            inherited-red-p1b-ps19.txt
+            inherited-red-p1b-ps19.status
+            inherited-red-runtime-isolation.txt
+            inherited-red-runtime-isolation.status
+            inherited-red-extraction-parity.txt
+            inherited-red-extraction-parity.status
+          if-no-files-found: error
