@@ -1,0 +1,119 @@
+{
+  "contract": "reasoning-distiller-p5-remediation-execution-manifest/1",
+  "candidate": {
+    "commit": "d96071ab833179948e5f9526cdb63c15c6451ff4",
+    "parent_closed_v2_amendment_candidate": "8abe0fb4f96f12fa6ed9503a99753d93442cdf0e",
+    "implementation_branch": "implement/context-packaging-p5-remediation-v2",
+    "blobs": {
+      "context_packaging/pack_builder.py": "c7a87dae852de2cb58393fa3bc6dd9241a2155f0",
+      "context_packaging/pack_builder_v1.py": "b0e806e966598e6d819b6d52c643efa23cdb6ef9",
+      "context_packaging/__init__.py": "a70ce6a24ab64efb8171bd95c7907fa22b7de63f",
+      "tests/test_context_packaging_pack_builder_p5.py": "5fd7fc17a01877f4add060357a6b28ee0eb0e096",
+      "docs/design/CONTEXT_PACKAGING_PURE_PACK_BUILDER_P5_REMEDIATION.md": "0e23bb010f61b0765f63d3db291444bd3088478d"
+    }
+  },
+  "basis": {
+    "coordination_main": "40241e24ecca2dacf0848ee28cf1ddc1410d15f1",
+    "governing_plan_commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "governing_plan_blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "closed_p4_semantic_base": "c5e265aa2c572b6156c987bfa75e3740c097f2ec",
+    "prior_p5_candidate": "a8a0592a69b325d411b36bbc97deadee796c3fd7",
+    "prior_p5_review": "0df24253d653725686a616e3cb4ddbd581a4bd13",
+    "closed_v2_amendment_candidate": "8abe0fb4f96f12fa6ed9503a99753d93442cdf0e",
+    "v2_amendment_independent_review": "b12c22ce13af3fc1297059e226ee0e0e82a4b120",
+    "v2_amendment_steward_closure": "86bbf7a812e26a2e785f51d1d70e0dfd16d605f2",
+    "v2_amendment_steward_disposition": "CONTEXT_PACKAGING_V2_AMENDMENT_STEWARD_RECONCILIATION_ACCEPTED"
+  },
+  "execution": {
+    "workflow_run_id": 32710342275,
+    "job_id": 97380182844,
+    "evidence_pr": 64,
+    "evidence_pr_merged": false,
+    "workflow_head_commit": "eb32b92a85cdc951ffdde04f5104139ec6df4bda",
+    "exact_candidate_checkout": "d96071ab833179948e5f9526cdb63c15c6451ff4",
+    "candidate_identity_verification": "PASS",
+    "exact_p5_suite": {
+      "command": "python -m pytest -q tests/test_context_packaging_pack_builder_p5.py",
+      "tests_passed": 17,
+      "outcome": "PASS"
+    },
+    "unaffected_p0_p4_and_closed_amendment_regressions": {
+      "tests_passed": 119,
+      "tests_deselected": 1,
+      "subtests_passed": 160,
+      "outcome": "PASS",
+      "deselected_transition_sentinel": "tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment"
+    },
+    "transition_sentinel": {
+      "classification": "EXPECTED_AMENDMENT_TO_P5_TRANSITION_SENTINEL",
+      "exit_status": 1,
+      "amendment_expected_p5_blob": "b0e806e966598e6d819b6d52c643efa23cdb6ef9",
+      "remediation_candidate_p5_blob": "c7a87dae852de2cb58393fa3bc6dd9241a2155f0",
+      "preserved_v1_blob": "b0e806e966598e6d819b6d52c643efa23cdb6ef9"
+    },
+    "p5_blocker_probes": {
+      "lowercase_sha256_owned_output": "PASS",
+      "namespaced_record_relation_same_string_provenance": "PASS"
+    },
+    "inherited_reds": [
+      {
+        "id": "P1B_PS19_CLASSIFIER_MISMATCH",
+        "exit_status": 1,
+        "observed": "PLANE_CLASSIFICATION_CONFLICT",
+        "expected": "UNKNOWN_SEMANTICS_FIELD"
+      },
+      {
+        "id": "LEGACY_V1_RUNTIME_ISOLATION_MUTABLE_SCHEMA_REFERENCE",
+        "exit_status": 1,
+        "observed": "schemas/context-pack.schema.json knowledgeItem.pems.$ref references github.com/loteque/reasoning-distiller"
+      },
+      {
+        "id": "EXTRACTION_PARITY_DISTILLER_DIRECTIVE_MISMATCH",
+        "exit_status": 1,
+        "expected_blob": "d578841d64da93f0883686eda80f00fde53d5f66",
+        "actual_blob": "81291456b127015b813af4eda4046397b4815037"
+      }
+    ],
+    "artifact": {
+      "id": 9513829752,
+      "name": "p5-d96071ab-engineer-evidence",
+      "size_bytes": 6047,
+      "sha256": "sha256:d8646fd43712797660e64ab8fa75cfb36e841e5315f0f63e0e523ae9644af65f"
+    }
+  },
+  "standing_ci_observation": {
+    "ril_test_suite": {
+      "run_id": 32710342239,
+      "job_id": 97380182819,
+      "tests_run": 548,
+      "failures": 3,
+      "failure_classification": [
+        "P1B_PS19_CLASSIFIER_MISMATCH",
+        "EXPECTED_AMENDMENT_TO_P5_TRANSITION_SENTINEL",
+        "LEGACY_V1_RUNTIME_ISOLATION_MUTABLE_SCHEMA_REFERENCE"
+      ],
+      "additional_p5_local_failure_observed": false
+    },
+    "extraction_parity": {
+      "run_id": 32710342232,
+      "conclusion": "failure",
+      "classified_as": "EXTRACTION_PARITY_DISTILLER_DIRECTIVE_MISMATCH"
+    }
+  },
+  "scope": {
+    "p6_started": false,
+    "persistence_started": false,
+    "admission_started": false,
+    "canonical_mutation_started": false,
+    "rendering_started": false,
+    "production_integration_started": false,
+    "authority_mutation_started": false,
+    "successor_activation_started": false
+  },
+  "disposition": {
+    "execution": "P5_REMEDIATION_ENGINEER_EXECUTION_PASS",
+    "independent_review": "NOT_ESTABLISHED",
+    "steward_reconciliation": "NOT_ESTABLISHED",
+    "p5_closed": false
+  }
+}
