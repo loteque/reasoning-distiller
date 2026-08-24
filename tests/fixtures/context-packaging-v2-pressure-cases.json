@@ -1,0 +1,83 @@
+{
+  "contract": "reasoning-distiller-context-pack-v2-pressure-cases/1",
+  "governing_plan": {
+    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0"
+  },
+  "reconciled_stage3": {
+    "commit": "0b9853ffaccff73817f553001d3368a4384478d8",
+    "blob": "8f3b6ac5caf1a864088ba1e018bf2b39aeadf219"
+  },
+  "cases": [
+    {
+      "id": "SP-01",
+      "input": {"source_ref": "snapshot:A", "record_ids": ["shared"], "relation_ids": ["shared"]},
+      "required_outcome": {"distinct_subjects": [{"namespace": "record", "id": "shared"}, {"namespace": "relation", "id": "shared"}], "preserve_causes": true}
+    },
+    {
+      "id": "SP-02",
+      "input": {"source_ref": "snapshot:A", "record": {"id": "shared", "cause": "request_selector"}, "relation": {"id": "shared", "cause": "pems_closure"}},
+      "required_outcome": {"distinct_subjects": true, "cause_kinds": ["request_selector", "pems_closure"]}
+    },
+    {
+      "id": "SP-03",
+      "input": {"pems_ref": {"namespace": "record", "id": "r1"}, "causes": [{"kind": "request_selector", "cause_id": "root:r1"}, {"kind": "pems_closure", "cause_id": "relation:edge"}]},
+      "required_outcome": {"subject_count": 1, "preserve_all_distinct_causes": true}
+    },
+    {
+      "id": "SP-04",
+      "input": {"pems_ref": {"namespace": "record", "id": "same"}, "source_refs": ["snapshot:A", "snapshot:B"]},
+      "required_outcome": {"distinct_subjects_by_source_ref": true}
+    },
+    {
+      "id": "SP-05",
+      "input": {"opaque_ids": [":", "/", "#", "{\"json\":true}", "record:shared", "relation:shared"]},
+      "required_outcome": {"exact_strings_preserved": true, "tag_or_delimiter_parsing": false}
+    },
+    {
+      "id": "SP-06",
+      "input": {"invalid_pems_refs": [{"id": "x"}, {"namespace": "records", "id": "x"}, {"namespace": "other", "id": "x"}, {"namespace": "record"}]},
+      "required_outcome": {"closed_schema_rejection": true}
+    },
+    {
+      "id": "SP-07",
+      "input": {"subject": {"source_ref": "snapshot:A", "semantic_id": "legacy"}},
+      "required_outcome": {"closed_schema_rejection": true, "semantic_id_in_v2": false}
+    },
+    {
+      "id": "SP-08",
+      "input": {"operation": "canonical_upgrade", "from_contract": "reasoning-distiller-context-pack/1", "to_contract": "reasoning-distiller-context-pack/2"},
+      "required_outcome": {"supported": false, "fresh_v2_rebuild_required": true}
+    },
+    {
+      "id": "SP-09",
+      "input": {"legacy_semantic_id": "shared", "possible_namespaces": ["record", "relation"]},
+      "required_outcome": {"namespace_guessing": false, "canonical_migration": false}
+    },
+    {
+      "id": "SP-10",
+      "input": {"cross_family_combinations": [[1,2,2],[2,1,2],[2,2,1],[1,1,2]]},
+      "required_outcome": {"contract_mismatch_rejection": true}
+    },
+    {
+      "id": "SP-11",
+      "input": {"equivalent_source_and_pems_payloads": true},
+      "required_outcome": {"stable_if_preimage_unchanged": ["raw_source_sha256", "canonical_state_binding_sha256", "selected_pems_sha256", "cove_payload_sha256", "payload_set_sha256"], "changes_when_versioned_preimage_changes": ["profile_sha256", "request_sha256", "manifest_sha256", "pack_identity_sha256", "serialized_pack_sha256"]}
+    },
+    {
+      "id": "SP-12",
+      "input": {"host_iteration_orders": ["forward", "reverse", "permuted"]},
+      "required_outcome": {"byte_identical_v2_output": true}
+    },
+    {
+      "id": "SP-13",
+      "input": {"subject": {"source_ref": "snapshot:A"}},
+      "required_outcome": {"snapshot_only_subject_valid": true, "distinct_from_pems_item_subject": true}
+    },
+    {
+      "id": "SP-14",
+      "input": {"same_subject_causes": [{"kind": "request_selector", "cause_id": "root:r1"}, {"kind": "request_selector", "cause_id": "root:r1"}, {"kind": "pems_closure", "cause_id": "edge:e1"}]},
+      "required_outcome": {"inherit_existing_frozen_cause_set_and_ordering": true, "preserve_distinct_causes": true, "introduce_new_dedup_rule": false}
+    }
+  ]
+}
