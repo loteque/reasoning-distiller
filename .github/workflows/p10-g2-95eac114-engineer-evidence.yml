@@ -43,27 +43,31 @@ jobs:
           assert sys.implementation.cache_tag == 'cpython-312', sys.implementation.cache_tag
           print('P10_G2_EXACT_RUNTIME_PASS')
           PY
-          {
-            echo "candidate=$(git rev-parse HEAD)"
-            echo "g1_base=bc670a602806870ede81eb41ef23f09fe42f772c"
-            echo "package_build_config_blob=$(git rev-parse HEAD:packaging/package-build.json)"
-            echo "g2_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_production_integration_p10_g2.py)"
-            echo "g2_note_blob=$(git rev-parse HEAD:docs/implementation/context-packaging/P10_G2_INSTALLED_PACKAGE_CLOSURE.md)"
-            echo "runner_os=${RUNNER_OS}"
-            python --version
-          } | tee "p10-g2-identities-${RUNNER_OS}.txt"
       - name: Run exact G2 closure gate
-        shell: bash
-        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py 2>&1 | tee "p10-g2-pytest-${RUNNER_OS}.txt"
-      - name: Upload host evidence
-        if: always()
-        uses: actions/upload-artifact@v4
+        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py
+
+  g2-new-gate-windows-diagnostics:
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        nodeid:
+          - tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_is_bound_to_governing_inputs_and_package_scope_only
+          - tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_manifest_closes_over_current_p9_p10_surface
+          - tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_package_identity_binds_exact_p9_runtime_contract
+          - tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_context_packaging_change_changes_package_identity
+          - tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_install_is_source_independent_and_explicit_downgrade_cleans_new_root
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
         with:
-          name: p10-g2-95eac114-${{ runner.os }}
-          path: |
-            p10-g2-identities-${{ runner.os }}.txt
-            p10-g2-pytest-${{ runner.os }}.txt
-          if-no-files-found: warn
+          ref: 95eac1148744d90b9074cbdfce82edfe4751f87a
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Diagnose exact G2 test on Windows
+        run: python -m pytest -q "${{ matrix.nodeid }}"
 
   g2-package-regressions:
     runs-on: ubuntu-latest
@@ -75,8 +79,7 @@ jobs:
         with:
           python-version: "3.12.0"
       - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
-      - name: Run existing package and installer regressions
-        run: python -m pytest -q tests/test_package_builder.py tests/test_install_package_contract.py tests/test_installer_p3.py tests/test_installer_p4.py
+      - run: python -m pytest -q tests/test_package_builder.py tests/test_install_package_contract.py tests/test_installer_p3.py tests/test_installer_p4.py
 
   g2-windows-diagnostics:
     continue-on-error: true
@@ -97,23 +100,19 @@ jobs:
         with:
           python-version: "3.12.0"
       - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
-      - name: Diagnose existing suite on Windows
-        run: python -m pytest -q ${{ matrix.test_file }}
+      - run: python -m pytest -q ${{ matrix.test_file }}
 
   g2-predecessor-regressions:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out exact G2 semantic candidate
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: 95eac1148744d90b9074cbdfce82edfe4751f87a
           fetch-depth: 0
-      - name: Set up exact P9 runtime
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12.0"
-      - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
       - name: Run G0 G1 P9 and fixed production regressions
         shell: bash
         run: |
@@ -127,12 +126,4 @@ jobs:
             tests/test_context_packaging_renderer_execution_binding_p9r3.py \
             tests/test_context_packaging_deterministic_renderer_p9.py \
             tests/test_context_packaging_renderer_ri15_remediation.py \
-            tests/test_production_invocation.py \
-            2>&1 | tee p10-g2-predecessor-regressions.txt
-      - name: Upload regression evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: p10-g2-95eac114-predecessor-regressions
-          path: p10-g2-predecessor-regressions.txt
-          if-no-files-found: warn
+            tests/test_production_invocation.py
