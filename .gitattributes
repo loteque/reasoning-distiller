@@ -21,3 +21,13 @@ context_packaging/source_resolver.py -text
 context_packaging/cove_adapter.py -text
 context_packaging/renderer.py -text
 admission/apply_admission_transaction.py -text
+
+# P10-G1 protocol/handoff freeze: preserve exact protocol and schema bytes.
+protocols/rgp/production-integration-v2.json -text
+schemas/invocation-request-v2.schema.json -text
+schemas/activation-bundle-v2.schema.json -text
+schemas/invocation-result-v2.schema.json -text
+schemas/context-provenance-registry.schema.json -text
+schemas/prepared-invocation.schema.json -text
+schemas/model-transport.schema.json -text
+tests/fixtures/p10-g1-protocol-fixtures-v1.json -text
