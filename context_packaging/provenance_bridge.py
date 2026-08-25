@@ -123,6 +123,7 @@ def derive_provenance_registry(
             rendered_activation,
             pack_identity,
             by_snapshot,
+            records,
         )
 
         used = {occurrence["source_id"] for occurrence in occurrences}
@@ -269,6 +270,7 @@ def _occurrences(
     activation: Mapping[str, Any],
     pack_identity: str,
     by_snapshot: Mapping[bytes, list[str]],
+    records: Mapping[str, Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
     frames = activation.get("frames")
     if not isinstance(frames, list) or not frames:
@@ -285,6 +287,10 @@ def _occurrences(
         raise _BridgeFailure(
             PROVENANCE_BRIDGE_INVALID, "rendered metadata frame is invalid"
         )
+    metadata = deepcopy(dict(pack))
+    for plane_key in _PLANE_KEYS.values():
+        metadata.pop(plane_key, None)
+    _verify_frame_payload(first, metadata)
 
     expected: list[tuple[str, int, Mapping[str, Any]]] = []
     for plane in _PLANE_ORDER:
@@ -334,13 +340,15 @@ def _occurrences(
             )
             raise _BridgeFailure(PROVENANCE_BRIDGE_INVALID, diagnostic)
 
+        source_id = candidates[0]
+        _verify_source_payload_binding(plane, item, records[source_id]["binding"])
         occurrences.append(
             {
                 "pack_identity_sha256": pack_identity,
                 "frame_index": frame_index,
                 "plane": plane,
                 "item_index": item_index,
-                "source_id": candidates[0],
+                "source_id": source_id,
             }
         )
     return occurrences
@@ -364,6 +372,26 @@ def _verify_frame_payload(
         raise _BridgeFailure(
             PROVENANCE_BRIDGE_INVALID,
             "rendered frame payload does not exactly match the sealed pack item",
+        )
+
+
+def _verify_source_payload_binding(
+    plane: str,
+    item: Mapping[str, Any],
+    binding: Mapping[str, Any],
+) -> None:
+    if plane == "knowledge":
+        return
+    payload = item.get("payload")
+    if not isinstance(payload, Mapping):
+        raise _BridgeFailure(
+            PROVENANCE_BRIDGE_INVALID,
+            f"{plane} item payload identity is missing",
+        )
+    if _normalize_sha256(payload.get("raw_sha256")) != _payload_sha256(binding):
+        raise _BridgeFailure(
+            PROVENANCE_BRIDGE_INVALID,
+            "model-visible payload digest does not match the resolved source binding",
         )
 
 
@@ -427,6 +455,23 @@ def _canonical_binding(binding: Mapping[str, Any]) -> dict[str, Any]:
             PROVENANCE_BRIDGE_INVALID, "source binding logical identity is invalid"
         )
     _payload_sha256(canonical)
+    if source_class == "operational_evidence":
+        status = canonical.get("validation_status")
+        if status not in {
+            "accepted_validation_result",
+            "informational_artifact",
+            "raw_observation",
+        }:
+            raise _BridgeFailure(
+                PROVENANCE_BRIDGE_INVALID,
+                "operational-evidence validation status is unsupported",
+            )
+        has_result = "validation_result" in canonical
+        if (status == "accepted_validation_result") != has_result:
+            raise _BridgeFailure(
+                PROVENANCE_BRIDGE_INVALID,
+                "operational-evidence validation-result identity is inconsistent",
+            )
     return deepcopy(canonical)
 
 
