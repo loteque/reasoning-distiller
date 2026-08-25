@@ -20,6 +20,7 @@ context_packaging/pack_builder_v1.py -text
 context_packaging/source_resolver.py -text
 context_packaging/cove_adapter.py -text
 context_packaging/renderer.py -text
+context_packaging/provenance_bridge.py -text
 admission/apply_admission_transaction.py -text
 
 # P10-G1 protocol/handoff freeze: preserve exact protocol and schema bytes.
