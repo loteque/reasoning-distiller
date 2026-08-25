@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   g2-package-closure:
@@ -40,9 +41,8 @@ jobs:
           PY
       - run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py
 
-  g2-new-gate-windows-diagnostics:
+  g2-windows-diagnostic-report:
     runs-on: windows-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,21 +51,22 @@ jobs:
         with:
           python-version: "3.12.0"
       - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
-      - name: G2 scope binding
+      - name: Capture exact Windows failure
+        shell: pwsh
         continue-on-error: true
-        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_is_bound_to_governing_inputs_and_package_scope_only
-      - name: G2 manifest closure
-        continue-on-error: true
-        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_manifest_closes_over_current_p9_p10_surface
-      - name: G2 exact runtime binding
-        continue-on-error: true
-        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_package_identity_binds_exact_p9_runtime_contract
-      - name: G2 package identity sensitivity
-        continue-on-error: true
-        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_context_packaging_change_changes_package_identity
-      - name: G2 source isolation and downgrade cleanup
-        continue-on-error: true
-        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py::test_p10_g2_install_is_source_independent_and_explicit_downgrade_cleans_new_root
+        run: |
+          python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py *> diagnostic.txt
+          exit $LASTEXITCODE
+      - name: Publish diagnostic to evidence PR
+        if: always()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $raw = Get-Content diagnostic.txt -Raw
+          $body = "### P10-G2 Windows exact-suite diagnostic`n`nCandidate: ``95eac1148744d90b9074cbdfce82edfe4751f87a```n`n``````text`n$raw`n``````"
+          Set-Content -Path diagnostic-comment.md -Value $body
+          gh pr comment 81 --body-file diagnostic-comment.md
 
   g2-package-regressions:
     runs-on: ubuntu-latest
