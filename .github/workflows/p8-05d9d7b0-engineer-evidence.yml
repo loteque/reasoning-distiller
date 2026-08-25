@@ -1,0 +1,80 @@
+name: P8 05d9d7b0 Engineer execution evidence
+
+on:
+  pull_request:
+    branches:
+      - implement/context-packaging-p8
+
+permissions:
+  contents: read
+
+jobs:
+  p8-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact P8 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 05d9d7b0141cd7fa5e66dd72533b57e046001247
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Verify exact candidate and P8-only delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "05d9d7b0141cd7fa5e66dd72533b57e046001247"
+          test "$(git rev-parse HEAD^)" = "d4557ef183731304401444f42cf62819cae567af"
+          expected_delta='tests/test_context_packaging_authority_memory_isolation_p8.py'
+          actual_delta="$(git diff --name-only d4557ef183731304401444f42cf62819cae567af..HEAD)"
+          test "$actual_delta" = "$expected_delta"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_authority_memory_isolation_p8.py)" = "4c82429ce24b2efe98c4f76248c091dfd064cea4"
+          {
+            echo "candidate=$(git rev-parse HEAD)"
+            echo "parent=$(git rev-parse HEAD^)"
+            echo "p8_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_authority_memory_isolation_p8.py)"
+            echo "source_resolver_blob=$(git rev-parse HEAD:context_packaging/source_resolver.py)"
+            echo "pack_builder_blob=$(git rev-parse HEAD:context_packaging/pack_builder.py)"
+            echo "p5_fixture_blob=$(git rev-parse HEAD:tests/test_context_packaging_pack_builder_p5.py)"
+            echo "p2_fixture_blob=$(git rev-parse HEAD:tests/test_context_packaging_source_resolution_p2.py)"
+          } | tee p8-identities.txt
+      - name: Run exact P8 pytest gate
+        shell: bash
+        run: python -m pytest -q tests/test_context_packaging_authority_memory_isolation_p8.py 2>&1 | tee p8-pytest.txt
+      - name: Run exact P8 unittest gate
+        shell: bash
+        run: python -m unittest -v tests.test_context_packaging_authority_memory_isolation_p8 2>&1 | tee p8-unittest.txt
+      - name: Run unaffected P0-P7 context-packaging regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(find tests -maxdepth 1 -type f -name 'test_context_packaging_*.py' -print | sort | grep -v 'authority_memory_isolation_p8')
+          python -m pytest -q "${tests[@]}" -k 'not test_p5_runtime_implementation_is_unchanged_by_amendment and not test_negative_fixtures_reject_and_classify_exactly' 2>&1 | tee p8-regressions.txt
+      - name: Reproduce inherited P1b PS-19 classifier mismatch separately
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly 2>&1 | tee p8-inherited-ps19.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -eq 1
+          grep -F 'PS-19' p8-inherited-ps19.txt
+          grep -F 'PLANE_CLASSIFICATION_CONFLICT' p8-inherited-ps19.txt
+          grep -F 'UNKNOWN_SEMANTICS_FIELD' p8-inherited-ps19.txt
+          echo 'P1B_PS19_CLASSIFIER_MISMATCH_REPRODUCED' | tee -a p8-inherited-ps19.txt
+      - name: Upload P8 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p8-05d9d7b0-engineer-evidence
+          path: |
+            p8-identities.txt
+            p8-pytest.txt
+            p8-unittest.txt
+            p8-regressions.txt
+            p8-inherited-ps19.txt
+          if-no-files-found: warn
