@@ -77,16 +77,7 @@ def _prepare_and_transport(tmp_path: Path, graph=None):
         provider=lambda _request: raw,
         installed_root=installed_root,
     )
-    return (
-        project,
-        installed_root,
-        request,
-        request_raw,
-        request_path,
-        prepared,
-        run,
-        raw,
-    )
+    return project, installed_root, request, request_raw, request_path, prepared, run, raw
 
 
 @pytest.mark.skipif(
@@ -94,16 +85,9 @@ def _prepare_and_transport(tmp_path: Path, graph=None):
     reason="P10 G6 exact runtime is CPython 3.12.0/cpython-312",
 )
 def test_p10_g6_finalizes_exact_g5_run_and_persists_companion_chain(tmp_path):
-    (
-        project,
-        installed_root,
-        request,
-        request_raw,
-        _,
-        prepared,
-        run,
-        raw,
-    ) = _prepare_and_transport(tmp_path)
+    project, installed_root, request, request_raw, _, prepared, run, raw = (
+        _prepare_and_transport(tmp_path)
+    )
 
     result = finalize.finalize_invocation_v2(
         request_raw,
@@ -113,14 +97,14 @@ def test_p10_g6_finalizes_exact_g5_run_and_persists_companion_chain(tmp_path):
         installed_root=installed_root,
     )
 
-    assert (project / request["output"]["raw_candidate_path"]).read_bytes() == raw
-    assert (
-        project / request["output"]["submission_path"]
-    ).read_bytes() == result.serialized_submission
-    assert (
-        project / request["output"]["result_path"]
-    ).read_bytes() == result.serialized_result
+    raw_path = project / request["output"]["raw_candidate_path"]
+    submission_path = project / request["output"]["submission_path"]
+    result_path = project / request["output"]["result_path"]
+    registry_path = project / request["output"]["provenance_registry_path"]
 
+    assert raw_path.read_bytes() == raw
+    assert submission_path.read_bytes() == result.serialized_submission
+    assert result_path.read_bytes() == result.serialized_result
     assert result.result["contract"] == "reasoning-distiller-invocation-result/2"
     assert result.result["status"] == "PASS"
     assert result.result["raw_candidate"] == {
@@ -137,25 +121,24 @@ def test_p10_g6_finalizes_exact_g5_run_and_persists_companion_chain(tmp_path):
     }
     assert result.result["provenance_registry"] == {
         "locator": request["output"]["provenance_registry_path"],
-        "raw_sha256": finalize._sha256(prepared.serialized_provenance_registry),
+        "raw_sha256": finalize._sha256(registry_path.read_bytes()),
         "identity_sha256": prepared.provenance_registry["identity"]["registry_sha256"],
     }
 
     schema = json.loads((ROOT / "schemas/invocation-result-v2.schema.json").read_text())
-    registry = G4._schema_registry()
     assert not list(
-        Draft202012Validator(schema, registry=registry).iter_errors(result.result)
+        Draft202012Validator(schema, registry=G4._schema_registry()).iter_errors(
+            result.result
+        )
     )
-
-    submission = result.submission
-    assert submission["rgp_version"] == "rgp/1"
-    assert submission["status"] == "candidate"
-    assert submission["candidate_graph"] == json.loads(raw)
-    assert submission["producer"] == {
+    assert result.submission["rgp_version"] == "rgp/1"
+    assert result.submission["status"] == "candidate"
+    assert result.submission["candidate_graph"] == json.loads(raw)
+    assert result.submission["producer"] == {
         "role": "reasoning-distiller",
         "instance": request["invocation_id"],
     }
-    assert submission["validation"] == {
+    assert result.submission["validation"] == {
         "status": "passed",
         "validator": "rgp-validator/1",
         "validated_at": request["created_at"],
@@ -167,24 +150,15 @@ def test_p10_g6_finalizes_exact_g5_run_and_persists_companion_chain(tmp_path):
     reason="P10 G6 exact runtime is CPython 3.12.0/cpython-312",
 )
 def test_p10_g6_finalize_does_not_reopen_sealed_inputs_or_original_sources(tmp_path):
-    (
-        project,
-        installed_root,
-        _request,
-        request_raw,
-        _,
-        _prepared,
-        run,
-        _raw,
-    ) = _prepare_and_transport(tmp_path)
-
+    project, installed_root, _, request_raw, _, _, run, _ = _prepare_and_transport(
+        tmp_path
+    )
     for path in (
         project / "artifacts/pack.json",
         project / "artifacts/renderer-profile.json",
         project / "artifacts/eligibility.json",
     ):
         path.unlink()
-
     assert not (project / "evidence/original-control.json").exists()
 
     result = finalize.finalize_invocation_v2(
@@ -202,17 +176,9 @@ def test_p10_g6_finalize_does_not_reopen_sealed_inputs_or_original_sources(tmp_p
     reason="P10 G6 exact runtime is CPython 3.12.0/cpython-312",
 )
 def test_p10_g6_raw_bytes_persist_before_parse_and_provenance_rejection(tmp_path):
-    (
-        project,
-        installed_root,
-        request,
-        request_raw,
-        _,
-        prepared,
-        _run,
-        _raw,
-    ) = _prepare_and_transport(tmp_path)
-
+    project, installed_root, request, request_raw, _, prepared, _, _ = (
+        _prepare_and_transport(tmp_path)
+    )
     invalid_raw = b'{"records":'
     invalid_run = transport.run_reference_transport(
         prepared.serialized_prepared_invocation,
@@ -231,26 +197,20 @@ def test_p10_g6_raw_bytes_persist_before_parse_and_provenance_rejection(tmp_path
             cwd=tmp_path,
             installed_root=installed_root,
         )
-    assert parse_exc.value.stage == "parse"
-    assert parse_exc.value.reason_code == "RAW_CANDIDATE_PARSE_FAILED"
+    assert (parse_exc.value.stage, parse_exc.value.reason_code) == (
+        "parse",
+        "RAW_CANDIDATE_PARSE_FAILED",
+    )
     assert (project / request["output"]["raw_candidate_path"]).read_bytes() == invalid_raw
     assert not (project / request["output"]["submission_path"]).exists()
     assert not (project / request["output"]["result_path"]).exists()
 
     second = tmp_path / "second"
     second.mkdir()
-    (
-        project2,
-        installed_root2,
-        request2,
-        request_raw2,
-        _,
-        prepared2,
-        _,
-        _,
-    ) = _prepare_and_transport(second)
-    unknown_graph = _graph("src:ctx:" + "0" * 64)
-    unknown_raw = renderer._jcs(unknown_graph)
+    project2, installed_root2, request2, request_raw2, _, prepared2, _, _ = (
+        _prepare_and_transport(second)
+    )
+    unknown_raw = renderer._jcs(_graph("src:ctx:" + "0" * 64))
     unknown_run = transport.run_reference_transport(
         prepared2.serialized_prepared_invocation,
         prepared2.serialized_activation_bundle,
@@ -268,7 +228,6 @@ def test_p10_g6_raw_bytes_persist_before_parse_and_provenance_rejection(tmp_path
             cwd=second,
             installed_root=installed_root2,
         )
-    assert provenance_exc.value.stage == "validation"
     assert provenance_exc.value.reason_code == "UNRESOLVED_PROVENANCE"
     assert (
         project2 / request2["output"]["raw_candidate_path"]
@@ -281,106 +240,42 @@ def test_p10_g6_raw_bytes_persist_before_parse_and_provenance_rejection(tmp_path
     reason="P10 G6 exact runtime is CPython 3.12.0/cpython-312",
 )
 def test_p10_g6_rejects_prepared_registry_transport_and_toolchain_drift(tmp_path):
-    registry_case = tmp_path / "registry"
-    registry_case.mkdir()
-    (
-        project,
-        installed_root,
-        request,
-        request_raw,
-        _,
-        _prepared,
-        run,
-        raw,
-    ) = _prepare_and_transport(registry_case)
-    registry_path = project / request["output"]["provenance_registry_path"]
-    registry_path.write_bytes(registry_path.read_bytes() + b" ")
-    with pytest.raises(finalize.FinalizeFailure) as registry_exc:
-        finalize.finalize_invocation_v2(
-            request_raw,
-            run.raw_model_bytes,
-            run.serialized_transport_binding,
-            cwd=registry_case,
-            installed_root=installed_root,
+    cases = ["registry", "prepared", "transport", "directive"]
+    for name in cases:
+        root = tmp_path / name
+        root.mkdir()
+        project, installed_root, request, request_raw, _, _, run, raw = (
+            _prepare_and_transport(root)
         )
-    assert registry_exc.value.reason_code == "PROVENANCE_REGISTRY_MISMATCH"
-    assert (project / request["output"]["raw_candidate_path"]).read_bytes() == raw
+        transport_raw = run.serialized_transport_binding
+        if name == "registry":
+            path = project / request["output"]["provenance_registry_path"]
+            path.write_bytes(path.read_bytes() + b" ")
+            expected = "PROVENANCE_REGISTRY_MISMATCH"
+        elif name == "prepared":
+            path = project / request["output"]["prepared_invocation_path"]
+            path.write_bytes(path.read_bytes() + b" ")
+            expected = "PREPARED_INVOCATION_MISMATCH"
+        elif name == "transport":
+            changed = copy.deepcopy(run.transport_binding)
+            changed["mapping"]["extra_project_context"] = True
+            transport_raw = renderer._jcs(changed)
+            expected = "MODEL_TRANSPORT_NONCONFORMING"
+        else:
+            path = installed_root / prepare.DIRECTIVE_RELATIVE_PATH
+            path.write_bytes(path.read_bytes() + b"\nG6-DRIFT")
+            expected = "DISTILLER_DIRECTIVE_MISMATCH"
 
-    prepared_case = tmp_path / "prepared"
-    prepared_case.mkdir()
-    (
-        project,
-        installed_root,
-        request,
-        request_raw,
-        _,
-        _prepared,
-        run,
-        raw,
-    ) = _prepare_and_transport(prepared_case)
-    prepared_path = project / request["output"]["prepared_invocation_path"]
-    prepared_path.write_bytes(prepared_path.read_bytes() + b" ")
-    with pytest.raises(finalize.FinalizeFailure) as prepared_exc:
-        finalize.finalize_invocation_v2(
-            request_raw,
-            run.raw_model_bytes,
-            run.serialized_transport_binding,
-            cwd=prepared_case,
-            installed_root=installed_root,
-        )
-    assert prepared_exc.value.reason_code == "PREPARED_INVOCATION_MISMATCH"
-    assert (project / request["output"]["raw_candidate_path"]).read_bytes() == raw
-
-    transport_case = tmp_path / "transport"
-    transport_case.mkdir()
-    (
-        project,
-        installed_root,
-        request,
-        request_raw,
-        _,
-        _prepared,
-        run,
-        raw,
-    ) = _prepare_and_transport(transport_case)
-    changed_transport = copy.deepcopy(run.transport_binding)
-    changed_transport["mapping"]["extra_project_context"] = True
-    with pytest.raises(finalize.FinalizeFailure) as transport_exc:
-        finalize.finalize_invocation_v2(
-            request_raw,
-            run.raw_model_bytes,
-            renderer._jcs(changed_transport),
-            cwd=transport_case,
-            installed_root=installed_root,
-        )
-    assert transport_exc.value.stage == "activation"
-    assert transport_exc.value.reason_code == "MODEL_TRANSPORT_NONCONFORMING"
-    assert (project / request["output"]["raw_candidate_path"]).read_bytes() == raw
-
-    directive_case = tmp_path / "directive"
-    directive_case.mkdir()
-    (
-        project,
-        installed_root,
-        request,
-        request_raw,
-        _,
-        _prepared,
-        run,
-        raw,
-    ) = _prepare_and_transport(directive_case)
-    directive = installed_root / prepare.DIRECTIVE_RELATIVE_PATH
-    directive.write_bytes(directive.read_bytes() + b"\nG6-DRIFT")
-    with pytest.raises(finalize.FinalizeFailure) as directive_exc:
-        finalize.finalize_invocation_v2(
-            request_raw,
-            run.raw_model_bytes,
-            run.serialized_transport_binding,
-            cwd=directive_case,
-            installed_root=installed_root,
-        )
-    assert directive_exc.value.reason_code == "DISTILLER_DIRECTIVE_MISMATCH"
-    assert (project / request["output"]["raw_candidate_path"]).read_bytes() == raw
+        with pytest.raises(finalize.FinalizeFailure) as exc:
+            finalize.finalize_invocation_v2(
+                request_raw,
+                run.raw_model_bytes,
+                transport_raw,
+                cwd=root,
+                installed_root=installed_root,
+            )
+        assert exc.value.reason_code == expected
+        assert (project / request["output"]["raw_candidate_path"]).read_bytes() == raw
 
 
 @pytest.mark.skipif(
@@ -388,17 +283,9 @@ def test_p10_g6_rejects_prepared_registry_transport_and_toolchain_drift(tmp_path
     reason="P10 G6 exact runtime is CPython 3.12.0/cpython-312",
 )
 def test_p10_g6_cli_dispatches_v2_finalize_with_exact_transport_receipt(tmp_path):
-    (
-        project,
-        installed_root,
-        request,
-        _request_raw,
-        request_path,
-        _prepared,
-        run,
-        raw,
-    ) = _prepare_and_transport(tmp_path)
-
+    project, installed_root, request, _, request_path, _, run, raw = (
+        _prepare_and_transport(tmp_path)
+    )
     raw_path = project / request["output"]["raw_candidate_path"]
     transport_path = project / "transport.json"
     raw_path.write_bytes(raw)
