@@ -22,7 +22,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "bd27aac3b1298d4d4f8bb700dc33d3bcfb665080"
           cp tests/test_context_packaging_renderer_p9r4_external_execution.py /tmp/test_context_packaging_renderer_p9r4_external_execution.py
           cp tests/test_context_packaging_renderer_p9r4_corrected_cases.py /tmp/test_context_packaging_renderer_p9r4_corrected_cases.py
           {
@@ -87,7 +86,7 @@ jobs:
               assert decoded.failure["code"] == "UNSUPPORTED_RENDERER"
           PY
 
-          test "$(git diff --name-only | sort)" = $'context_packaging/renderer.py\ntests/test_context_packaging_renderer_ri15_remediation.py'
+          test "$( { git diff --name-only; git ls-files --others --exclude-standard; } | sort)" = $'context_packaging/renderer.py\ntests/test_context_packaging_renderer_ri15_remediation.py'
           git config user.name "p9-ri15-remediation-bot"
           git config user.email "p9-ri15-remediation-bot@users.noreply.github.com"
           git add context_packaging/renderer.py tests/test_context_packaging_renderer_ri15_remediation.py
