@@ -1,0 +1,223 @@
+{
+  "binding_contract": "reasoning-distiller-renderer-execution-binding/1",
+  "bundle_roots": [
+    "member:render",
+    "member:decode",
+    "member:resolve_bundle",
+    "member:describe_bundle",
+    "member:derive_execution_binding",
+    "member:compare_execution_binding"
+  ],
+  "contract": "reasoning-distiller-python-closed-bundle/1",
+  "dependency_closure": [
+    "Every repository-owned callable and behavior-bearing data object used by a root or member MUST be explicitly registered as a member; an open-ended reachability walk is not the contract.",
+    "Every executable global reference of a registered repository Python function MUST resolve to another registered member, one allowlisted runtime primitive, or one frozen non-behavioral metadata name.",
+    "An unregistered repository callable/data dependency, mutable repository-local module dependency, dynamic import/helper discovery, or eval/exec behavior source fails closed.",
+    "Mutable list/dict/set defaults, persistent closure cells, or behavior constants are unsupported; P9R2 must refactor them to frozen representable values.",
+    "Positional defaults, keyword defaults, and persistent closure cells are normalized; unsupported or mutable values fail closed.",
+    "Descriptor construction may use only the captured bundle and exact runtime information, never filesystem/source/Git/install/network/branch/cache/model/search/project state.",
+    "Duplicate/unsorted member or dependency collections, missing declared targets, and undeclared behavior fail closed.",
+    "The member registry, resolver, descriptor, binding derivation, and binding comparison are themselves behavior-bearing and must be registered in the same bundle."
+  ],
+  "descriptor": {
+    "closure_order": "co_freevars order",
+    "constant_inclusion": "only constants referenced by executable instructions/defaults/closures/registered immutable members are included; unreferenced co_consts are excluded",
+    "debug_exclusions": [
+      "co_filename",
+      "co_firstlineno",
+      "co_linetable",
+      "instruction byte offsets except transient ordinal mapping",
+      "instruction positions/source lines",
+      "checkout/source path",
+      "repository identity",
+      "comments",
+      "unreferenced docstrings"
+    ],
+    "dependency_order": "UTF-8 byte order by dependency name then target; duplicates forbidden",
+    "exception_fields": [
+      "start ordinal",
+      "end ordinal",
+      "target ordinal",
+      "depth",
+      "lasti"
+    ],
+    "exception_source": "dis.Bytecode(code).exception_entries",
+    "forbidden_serializations": [
+      "marshal.dumps(code)",
+      "repr(code/function)",
+      "pickle/opaque host serialization"
+    ],
+    "function_code_fields": [
+      "co_name",
+      "co_qualname",
+      "co_argcount",
+      "co_posonlyargcount",
+      "co_kwonlyargcount",
+      "co_nlocals",
+      "co_stacksize",
+      "co_flags",
+      "all co_varnames as local_names",
+      "parameter_names from call-binding slots including varargs/varkw",
+      "co_names as global_names",
+      "co_freevars",
+      "co_cellvars",
+      "normalized instructions",
+      "normalized exception table"
+    ],
+    "instruction_fields": [
+      "opname",
+      "operand_kind",
+      "normalized operand"
+    ],
+    "instruction_normalization": [
+      "dis.hasconst => normalized instruction.argval, never co_consts index",
+      "dis.hasname => semantic name plus exact-ABI argrepr only for name-op semantic modifiers",
+      "dis.haslocal => semantic local name, never co_varnames index",
+      "dis.hasfree => semantic free/cell name, never numeric index",
+      "comparison opcode => semantic comparison string",
+      "dis.hasjrel/dis.hasjabs => normalized target instruction ordinal",
+      "other argument-bearing opcode => semantic integer oparg under exact ABI",
+      "argument-free opcode => JSON null"
+    ],
+    "instruction_source": "dis.get_instructions(code, show_caches=False, adaptive=False)",
+    "kwdefault_order": "UTF-8 byte order by keyword name",
+    "member_order": "UTF-8 byte order by member id; duplicates forbidden",
+    "nested_code": "executable code constants recursively use the same code descriptor",
+    "normalized_values": {
+      "bool": "JSON boolean",
+      "bytes": "RFC 4648 Base64 padded no whitespace",
+      "code": "recursive code descriptor",
+      "float64": "finite IEEE-754 binary64 big-endian 16 lowercase hex",
+      "frozenset": "normalized items sorted by exact JCS bytes",
+      "int": "canonical signed base-10 string",
+      "none": "tag only",
+      "str": "exact Unicode without surrogates",
+      "tuple": "ordered recursively normalized items"
+    },
+    "parameter_names": "co_varnames call-binding prefix plus CO_VARARGS/CO_VARKEYWORDS slots"
+  },
+  "descriptor_contract": "reasoning-distiller-python-closed-bundle-descriptor/1",
+  "gate": "P9R1",
+  "governing_plan": {
+    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd"
+  },
+  "member_kinds": {
+    "immutable_constant": "repository behavior data restricted to normalized immutable values",
+    "python_function": "repository callable with normalized code/default/closure/dependency descriptor",
+    "python_type": "repository type with bases plus separately registered behavior-bearing methods/constants",
+    "runtime_primitive": "explicit allowlisted runtime dependency"
+  },
+  "no_discovery": [
+    "filesystem/source",
+    "Git/repository/HEAD/branch",
+    "installation/manifest",
+    "network",
+    "model/search",
+    "cache",
+    "mutable project state"
+  ],
+  "non_behavioral_global_exclusions": [
+    "__name__",
+    "__package__",
+    "__loader__",
+    "__spec__"
+  ],
+  "required_behavior_categories": [
+    "render/decode entry behavior",
+    "profile/execution-binding validation",
+    "pack validation and summary",
+    "strict JSON and JCS",
+    "frame construction/decoding and Base64 boundary",
+    "digest domains",
+    "plane order and behavior constants",
+    "accepted contracts/field sets",
+    "activation byte limits and identity",
+    "bundle resolution/dependency validation",
+    "descriptor construction",
+    "binding derivation/comparison"
+  ],
+  "runtime_abi": {
+    "cache_tag": "cpython-312",
+    "implementation": "cpython",
+    "major": 3,
+    "micro": 0,
+    "minor": 12
+  },
+  "runtime_primitive_boundary": {
+    "global_primitive_allowlist": [
+      {"id":"primitive:base64.b64decode","identity_mode":"exact_abi_python_callable","module":"base64","qualname":"b64decode","runtime_id":"cpython-3.12.0:base64.b64decode"},
+      {"id":"primitive:base64.b64encode","identity_mode":"exact_abi_python_callable","module":"base64","qualname":"b64encode","runtime_id":"cpython-3.12.0:base64.b64encode"},
+      {"id":"primitive:builtins.Exception","identity_mode":"exact_abi_type","module":"builtins","qualname":"Exception","runtime_id":"cpython-3.12.0:builtins.Exception"},
+      {"id":"primitive:builtins.KeyError","identity_mode":"exact_abi_type","module":"builtins","qualname":"KeyError","runtime_id":"cpython-3.12.0:builtins.KeyError"},
+      {"id":"primitive:builtins.TypeError","identity_mode":"exact_abi_type","module":"builtins","qualname":"TypeError","runtime_id":"cpython-3.12.0:builtins.TypeError"},
+      {"id":"primitive:builtins.UnicodeError","identity_mode":"exact_abi_type","module":"builtins","qualname":"UnicodeError","runtime_id":"cpython-3.12.0:builtins.UnicodeError"},
+      {"id":"primitive:builtins.ValueError","identity_mode":"exact_abi_type","module":"builtins","qualname":"ValueError","runtime_id":"cpython-3.12.0:builtins.ValueError"},
+      {"id":"primitive:builtins.all","identity_mode":"exact_abi_builtin","module":"builtins","qualname":"all","runtime_id":"cpython-3.12.0:builtins.all"},
+      {"id":"primitive:builtins.any","identity_mode":"exact_abi_builtin","module":"builtins","qualname":"any","runtime_id":"cpython-3.12.0:builtins.any"},
+      {"id":"primitive:builtins.bool","identity_mode":"exact_abi_type","module":"builtins","qualname":"bool","runtime_id":"cpython-3.12.0:builtins.bool"},
+      {"id":"primitive:builtins.bytearray","identity_mode":"exact_abi_type","module":"builtins","qualname":"bytearray","runtime_id":"cpython-3.12.0:builtins.bytearray"},
+      {"id":"primitive:builtins.bytes","identity_mode":"exact_abi_type","module":"builtins","qualname":"bytes","runtime_id":"cpython-3.12.0:builtins.bytes"},
+      {"id":"primitive:builtins.dict","identity_mode":"exact_abi_type","module":"builtins","qualname":"dict","runtime_id":"cpython-3.12.0:builtins.dict"},
+      {"id":"primitive:builtins.enumerate","identity_mode":"exact_abi_type","module":"builtins","qualname":"enumerate","runtime_id":"cpython-3.12.0:builtins.enumerate"},
+      {"id":"primitive:builtins.float","identity_mode":"exact_abi_type","module":"builtins","qualname":"float","runtime_id":"cpython-3.12.0:builtins.float"},
+      {"id":"primitive:builtins.int","identity_mode":"exact_abi_type","module":"builtins","qualname":"int","runtime_id":"cpython-3.12.0:builtins.int"},
+      {"id":"primitive:builtins.isinstance","identity_mode":"exact_abi_builtin","module":"builtins","qualname":"isinstance","runtime_id":"cpython-3.12.0:builtins.isinstance"},
+      {"id":"primitive:builtins.len","identity_mode":"exact_abi_builtin","module":"builtins","qualname":"len","runtime_id":"cpython-3.12.0:builtins.len"},
+      {"id":"primitive:builtins.list","identity_mode":"exact_abi_type","module":"builtins","qualname":"list","runtime_id":"cpython-3.12.0:builtins.list"},
+      {"id":"primitive:builtins.ord","identity_mode":"exact_abi_builtin","module":"builtins","qualname":"ord","runtime_id":"cpython-3.12.0:builtins.ord"},
+      {"id":"primitive:builtins.set","identity_mode":"exact_abi_type","module":"builtins","qualname":"set","runtime_id":"cpython-3.12.0:builtins.set"},
+      {"id":"primitive:builtins.sorted","identity_mode":"exact_abi_builtin","module":"builtins","qualname":"sorted","runtime_id":"cpython-3.12.0:builtins.sorted"},
+      {"id":"primitive:builtins.str","identity_mode":"exact_abi_type","module":"builtins","qualname":"str","runtime_id":"cpython-3.12.0:builtins.str"},
+      {"id":"primitive:builtins.super","identity_mode":"exact_abi_type","module":"builtins","qualname":"super","runtime_id":"cpython-3.12.0:builtins.super"},
+      {"id":"primitive:builtins.tuple","identity_mode":"exact_abi_type","module":"builtins","qualname":"tuple","runtime_id":"cpython-3.12.0:builtins.tuple"},
+      {"id":"primitive:collections.abc.Mapping","identity_mode":"exact_abi_type","module":"collections.abc","qualname":"Mapping","runtime_id":"cpython-3.12.0:collections.abc.Mapping"},
+      {"id":"primitive:copy.deepcopy","identity_mode":"exact_abi_python_callable","module":"copy","qualname":"deepcopy","runtime_id":"cpython-3.12.0:copy.deepcopy"},
+      {"id":"primitive:dis.Bytecode","identity_mode":"exact_abi_type","module":"dis","qualname":"Bytecode","runtime_id":"cpython-3.12.0:dis.Bytecode"},
+      {"id":"primitive:dis.get_instructions","identity_mode":"exact_abi_python_callable","module":"dis","qualname":"get_instructions","runtime_id":"cpython-3.12.0:dis.get_instructions"},
+      {"id":"primitive:hashlib.sha256","identity_mode":"exact_abi_builtin","module":"hashlib","qualname":"sha256","runtime_id":"cpython-3.12.0:hashlib.sha256"},
+      {"id":"primitive:io.BytesIO","identity_mode":"exact_abi_type","module":"io","qualname":"BytesIO","runtime_id":"cpython-3.12.0:io.BytesIO"},
+      {"id":"primitive:json.loads","identity_mode":"exact_abi_python_callable","module":"json","qualname":"loads","runtime_id":"cpython-3.12.0:json.loads"},
+      {"id":"primitive:math.isfinite","identity_mode":"exact_abi_builtin","module":"math","qualname":"isfinite","runtime_id":"cpython-3.12.0:math.isfinite"},
+      {"id":"primitive:struct.pack","identity_mode":"exact_abi_builtin","module":"struct","qualname":"pack","runtime_id":"cpython-3.12.0:struct.pack"},
+      {"id":"primitive:types.CodeType","identity_mode":"exact_abi_type","module":"types","qualname":"CodeType","runtime_id":"cpython-3.12.0:types.CodeType"},
+      {"id":"primitive:types.FunctionType","identity_mode":"exact_abi_type","module":"types","qualname":"FunctionType","runtime_id":"cpython-3.12.0:types.FunctionType"}
+    ],
+    "implicit_exact_abi_semantics": [
+      "CPython bytecode dispatch/object model",
+      "operators/comparisons/indexing/iteration/attribute access/built-in type methods/string-bytes encode-decode/exception dispatch"
+    ],
+    "rule": "Every loaded runtime global must match one allowlist id. exact_abi_python_callable primitives include normalized code/default/closure for the captured reference while stdlib-internal globals are covered by the exact ABI; exact_abi_builtin/type primitives are fixed by module/qualname/reference kind under that ABI. Substitution must change binding or fail.",
+    "runtime_information_sources": [
+      "sys.implementation.name",
+      "sys.version_info.major",
+      "sys.version_info.minor",
+      "sys.version_info.micro",
+      "sys.implementation.cache_tag"
+    ]
+  },
+  "same_bundle_execution": [
+    "Resolve one bundle per call by capturing all member and primitive references once.",
+    "Validate closure and exact runtime ABI on the captured instance.",
+    "Derive descriptor/binding from that same captured instance and compare the complete expected binding before success.",
+    "Execute only through captured references; after resolution no module-global behavior lookup is permitted.",
+    "Emit the same derived binding in the activation.",
+    "No binding cache is permitted."
+  ],
+  "scheme": "python-closed-bundle/1",
+  "stage3_amendment": {
+    "blob": "90142ffe6b6652faceb3e8347f33fa71c8dc3ed9",
+    "commit": "373667be85521e6f0f83bf19fed3378357e51118",
+    "disposition": "P9_RENDERER_IDENTITY_STAGE3_RECONCILED_ACCEPTED_WITH_GATES"
+  },
+  "status": "frozen",
+  "unsupported_shapes": [
+    "unregistered repository behavior",
+    "mutable repository-local dependency",
+    "mutable default/persistent closure",
+    "dynamic import/helper discovery",
+    "unsupported code/value/primitive descriptor",
+    "runtime ABI mismatch",
+    "missing/substituted primitive outside frozen representation"
+  ]
+}
