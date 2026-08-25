@@ -108,14 +108,16 @@ def decode_rendered_activation(raw: bytes, profile_raw: bytes, profile: Mapping[
 
 
 def render_context_pack_v2(pack: Mapping[str, Any], profile_raw: bytes, profile: Mapping[str, Any]) -> RenderedActivationResult:
-    bundle = _resolve_bundle()
-    if bundle[3] is not _resolve_bundle:
+    resolver = _resolve_bundle
+    bundle = resolver()
+    if bundle[3] is not resolver:
         return bundle[25](failure=bundle[24](bundle, 'UNSUPPORTED_RENDERER', 'resolved bundle does not bind active resolver'))
     return bundle[103](bundle, pack, profile_raw, profile)
 
 def decode_rendered_activation_v2(raw: bytes, profile_raw: bytes, profile: Mapping[str, Any]) -> RenderedActivationDecodeResult:
-    bundle = _resolve_bundle()
-    if bundle[3] is not _resolve_bundle:
+    resolver = _resolve_bundle
+    bundle = resolver()
+    if bundle[3] is not resolver:
         return bundle[26](failure=bundle[24](bundle, 'UNSUPPORTED_RENDERER', 'resolved bundle does not bind active resolver'))
     return bundle[104](bundle, raw, profile_raw, profile)
 
