@@ -17,6 +17,7 @@ ACTIVATION_V2_SCHEMA = ROOT / "schemas/context-rendered-activation-v2.schema.jso
 BINDING_SCHEMA = ROOT / "schemas/renderer-execution-binding.schema.json"
 DESCRIPTOR_SCHEMA = ROOT / "schemas/python-closed-bundle-descriptor.schema.json"
 PRESSURE_CASES = ROOT / "tests/fixtures/p9-renderer-identity-pressure-cases-v1.json"
+P9R1_NOTE = ROOT / "docs/implementation/context-packaging/P9R1_RENDERER_IDENTITY_PROTOCOL_FREEZE.md"
 
 EXPECTED_RUNTIME = {
     "implementation": "cpython",
@@ -176,10 +177,14 @@ def test_p9r1_preserves_p9r0_pressure_freeze():
     ]
 
 
-def test_p9r1_does_not_modify_renderer_or_historical_v1_protocol_bytes():
-    assert _git_blob(ROOT / "context_packaging/renderer.py") == (
-        "7d28edfa63302475343b2e8b10ef0309089429ff"
-    )
+def test_p9r1_records_pre_refactor_renderer_and_preserves_historical_v1_protocol_bytes():
+    # P9R2 is the first permitted renderer behavior change. Preserve the P9R1
+    # evidence itself as the durable proof of the exact pre-refactor renderer.
+    assert _git_blob(P9R1_NOTE) == "b8962e5395c66e1e12d3629088bd60e4d0c9fd10"
+    note = P9R1_NOTE.read_text(encoding="utf-8")
+    assert "context_packaging/renderer.py" in note
+    assert "7d28edfa63302475343b2e8b10ef0309089429ff" in note
+
     assert _git_blob(ROOT / "protocols/rgp/context-renderer-v1.json") == (
         "c8f18df390f92bfd25d6ac01c5932aeaf3ac396c"
     )
