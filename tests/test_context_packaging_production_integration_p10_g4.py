@@ -239,16 +239,16 @@ def _request_for(project: Path):
 
 
 def _schema_registry():
-    names = [
-        "activation-bundle-v2.schema.json",
-        "context-provenance-registry.schema.json",
-        "context-rendered-activation-v2.schema.json",
-        "renderer-execution-binding.schema.json",
-        "prepared-invocation.schema.json",
+    schemas = [
+        json.loads(path.read_text())
+        for path in sorted((ROOT / "schemas").glob("*.schema.json"))
     ]
-    schemas = [json.loads((ROOT / "schemas" / name).read_text()) for name in names]
     return Registry().with_resources(
-        [(schema["$id"], Resource.from_contents(schema)) for schema in schemas]
+        [
+            (schema["$id"], Resource.from_contents(schema))
+            for schema in schemas
+            if "$id" in schema
+        ]
     )
 
 
@@ -388,6 +388,32 @@ def test_p10_g4_package_tamper_and_immutable_collision_fail_closed(tmp_path):
     with pytest.raises(prepare.PrepareFailure) as collision_exc:
         prepare.prepare_invocation_v2(request_raw2, cwd=other, installed_root=installed_root2)
     assert collision_exc.value.reason_code == "IMMUTABLE_OUTPUT_COLLISION"
+
+    # A provenance-registry collision is normalized at the governed CLI boundary too.
+    registry_case = tmp_path / "registry-case"
+    registry_case.mkdir()
+    project3, installed_root3 = _install_candidate(registry_case)
+    _, _, request_path3 = _request_for(project3)
+    (project3 / "out/registry.json").write_bytes(b"different")
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(installed_root3 / "runtime/rd_distill.py"),
+            "prepare",
+            "--request",
+            str(request_path3),
+        ],
+        cwd=registry_case,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode == 6, completed.stderr.decode("utf-8", errors="replace")
+    failure = json.loads(completed.stdout)
+    assert failure["contract"] == "reasoning-distiller-invocation-result/2"
+    assert failure["stage"] == "persistence"
+    assert failure["reason_code"] == "IMMUTABLE_OUTPUT_COLLISION"
+    assert not (project3 / "out/prepared.json").exists()
 
 
 def test_p10_g4_is_bounded_to_exact_stage_and_does_not_implement_transport_or_finalize():
