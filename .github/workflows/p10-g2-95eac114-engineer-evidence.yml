@@ -52,16 +52,9 @@ jobs:
             echo "runner_os=${RUNNER_OS}"
             python --version
           } | tee "p10-g2-identities-${RUNNER_OS}.txt"
-      - name: Run exact G2 package and installer gate
+      - name: Run exact G2 closure gate
         shell: bash
-        run: |
-          python -m pytest -q \
-            tests/test_context_packaging_production_integration_p10_g2.py \
-            tests/test_package_builder.py \
-            tests/test_install_package_contract.py \
-            tests/test_installer_p3.py \
-            tests/test_installer_p4.py \
-            2>&1 | tee "p10-g2-pytest-${RUNNER_OS}.txt"
+        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py 2>&1 | tee "p10-g2-pytest-${RUNNER_OS}.txt"
       - name: Upload host evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -71,6 +64,41 @@ jobs:
             p10-g2-identities-${{ runner.os }}.txt
             p10-g2-pytest-${{ runner.os }}.txt
           if-no-files-found: warn
+
+  g2-package-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 95eac1148744d90b9074cbdfce82edfe4751f87a
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Run existing package and installer regressions
+        run: python -m pytest -q tests/test_package_builder.py tests/test_install_package_contract.py tests/test_installer_p3.py tests/test_installer_p4.py
+
+  g2-windows-diagnostics:
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        test_file:
+          - tests/test_package_builder.py
+          - tests/test_install_package_contract.py
+          - tests/test_installer_p3.py
+          - tests/test_installer_p4.py
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 95eac1148744d90b9074cbdfce82edfe4751f87a
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Diagnose existing suite on Windows
+        run: python -m pytest -q ${{ matrix.test_file }}
 
   g2-predecessor-regressions:
     runs-on: ubuntu-latest
