@@ -29,6 +29,7 @@ for _name in dir(_core):
 
 INGEST_SOURCE_TYPES = frozenset({"repository_file", "governed_artifact"})
 PROJECT_CONTRACT_V2 = "reasoning-distiller-project/2"
+PREPARE_CONTRACT_V2 = "reasoning-distiller-invocation/2"
 
 
 def load_project_config(project_root: _Path) -> dict[str, _Any]:
@@ -475,11 +476,20 @@ def _load_prepare_v2_module():
     return prepare_integration
 
 
+def _read_prepare_contract(path: _Path) -> str | None:
+    """Inspect only the request contract so legacy /1 needs no G4 package import."""
+    try:
+        document = _core.json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, _core.json.JSONDecodeError):
+        return None
+    return document.get("contract") if isinstance(document, dict) else None
+
+
 def prepare_command(args) -> int:
-    p10 = _load_prepare_v2_module()
-    if p10.read_request_contract(args.request) != p10.INVOCATION_CONTRACT:
+    if _read_prepare_contract(args.request) != PREPARE_CONTRACT_V2:
         return _core.prepare_command(args)
 
+    p10 = _load_prepare_v2_module()
     request_raw: bytes | None = None
     request_document: dict[str, _Any] | None = None
     try:
