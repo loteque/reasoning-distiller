@@ -2,9 +2,10 @@
 """Reasoning Distiller invocation adapter with explicit ingestion source typing.
 
 The proven v0.4.1 adapter is preserved in ``rd_distill_core.py``. This
-compatibility entrypoint adds explicit ``governed_artifact`` evidence selection
-and recognizes the accepted reasoning-distiller-project/2 identity contract
-without inferring authority or project identity.
+compatibility entrypoint adds explicit ``governed_artifact`` evidence selection,
+recognizes the accepted reasoning-distiller-project/2 identity contract, and
+dispatches explicit reasoning-distiller-invocation/2 preparation into the
+package-bound P10-G4 prepare boundary without coercing legacy /1 requests.
 """
 from __future__ import annotations
 
@@ -464,6 +465,76 @@ def ingest_command(args) -> int:
         return _core.EXIT_INTERNAL
 
 
+def _load_prepare_v2_module():
+    installed_root = _Path(__file__).resolve().parents[1]
+    root_text = str(installed_root)
+    if root_text not in _sys.path:
+        _sys.path.insert(0, root_text)
+    from context_packaging import prepare_integration
+
+    return prepare_integration
+
+
+def prepare_command(args) -> int:
+    p10 = _load_prepare_v2_module()
+    if p10.read_request_contract(args.request) != p10.INVOCATION_CONTRACT:
+        return _core.prepare_command(args)
+
+    request_raw: bytes | None = None
+    request_document: dict[str, _Any] | None = None
+    try:
+        try:
+            request_raw = args.request.read_bytes()
+        except OSError as exc:
+            raise p10.PrepareFailure(
+                "preflight",
+                "REQUEST_READ_FAILED",
+                str(exc),
+                p10.EXIT_PREFLIGHT,
+            ) from exc
+        try:
+            parsed = p10._strict_json(request_raw)
+            if isinstance(parsed, dict):
+                request_document = parsed
+        except Exception:
+            request_document = None
+
+        if args.bundle_out is not None:
+            raise p10.PrepareFailure(
+                "preflight",
+                "INVALID_REQUEST",
+                "--bundle-out is not a governed invocation/2 locator; exact /2 activation bytes are emitted on stdout",
+                p10.EXIT_PREFLIGHT,
+            )
+
+        result = p10.prepare_invocation_v2(request_raw, cwd=_Path.cwd())
+        # No newline is appended: prepared-invocation binds these exact bytes.
+        _sys.stdout.buffer.write(result.serialized_activation_bundle)
+        return 0
+    except p10.PrepareFailure as exc:
+        invocation_id = (
+            request_document.get("invocation_id", "unknown")
+            if isinstance(request_document, dict)
+            else "unknown"
+        )
+        _core.emit_json(p10.failure_result(invocation_id, exc))
+        return exc.exit_code
+    except Exception as exc:
+        invocation_id = (
+            request_document.get("invocation_id", "unknown")
+            if isinstance(request_document, dict)
+            else "unknown"
+        )
+        failure = p10.PrepareFailure(
+            "internal",
+            "INTERNAL_ERROR",
+            str(exc),
+            p10.EXIT_INTERNAL,
+        )
+        _core.emit_json(p10.failure_result(invocation_id, failure))
+        return p10.EXIT_INTERNAL
+
+
 def build_parser():
     parser = _core.build_parser()
     subparsers = next(
@@ -492,7 +563,7 @@ def main() -> int:
     if args.command == "ingest":
         return ingest_command(args)
     if args.command == "prepare":
-        return _core.prepare_command(args)
+        return prepare_command(args)
     if args.command == "finalize":
         return _core.finalize_command(args)
     parser.error("ingest, prepare, or finalize is required")
