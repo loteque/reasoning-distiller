@@ -1,0 +1,102 @@
+name: P9 e961eb83 Engineer execution evidence
+
+on:
+  pull_request:
+    branches:
+      - implement/context-packaging-p9
+
+permissions:
+  contents: read
+
+jobs:
+  p9-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact hardened P9 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: e961eb83d2c5dd1719b986c89a8915c102e395c3
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Verify exact candidate and P9-only delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "e961eb83d2c5dd1719b986c89a8915c102e395c3"
+          test "$(git rev-parse HEAD^)" = "05d9d7b0141cd7fa5e66dd72533b57e046001247"
+          cat > expected-delta.txt <<'EOF'
+          .gitattributes
+          context_packaging/__init__.py
+          context_packaging/renderer.py
+          protocols/rgp/context-renderer-v1.json
+          schemas/context-rendered-activation.schema.json
+          schemas/context-renderer-profile.schema.json
+          tests/test_context_packaging_deterministic_renderer_p9.py
+          EOF
+          git diff --name-only 05d9d7b0141cd7fa5e66dd72533b57e046001247..HEAD | sort > actual-delta.txt
+          diff -u expected-delta.txt actual-delta.txt
+          test "$(git rev-parse HEAD:.gitattributes)" = "43acfe0d90974c76ba18dbcc39afa61db465a096"
+          test "$(git rev-parse HEAD:context_packaging/__init__.py)" = "a334e51df8c8127548be24604d7ec34b665c824a"
+          test "$(git rev-parse HEAD:context_packaging/renderer.py)" = "7d28edfa63302475343b2e8b10ef0309089429ff"
+          test "$(git rev-parse HEAD:protocols/rgp/context-renderer-v1.json)" = "c8f18df390f92bfd25d6ac01c5932aeaf3ac396c"
+          test "$(git rev-parse HEAD:schemas/context-rendered-activation.schema.json)" = "f52c6007be3e7aa84c7e65f5e0708641e6920367"
+          test "$(git rev-parse HEAD:schemas/context-renderer-profile.schema.json)" = "768bcae7051e2805594df6d45402d331dc43bda4"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_deterministic_renderer_p9.py)" = "335c139a6e6ddf08434fdc16e7a6e249ef093bdf"
+          test "$(git check-attr text -- context_packaging/renderer.py | awk '{print $3}')" = "unset"
+          test "$(git check-attr text -- protocols/rgp/context-renderer-v1.json | awk '{print $3}')" = "unset"
+          ! grep -F 'pems_projection import' context_packaging/renderer.py
+          {
+            echo "candidate=$(git rev-parse HEAD)"
+            echo "parent=$(git rev-parse HEAD^)"
+            echo "tree=$(git rev-parse HEAD^{tree})"
+            echo "renderer_blob=$(git rev-parse HEAD:context_packaging/renderer.py)"
+            echo "renderer_contract_blob=$(git rev-parse HEAD:protocols/rgp/context-renderer-v1.json)"
+            echo "renderer_profile_schema_blob=$(git rev-parse HEAD:schemas/context-renderer-profile.schema.json)"
+            echo "rendered_activation_schema_blob=$(git rev-parse HEAD:schemas/context-rendered-activation.schema.json)"
+            echo "p9_test_blob=$(git rev-parse HEAD:tests/test_context_packaging_deterministic_renderer_p9.py)"
+            echo "pack_builder_blob=$(git rev-parse HEAD:context_packaging/pack_builder.py)"
+            echo "pems_projection_blob=$(git rev-parse HEAD:context_packaging/pems_projection.py)"
+          } | tee p9-identities.txt
+      - name: Compile P9 renderer and test module
+        run: python -m py_compile context_packaging/renderer.py tests/test_context_packaging_deterministic_renderer_p9.py
+      - name: Run exact P9 pytest gate
+        shell: bash
+        run: python -m pytest -q tests/test_context_packaging_deterministic_renderer_p9.py 2>&1 | tee p9-pytest.txt
+      - name: Run exact P9 unittest gate
+        shell: bash
+        run: python -m unittest -v tests.test_context_packaging_deterministic_renderer_p9 2>&1 | tee p9-unittest.txt
+      - name: Run unaffected P0-P8 context-packaging regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(find tests -maxdepth 1 -type f -name 'test_context_packaging_*.py' -print | sort | grep -v 'deterministic_renderer_p9')
+          python -m pytest -q "${tests[@]}" -k 'not test_p5_runtime_implementation_is_unchanged_by_amendment and not test_negative_fixtures_reject_and_classify_exactly' 2>&1 | tee p9-regressions.txt
+      - name: Reproduce inherited P1b PS-19 classifier mismatch separately
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly 2>&1 | tee p9-inherited-ps19.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -eq 1
+          grep -F 'PS-19' p9-inherited-ps19.txt
+          grep -F 'PLANE_CLASSIFICATION_CONFLICT' p9-inherited-ps19.txt
+          grep -F 'UNKNOWN_SEMANTICS_FIELD' p9-inherited-ps19.txt
+          echo 'P1B_PS19_CLASSIFIER_MISMATCH_REPRODUCED' | tee -a p9-inherited-ps19.txt
+      - name: Upload P9 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p9-e961eb83-engineer-evidence
+          path: |
+            p9-identities.txt
+            p9-pytest.txt
+            p9-unittest.txt
+            p9-regressions.txt
+            p9-inherited-ps19.txt
+          if-no-files-found: warn
