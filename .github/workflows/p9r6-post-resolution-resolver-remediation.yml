@@ -1,0 +1,336 @@
+name: P9R6 post-resolution resolver remediation and exact-runtime gate
+
+on:
+  push:
+    branches:
+      - evidence/p9r6-post-resolution-resolver-872ae5f0-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  remediate-execute-and-bind-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out evidence transport
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Preserve external P9R4 harnesses and transport provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tests/test_context_packaging_renderer_p9r4_external_execution.py /tmp/test_context_packaging_renderer_p9r4_external_execution.py
+          cp tests/test_context_packaging_renderer_p9r4_corrected_cases.py /tmp/test_context_packaging_renderer_p9r4_corrected_cases.py
+          {
+            echo "transport=$(git rev-parse HEAD)"
+            echo "external_harness_blob=$(git rev-parse HEAD:tests/test_context_packaging_renderer_p9r4_external_execution.py)"
+            echo "corrected_harness_blob=$(git rev-parse HEAD:tests/test_context_packaging_renderer_p9r4_corrected_cases.py)"
+          } | tee /tmp/p9r6-transport.txt
+
+      - name: Construct minimal semantic remediation from reviewed candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B implement/p9-post-resolution-resolver-872ae5f0 872ae5f0dfa0a123fe060a5ea17aa85c2de13097
+          test "$(git rev-parse HEAD)" = "872ae5f0dfa0a123fe060a5ea17aa85c2de13097"
+          test "$(git rev-parse HEAD:context_packaging/renderer.py)" = "cfe478acb3b722ddcd336ea7bdc6a002b56bd787"
+          test "$(git rev-parse HEAD:tests/test_context_packaging_renderer_ri15_remediation.py)" = "cb74f4bf2e44a20cd86092e94226d5991698aa99"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("context_packaging/renderer.py")
+          text = path.read_text()
+          old_render = '''def render_context_pack_v2(pack: Mapping[str, Any], profile_raw: bytes, profile: Mapping[str, Any]) -> RenderedActivationResult:\n    bundle = _resolve_bundle()\n    if bundle[3] is not _resolve_bundle:\n        return bundle[25](failure=bundle[24](bundle, 'UNSUPPORTED_RENDERER', 'resolved bundle does not bind active resolver'))\n    return bundle[103](bundle, pack, profile_raw, profile)\n'''
+          new_render = '''def render_context_pack_v2(pack: Mapping[str, Any], profile_raw: bytes, profile: Mapping[str, Any]) -> RenderedActivationResult:\n    resolver = _resolve_bundle\n    bundle = resolver()\n    if bundle[3] is not resolver:\n        return bundle[25](failure=bundle[24](bundle, 'UNSUPPORTED_RENDERER', 'resolved bundle does not bind active resolver'))\n    return bundle[103](bundle, pack, profile_raw, profile)\n'''
+          old_decode = '''def decode_rendered_activation_v2(raw: bytes, profile_raw: bytes, profile: Mapping[str, Any]) -> RenderedActivationDecodeResult:\n    bundle = _resolve_bundle()\n    if bundle[3] is not _resolve_bundle:\n        return bundle[26](failure=bundle[24](bundle, 'UNSUPPORTED_RENDERER', 'resolved bundle does not bind active resolver'))\n    return bundle[104](bundle, raw, profile_raw, profile)\n'''
+          new_decode = '''def decode_rendered_activation_v2(raw: bytes, profile_raw: bytes, profile: Mapping[str, Any]) -> RenderedActivationDecodeResult:\n    resolver = _resolve_bundle\n    bundle = resolver()\n    if bundle[3] is not resolver:\n        return bundle[26](failure=bundle[24](bundle, 'UNSUPPORTED_RENDERER', 'resolved bundle does not bind active resolver'))\n    return bundle[104](bundle, raw, profile_raw, profile)\n'''
+          assert text.count(old_render) == 1
+          assert text.count(old_decode) == 1
+          path.write_text(text.replace(old_render, new_render).replace(old_decode, new_decode))
+          PY
+
+          cat > tests/test_context_packaging_renderer_ri15_remediation.py <<'PY'
+          from __future__ import annotations
+
+          import dis
+
+          import context_packaging.renderer as renderer
+          from tests.test_context_packaging_renderer_execution_binding_p9r3 import _pack, _profile_v2
+
+
+          def test_ri15_substituted_resolver_cannot_verify_one_bundle_and_execute_another(monkeypatch):
+              monkeypatch.setattr(renderer, "_RUNTIME_ABI_CAPTURE", renderer._EXPECTED_RUNTIME_ABI)
+              truthful_binding = renderer.derive_execution_binding()
+              pack = _pack()
+              profile_raw, profile = _profile_v2(pack, truthful_binding)
+
+              baseline = renderer.render_context_pack_v2(pack, profile_raw, profile)
+              assert baseline.ok, baseline.failure
+
+              captured = renderer._resolve_bundle()
+              monkeypatch.setattr(renderer, "_resolve_bundle", lambda: list(captured))
+
+              rendered = renderer.render_context_pack_v2(pack, profile_raw, profile)
+              assert not rendered.ok
+              assert rendered.failure["code"] == "UNSUPPORTED_RENDERER"
+
+              decoded = renderer.decode_rendered_activation_v2(
+                  baseline.serialized_activation, profile_raw, profile
+              )
+              assert not decoded.ok
+              assert decoded.failure["code"] == "UNSUPPORTED_RENDERER"
+
+
+          def test_v2_entrypoints_capture_resolver_once_before_bundle_resolution():
+              for entrypoint in (
+                  renderer.render_context_pack_v2,
+                  renderer.decode_rendered_activation_v2,
+              ):
+                  instructions = list(dis.get_instructions(entrypoint, show_caches=False, adaptive=False))
+                  resolver_loads = [
+                      (index, instruction)
+                      for index, instruction in enumerate(instructions)
+                      if instruction.opname == "LOAD_GLOBAL" and instruction.argval == "_resolve_bundle"
+                  ]
+                  assert len(resolver_loads) == 1
+                  load_index = resolver_loads[0][0]
+                  assert any(
+                      instruction.opname == "STORE_FAST" and instruction.argval == "resolver"
+                      for instruction in instructions[load_index + 1 :]
+                  )
+          PY
+
+          test "$( { git diff --name-only; git ls-files --others --exclude-standard; } | sort)" = $'context_packaging/renderer.py\ntests/test_context_packaging_renderer_ri15_remediation.py'
+          git config user.name "p9r6-remediation-bot"
+          git config user.email "p9r6-remediation-bot@users.noreply.github.com"
+          git add context_packaging/renderer.py tests/test_context_packaging_renderer_ri15_remediation.py
+          git commit -m "Remediate P9 post-resolution resolver lookup"
+          candidate="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "872ae5f0dfa0a123fe060a5ea17aa85c2de13097"
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD | sort)" = $'context_packaging/renderer.py\ntests/test_context_packaging_renderer_ri15_remediation.py'
+          echo "P9R6_CANDIDATE=$candidate" >> "$GITHUB_ENV"
+          {
+            echo "candidate=$candidate"
+            echo "parent=$(git rev-parse HEAD^)"
+            echo "tree=$(git rev-parse HEAD^{tree})"
+            echo "renderer_blob=$(git rev-parse HEAD:context_packaging/renderer.py)"
+            echo "ri15_regression_blob=$(git rev-parse HEAD:tests/test_context_packaging_renderer_ri15_remediation.py)"
+          } | tee /tmp/p9r6-candidate.txt
+          git push origin HEAD:refs/heads/implement/p9-post-resolution-resolver-872ae5f0
+
+      - name: Set up exact CPython 3.12.0
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+
+      - name: Verify exact runtime ABI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' | tee /tmp/p9r6-runtime.txt
+          import platform
+          import sys
+          print(f"implementation={sys.implementation.name}")
+          print(f"version={sys.version}")
+          print(f"version_info={sys.version_info[:3]}")
+          print(f"cache_tag={sys.implementation.cache_tag}")
+          assert platform.python_implementation() == "CPython"
+          assert sys.implementation.name == "cpython"
+          assert sys.version_info[:3] == (3, 12, 0)
+          assert sys.implementation.cache_tag == "cpython-312"
+          PY
+
+      - name: Install bounded test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+
+      - name: Verify candidate identity and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$P9R6_CANDIDATE"
+          test "$(git rev-parse HEAD^)" = "872ae5f0dfa0a123fe060a5ea17aa85c2de13097"
+          test -z "$(git status --porcelain)"
+          python -m py_compile \
+            context_packaging/renderer.py \
+            tests/test_context_packaging_renderer_ri15_remediation.py \
+            /tmp/test_context_packaging_renderer_p9r4_external_execution.py \
+            /tmp/test_context_packaging_renderer_p9r4_corrected_cases.py
+
+      - name: Run frozen P9 gates plus bootstrap regression
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q \
+            tests/test_context_packaging_renderer_identity_pressure_freeze_p9r0.py \
+            tests/test_context_packaging_renderer_identity_protocol_freeze_p9r1.py \
+            tests/test_context_packaging_renderer_closed_bundle_p9r2.py \
+            tests/test_context_packaging_renderer_execution_binding_p9r3.py \
+            tests/test_context_packaging_renderer_ri15_remediation.py \
+            2>&1 | tee /tmp/p9r6-frozen-local-gates.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "P9R6_FROZEN_STATUS=$status" >> "$GITHUB_ENV"
+
+      - name: Run authoritative RI-01 through RI-24 matrix
+        shell: bash
+        run: |
+          set +e
+          PYTHONPATH="$PWD:/tmp" python -m pytest -q -vv \
+            /tmp/test_context_packaging_renderer_p9r4_external_execution.py \
+            -k 'not RI_02 and not RI_17' \
+            2>&1 | tee /tmp/p9r6-ri-matrix.txt
+          base_status=${PIPESTATUS[0]}
+          PYTHONPATH="$PWD:/tmp" python -m pytest -q -vv \
+            /tmp/test_context_packaging_renderer_p9r4_corrected_cases.py \
+            2>&1 | tee -a /tmp/p9r6-ri-matrix.txt
+          corrected_status=${PIPESTATUS[0]}
+          status=0
+          if [ "$base_status" -ne 0 ] || [ "$corrected_status" -ne 0 ]; then status=1; fi
+          set -e
+          echo "P9R6_RI_BASE_STATUS=$base_status" >> "$GITHUB_ENV"
+          echo "P9R6_RI_CORRECTED_STATUS=$corrected_status" >> "$GITHUB_ENV"
+          echo "P9R6_RI_STATUS=$status" >> "$GITHUB_ENV"
+
+      - name: Run original P9 renderer regressions
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q tests/test_context_packaging_deterministic_renderer_p9.py 2>&1 | tee /tmp/p9r6-original-p9-pytest.txt
+          pytest_status=${PIPESTATUS[0]}
+          python -m unittest -v tests.test_context_packaging_deterministic_renderer_p9 2>&1 | tee /tmp/p9r6-original-p9-unittest.txt
+          unittest_status=${PIPESTATUS[0]}
+          set -e
+          echo "P9R6_ORIGINAL_PYTEST_STATUS=$pytest_status" >> "$GITHUB_ENV"
+          echo "P9R6_ORIGINAL_UNITTEST_STATUS=$unittest_status" >> "$GITHUB_ENV"
+
+      - name: Run unaffected P0-P8 context-packaging regressions
+        shell: bash
+        run: |
+          set +e
+          mapfile -t tests < <(
+            find tests -maxdepth 1 -type f -name 'test_context_packaging_*.py' -print \
+              | sort \
+              | grep -v -E 'deterministic_renderer_p9|renderer_.*_p9r[0-9]|renderer_ri15_remediation'
+          )
+          python -m pytest -q "${tests[@]}" \
+            -k 'not test_p5_runtime_implementation_is_unchanged_by_amendment and not test_negative_fixtures_reject_and_classify_exactly' \
+            2>&1 | tee /tmp/p9r6-p0-p8-regressions.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "P9R6_P0_P8_STATUS=$status" >> "$GITHUB_ENV"
+
+      - name: Reproduce inherited P1b PS-19 classifier mismatch separately
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly 2>&1 | tee /tmp/p9r6-inherited-ps19.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -eq 1
+          grep -F 'PS-19' /tmp/p9r6-inherited-ps19.txt
+          grep -F 'PLANE_CLASSIFICATION_CONFLICT' /tmp/p9r6-inherited-ps19.txt
+          grep -F 'UNKNOWN_SEMANTICS_FIELD' /tmp/p9r6-inherited-ps19.txt
+          echo 'P1B_PS19_CLASSIFIER_MISMATCH_REPRODUCED' | tee -a /tmp/p9r6-inherited-ps19.txt
+
+      - name: Enforce complete P9R6 remediation gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$P9R6_FROZEN_STATUS" -eq 0
+          test "$P9R6_RI_STATUS" -eq 0
+          test "$P9R6_ORIGINAL_PYTEST_STATUS" -eq 0
+          test "$P9R6_ORIGINAL_UNITTEST_STATUS" -eq 0
+          test "$P9R6_P0_P8_STATUS" -eq 0
+          {
+            cat /tmp/p9r6-candidate.txt
+            cat /tmp/p9r6-runtime.txt
+            printf '%s\n' \
+              "frozen_status=${P9R6_FROZEN_STATUS}" \
+              "ri_base_status=${P9R6_RI_BASE_STATUS}" \
+              "ri_corrected_status=${P9R6_RI_CORRECTED_STATUS}" \
+              "ri_status=${P9R6_RI_STATUS}" \
+              "original_pytest_status=${P9R6_ORIGINAL_PYTEST_STATUS}" \
+              "original_unittest_status=${P9R6_ORIGINAL_UNITTEST_STATUS}" \
+              "p0_p8_status=${P9R6_P0_P8_STATUS}" \
+              "P9R6_POST_RESOLUTION_RESOLVER_EXECUTION_PASS"
+          } | tee /tmp/p9r6-summary.txt
+
+      - name: Create exact candidate-bound Engineer evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$P9R6_CANDIDATE"
+          parent="$(git rev-parse "$candidate^")"
+          tree="$(git rev-parse "$candidate^{tree}")"
+          renderer_blob="$(git rev-parse "$candidate:context_packaging/renderer.py")"
+          regression_blob="$(git rev-parse "$candidate:tests/test_context_packaging_renderer_ri15_remediation.py")"
+          transport="$(awk -F= '/^transport=/{print $2}' /tmp/p9r6-transport.txt)"
+          external_blob="$(awk -F= '/^external_harness_blob=/{print $2}' /tmp/p9r6-transport.txt)"
+          corrected_blob="$(awk -F= '/^corrected_harness_blob=/{print $2}' /tmp/p9r6-transport.txt)"
+
+          cat > /tmp/P9R6_CANDIDATE_BOUND_EVIDENCE.md <<EOF
+          # P9R6 Candidate-Bound Engineer Evidence
+
+          ## Scope and boundary
+
+          This Engineer-produced record binds the exact P9 same-bundle bootstrap remediation candidate and its exact-runtime execution evidence. It does not perform independent review, Steward reconciliation, admission, activation, canonical mutation, authority mutation, or P10 work.
+
+          ## Governing anchors
+
+          - Repository: \`loteque/reasoning-distiller\`
+          - Coordination control ref: \`main\`
+          - Coordination revision re-resolved immediately before transport write: \`80b6e89ad2efe84b088ca06b908a257c449fac15\`
+          - Governing implementation plan: \`0803bcca5343224d6feefa53c2f1b8baf1d4a8cd\` / blob \`8474d2da42f863f0a190fd80292085176d3f97f0\`
+          - Governing P9 amendment: \`373667be85521e6f0f83bf19fed3378357e51118\` / blob \`90142ffe6b6652faceb3e8347f33fa71c8dc3ed9\`
+          - Reviewed failed candidate: \`872ae5f0dfa0a123fe060a5ea17aa85c2de13097\`
+          - Reviewed evidence: \`d8d13c7d48a3baa91fe7bae99918965d4abcdbc4\`
+          - Blocking disposition supplied to this activation: \`P9_INDEPENDENT_REVIEW_CHANGES_REQUIRED\`
+          - Blocking finding: \`P9_POST_RESOLUTION_GLOBAL_RESOLVER_LOOKUP\`
+
+          ## Exact remediated candidate
+
+          - Candidate: \`$candidate\`
+          - Direct parent: \`$parent\`
+          - Tree: \`$tree\`
+          - Renderer blob: \`$renderer_blob\`
+          - RI-15/bootstrap regression blob: \`$regression_blob\`
+          - Candidate delta: exactly \`context_packaging/renderer.py\` and \`tests/test_context_packaging_renderer_ri15_remediation.py\`
+
+          The /2 render/decode entrypoints capture the active resolver into a local before bundle resolution, call that captured resolver, compare the resolved bundle's resolver member to the captured local, and perform no second module-global resolver lookup after resolution.
+
+          ## Exact execution provenance
+
+          - Workflow run: \`${GITHUB_RUN_ID}\`
+          - Workflow attempt: \`${GITHUB_RUN_ATTEMPT}\`
+          - Transport commit: \`$transport\`
+          - External RI harness blob: \`$external_blob\`
+          - Corrected-cases harness blob: \`$corrected_blob\`
+          - Runtime: CPython \`3.12.0\`, cache tag \`cpython-312\`
+          - Frozen P9 local gate including bootstrap regression: PASS
+          - RI-01 through RI-24 external matrix: PASS
+          - Original deterministic P9 pytest gate: PASS
+          - Original deterministic P9 unittest gate: PASS
+          - Unaffected P0-P8 regression gate: PASS
+          - Inherited PS-19 classifier mismatch: reproduced separately, unchanged
+          - Engineer execution disposition: \`P9R6_POST_RESOLUTION_RESOLVER_EXECUTION_PASS\`
+
+          ## Authority boundary
+
+          Candidate-bound Engineer evidence is established only for the exact candidate above. Independent review is NOT_ESTABLISHED for this candidate. Steward reconciliation is NOT_ESTABLISHED. No admission, activation, canonical mutation, authority mutation, or P10 work is performed or authorized by this record.
+          EOF
+
+          git checkout -B evidence/p9r6-post-resolution-resolver-candidate-20260825 "$candidate"
+          mkdir -p docs/implementation/context-packaging
+          cp /tmp/P9R6_CANDIDATE_BOUND_EVIDENCE.md docs/implementation/context-packaging/P9R6_CANDIDATE_BOUND_EVIDENCE.md
+          git add docs/implementation/context-packaging/P9R6_CANDIDATE_BOUND_EVIDENCE.md
+          git commit -m "docs: bind P9R6 candidate execution evidence"
+          evidence="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "$candidate"
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = "docs/implementation/context-packaging/P9R6_CANDIDATE_BOUND_EVIDENCE.md"
+          echo "P9R6_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+          git push origin HEAD:refs/heads/evidence/p9r6-post-resolution-resolver-candidate-20260825
+          echo "evidence=$evidence" | tee /tmp/p9r6-evidence.txt
