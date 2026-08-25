@@ -1,0 +1,85 @@
+name: P10 G5 22127c82 Engineer evidence
+
+on:
+  pull_request:
+    branches:
+      - impl/p10-g5-provider-transport-20260825
+
+permissions:
+  contents: read
+
+jobs:
+  g5-provider-transport:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact G5 semantic candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 22127c82608d8bd23562a29a4f63703ccb872565
+          fetch-depth: 0
+      - name: Set up exact P9 runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Verify immutable candidate, G4 base, bounded delta, and exact ABI
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "22127c82608d8bd23562a29a4f63703ccb872565"
+          test "$(git merge-base HEAD e98b11bf82bc6c47f848597e5410b9c603d2ba34)" = "e98b11bf82bc6c47f848597e5410b9c603d2ba34"
+          expected_delta=$'context_packaging/model_transport.py\ntests/test_context_packaging_production_integration_p10_g5.py'
+          test "$(git diff --name-only e98b11bf82bc6c47f848597e5410b9c603d2ba34..HEAD)" = "$expected_delta"
+          python - <<'PY'
+          import sys
+          assert sys.implementation.name == 'cpython'
+          assert sys.version_info[:3] == (3, 12, 0), sys.version
+          assert sys.implementation.cache_tag == 'cpython-312', sys.implementation.cache_tag
+          print('P10_G5_EXACT_RUNTIME_PASS')
+          PY
+          python -m py_compile context_packaging/model_transport.py tests/test_context_packaging_production_integration_p10_g5.py
+      - name: Run exact G5 provider transport gate
+        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g5.py
+
+  g5-package-prepare-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 22127c82608d8bd23562a29a4f63703ccb872565
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Verify exact candidate
+        run: test "$(git rev-parse HEAD)" = "22127c82608d8bd23562a29a4f63703ccb872565"
+      - name: Run G2-G4 package prepare regressions
+        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py tests/test_context_packaging_production_integration_p10_g3.py tests/test_context_packaging_production_integration_p10_g4.py tests/test_package_builder.py tests/test_install_package_contract.py tests/test_installer_p3.py tests/test_installer_p4.py
+
+  g5-contract-predecessor-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 22127c82608d8bd23562a29a4f63703ccb872565
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Run G0-G1, P9, and fixed production regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "22127c82608d8bd23562a29a4f63703ccb872565"
+          python -m pytest -q \
+            tests/test_context_packaging_production_integration_p10_g0.py \
+            tests/test_context_packaging_production_integration_p10_g1.py \
+            tests/test_context_packaging_renderer_identity_protocol_freeze_p9r1.py \
+            tests/test_context_packaging_renderer_closed_bundle_p9r2.py \
+            tests/test_context_packaging_renderer_execution_binding_p9r3.py \
+            tests/test_context_packaging_deterministic_renderer_p9.py \
+            tests/test_context_packaging_renderer_ri15_remediation.py \
+            tests/test_production_invocation.py
