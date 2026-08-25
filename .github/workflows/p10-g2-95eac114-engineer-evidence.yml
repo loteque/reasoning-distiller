@@ -1,0 +1,81 @@
+name: P10 G2 95eac114 Engineer evidence
+
+on:
+  pull_request:
+    branches:
+      - impl/p10-g2-installed-package-closure-20260825
+
+permissions:
+  contents: read
+
+jobs:
+  g2-package-closure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact G2 semantic candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 95eac1148744d90b9074cbdfce82edfe4751f87a
+          fetch-depth: 0
+      - name: Set up exact P9 runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Verify immutable candidate, G1 base, bounded delta, and exact ABI
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "95eac1148744d90b9074cbdfce82edfe4751f87a"
+          test "$(git merge-base HEAD bc670a602806870ede81eb41ef23f09fe42f772c)" = "bc670a602806870ede81eb41ef23f09fe42f772c"
+          expected_delta=$'docs/implementation/context-packaging/P10_G2_INSTALLED_PACKAGE_CLOSURE.md\npackaging/package-build.json\ntests/test_context_packaging_production_integration_p10_g2.py'
+          test "$(git diff --name-only bc670a602806870ede81eb41ef23f09fe42f772c..HEAD)" = "$expected_delta"
+          python - <<'PY'
+          import sys
+          assert sys.implementation.name == 'cpython'
+          assert sys.version_info[:3] == (3, 12, 0), sys.version
+          assert sys.implementation.cache_tag == 'cpython-312', sys.implementation.cache_tag
+          print('P10_G2_EXACT_RUNTIME_PASS')
+          PY
+      - name: Run exact G2 closure gate
+        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g2.py
+
+  g2-package-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 95eac1148744d90b9074cbdfce82edfe4751f87a
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Run canonical package and installer regressions
+        run: python -m pytest -q tests/test_package_builder.py tests/test_install_package_contract.py tests/test_installer_p3.py tests/test_installer_p4.py
+
+  g2-predecessor-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 95eac1148744d90b9074cbdfce82edfe4751f87a
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Run G0 G1 P9 and fixed production regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "95eac1148744d90b9074cbdfce82edfe4751f87a"
+          python -m pytest -q \
+            tests/test_context_packaging_production_integration_p10_g0.py \
+            tests/test_context_packaging_production_integration_p10_g1.py \
+            tests/test_context_packaging_renderer_identity_protocol_freeze_p9r1.py \
+            tests/test_context_packaging_renderer_closed_bundle_p9r2.py \
+            tests/test_context_packaging_renderer_execution_binding_p9r3.py \
+            tests/test_context_packaging_deterministic_renderer_p9.py \
+            tests/test_context_packaging_renderer_ri15_remediation.py \
+            tests/test_production_invocation.py
