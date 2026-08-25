@@ -34,6 +34,38 @@ def repo_binding(name="engineer-directive", digit="4"):
     }
 
 
+def package_binding(name="package-control", digit="5"):
+    return {
+        "contract": "reasoning-distiller-context-source-binding/1",
+        "source_class": "package_control",
+        "logical_namespace": "package",
+        "logical_source_id": name,
+        "project_id": "project",
+        "package_contract": "package/1",
+        "immutable_package_snapshot_id": "pkg-snapshot-1",
+        "artifact_locator": f"package/{name}.json",
+        "raw_sha256": "sha256:" + digit * 64,
+    }
+
+
+def operational_binding(name="validation", digit="e"):
+    return {
+        "contract": "reasoning-distiller-context-source-binding/1",
+        "source_class": "operational_evidence",
+        "logical_namespace": "ops",
+        "logical_source_id": name,
+        "artifact_contract": "validation/1",
+        "immutable_snapshot_id": "validation-snapshot-1",
+        "raw_sha256": "sha256:" + digit * 64,
+        "validation_status": "accepted_validation_result",
+        "validation_result": {
+            "contract": "validation-result/1",
+            "immutable_snapshot_id": "result-snapshot-1",
+            "raw_sha256": "sha256:" + "f" * 64,
+        },
+    }
+
+
 def canonical_binding(snapshot="snapshot-1", relationship=None):
     binding = {
         "contract": "reasoning-distiller-context-source-binding/1",
@@ -70,12 +102,24 @@ def snapshot_ref(binding):
             "source_class", "logical_namespace", "logical_source_id",
             "repository", "commit", "path", "raw_sha256",
         )
+    elif binding["source_class"] == "package_control":
+        keys = (
+            "source_class", "logical_namespace", "logical_source_id", "project_id",
+            "package_contract", "immutable_package_snapshot_id", "artifact_locator",
+            "raw_sha256",
+        )
     elif binding["source_class"] == "canonical_state":
         keys = (
             "source_class", "logical_namespace", "logical_source_id", "project_id",
             "backend_type", "backend_contract", "backend_config_identity",
             "immutable_snapshot_id", "pems_semantic", "serializer", "pems_sha256",
             "standing_evidence", "cove",
+        )
+    elif binding["source_class"] == "operational_evidence":
+        keys = (
+            "source_class", "logical_namespace", "logical_source_id",
+            "artifact_contract", "immutable_snapshot_id", "raw_sha256",
+            "validation_status", "validation_result",
         )
     else:
         raise AssertionError
@@ -102,6 +146,19 @@ def knowledge_item(binding):
     }
 
 
+def operational_item(binding):
+    return {
+        "source_ref": snapshot_ref(binding),
+        "validation_status": binding["validation_status"],
+        "validation_result": deepcopy(binding["validation_result"]),
+        "payload": {
+            "encoding": "base64",
+            "data": "e30=",
+            "raw_sha256": binding["raw_sha256"],
+        },
+    }
+
+
 def frame(index, plane, item_index, item):
     raw = bridge._jcs(deepcopy(item))
     return {
@@ -115,25 +172,29 @@ def frame(index, plane, item_index, item):
     }
 
 
-def make_pack(bindings, control=(), knowledge=(), pack_id=PACK_ID_A):
+def make_pack(bindings, control=(), knowledge=(), operational=(), pack_id=PACK_ID_A):
     return {
         "contract": "reasoning-distiller-context-pack/2",
         "source_registry": [deepcopy(binding) for binding in bindings],
         "control_plane": {"items": [deepcopy(x) for x in control]},
         "knowledge_plane": {"items": [deepcopy(x) for x in knowledge]},
-        "operational_evidence_plane": {"items": []},
+        "operational_evidence_plane": {"items": [deepcopy(x) for x in operational]},
         "identity": {"pack_identity_sha256": pack_id},
     }
 
 
 def make_activation(pack, activation_id=ACT_ID_A):
+    metadata = deepcopy(pack)
+    for key in ("control_plane", "knowledge_plane", "operational_evidence_plane"):
+        metadata.pop(key)
+    metadata_raw = bridge._jcs(metadata)
     frames = [
         {
             "frame_index": 0,
             "kind": "metadata",
             "encoding": "base64",
-            "raw_sha256": "sha256:" + "0" * 64,
-            "data": "e30=",
+            "raw_sha256": "sha256:" + hashlib.sha256(metadata_raw).hexdigest(),
+            "data": base64.b64encode(metadata_raw).decode("ascii"),
         }
     ]
     n = 1
@@ -217,6 +278,55 @@ def test_registry_has_complete_stable_records_and_exact_occurrences():
     ).hexdigest()
     assert registry["identity"]["registry_sha256"] == expected_identity
     assert result.raw_sha256 == "sha256:" + hashlib.sha256(result.serialized_registry).hexdigest()
+
+
+def test_all_four_source_classes_produce_complete_stable_records():
+    repo = repo_binding("repo", "4")
+    package = package_binding("pkg", "5")
+    canonical = canonical_binding()
+    operational = operational_binding()
+    pack = make_pack(
+        [repo, package, canonical, operational],
+        control=[control_item(repo), control_item(package)],
+        knowledge=[knowledge_item(canonical)],
+        operational=[operational_item(operational)],
+    )
+    result = bridge.derive_provenance_registry(pack, make_activation(pack))
+    assert result.ok, result.failure
+    records = {record["source_class"]: record for record in result.registry["sources"]}
+    assert set(records) == {
+        "repository_control",
+        "package_control",
+        "canonical_state",
+        "operational_evidence",
+    }
+    assert records["repository_control"]["payload_sha256"] == repo["raw_sha256"]
+    assert records["package_control"]["payload_sha256"] == package["raw_sha256"]
+    assert records["canonical_state"]["payload_sha256"] == canonical["pems_sha256"]
+    assert records["operational_evidence"]["payload_sha256"] == operational["raw_sha256"]
+    assert len(result.registry["occurrences"]) == 4
+
+
+def test_model_visible_payload_digest_must_match_resolved_binding():
+    binding = repo_binding("payload-drift", "4")
+    item = control_item(binding)
+    item["payload"]["raw_sha256"] = "sha256:" + "9" * 64
+    pack = make_pack([binding], control=[item])
+    result = bridge.derive_provenance_registry(pack, make_activation(pack))
+    assert not result.ok
+    assert result.failure["code"] == bridge.PROVENANCE_BRIDGE_INVALID
+    assert "payload digest" in result.failure["diagnostics"][0]
+
+
+def test_metadata_frame_must_bind_exact_pack_metadata():
+    binding = repo_binding("metadata-drift", "4")
+    pack = make_pack([binding], control=[control_item(binding)])
+    activation = make_activation(pack)
+    activation["frames"][0]["data"] = "e30="
+    activation["frames"][0]["raw_sha256"] = "sha256:" + hashlib.sha256(b"{}").hexdigest()
+    result = bridge.derive_provenance_registry(pack, activation)
+    assert not result.ok
+    assert result.failure["code"] == bridge.PROVENANCE_BRIDGE_INVALID
 
 
 def test_same_binding_is_stable_across_pack_local_positions():
