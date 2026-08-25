@@ -22,13 +22,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "9530adfa667224a3224e6f3b6ab96ccd8480d9ec"
-          test "$(git rev-parse 9530adfa667224a3224e6f3b6ab96ccd8480d9ec^)" = "c21535e0d2820b0a1ba1866da60059a450470658"
+          test "$(git rev-parse HEAD^)" = "dbf4aed52a9806894950eb4c2b4f0cf50f6f0470"
+          test "$(git rev-parse HEAD~4)" = "c21535e0d2820b0a1ba1866da60059a450470658"
           cp tests/test_context_packaging_renderer_p9r4_external_execution.py /tmp/test_context_packaging_renderer_p9r4_external_execution.py
+          cp tests/test_context_packaging_renderer_p9r4_corrected_cases.py /tmp/test_context_packaging_renderer_p9r4_corrected_cases.py
           {
             echo "transport_head=$(git rev-parse HEAD)"
             echo "transport_parent=$(git rev-parse HEAD^)"
+            echo "candidate_ancestor=$(git rev-parse HEAD~4)"
             echo "harness_blob=$(git rev-parse HEAD:tests/test_context_packaging_renderer_p9r4_external_execution.py)"
+            echo "correction_blob=$(git rev-parse HEAD:tests/test_context_packaging_renderer_p9r4_corrected_cases.py)"
           } | tee /tmp/p9r4-transport-identities.txt
 
       - name: Check out exact immutable P9R3 candidate
@@ -77,8 +80,12 @@ jobs:
       - name: Install bounded test dependencies
         run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
 
-      - name: Compile candidate and external harness
-        run: python -m py_compile context_packaging/renderer.py /tmp/test_context_packaging_renderer_p9r4_external_execution.py
+      - name: Compile candidate and external harnesses
+        run: |
+          python -m py_compile \
+            context_packaging/renderer.py \
+            /tmp/test_context_packaging_renderer_p9r4_external_execution.py \
+            /tmp/test_context_packaging_renderer_p9r4_corrected_cases.py
 
       - name: Run P9R0-P9R3 frozen/local gates
         shell: bash
@@ -98,10 +105,22 @@ jobs:
         shell: bash
         run: |
           set +e
-          PYTHONPATH="$PWD" python -m pytest -q -vv /tmp/test_context_packaging_renderer_p9r4_external_execution.py \
+          PYTHONPATH="$PWD:/tmp" python -m pytest -q -vv \
+            /tmp/test_context_packaging_renderer_p9r4_external_execution.py \
+            -k 'not RI_02 and not RI_17' \
             2>&1 | tee /tmp/p9r4-ri-matrix.txt
-          status=${PIPESTATUS[0]}
+          base_status=${PIPESTATUS[0]}
+          PYTHONPATH="$PWD:/tmp" python -m pytest -q -vv \
+            /tmp/test_context_packaging_renderer_p9r4_corrected_cases.py \
+            2>&1 | tee -a /tmp/p9r4-ri-matrix.txt
+          corrected_status=${PIPESTATUS[0]}
+          status=0
+          if [ "$base_status" -ne 0 ] || [ "$corrected_status" -ne 0 ]; then
+            status=1
+          fi
           set -e
+          echo "P9R4_RI_BASE_STATUS=$base_status" >> "$GITHUB_ENV"
+          echo "P9R4_RI_CORRECTED_STATUS=$corrected_status" >> "$GITHUB_ENV"
           echo "P9R4_RI_STATUS=$status" >> "$GITHUB_ENV"
 
       - name: Run original P9 renderer regressions
@@ -154,6 +173,8 @@ jobs:
           set -euo pipefail
           printf '%s\n' \
             "frozen_status=${P9R4_FROZEN_STATUS}" \
+            "ri_base_status=${P9R4_RI_BASE_STATUS}" \
+            "ri_corrected_status=${P9R4_RI_CORRECTED_STATUS}" \
             "ri_status=${P9R4_RI_STATUS}" \
             "original_pytest_status=${P9R4_ORIGINAL_PYTEST_STATUS}" \
             "original_unittest_status=${P9R4_ORIGINAL_UNITTEST_STATUS}" \
