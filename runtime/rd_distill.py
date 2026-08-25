@@ -485,6 +485,11 @@ def _read_prepare_contract(path: _Path) -> str | None:
     return document.get("contract") if isinstance(document, dict) else None
 
 
+def _emit_p10_failure(p10, invocation_id: str, failure) -> int:
+    _core.emit_json(p10.failure_result(invocation_id, failure))
+    return failure.exit_code
+
+
 def prepare_command(args) -> int:
     if _read_prepare_contract(args.request) != PREPARE_CONTRACT_V2:
         return _core.prepare_command(args)
@@ -527,8 +532,20 @@ def prepare_command(args) -> int:
             if isinstance(request_document, dict)
             else "unknown"
         )
-        _core.emit_json(p10.failure_result(invocation_id, exc))
-        return exc.exit_code
+        return _emit_p10_failure(p10, invocation_id, exc)
+    except (p10.ImmutableOutputCollisionError, p10.PersistenceBoundaryError) as exc:
+        invocation_id = (
+            request_document.get("invocation_id", "unknown")
+            if isinstance(request_document, dict)
+            else "unknown"
+        )
+        failure = p10.PrepareFailure(
+            "persistence",
+            "IMMUTABLE_OUTPUT_COLLISION",
+            str(exc),
+            p10.EXIT_PERSISTENCE,
+        )
+        return _emit_p10_failure(p10, invocation_id, failure)
     except Exception as exc:
         invocation_id = (
             request_document.get("invocation_id", "unknown")
@@ -541,8 +558,7 @@ def prepare_command(args) -> int:
             str(exc),
             p10.EXIT_INTERNAL,
         )
-        _core.emit_json(p10.failure_result(invocation_id, failure))
-        return p10.EXIT_INTERNAL
+        return _emit_p10_failure(p10, invocation_id, failure)
 
 
 def build_parser():
