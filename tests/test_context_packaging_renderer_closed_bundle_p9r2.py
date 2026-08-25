@@ -112,8 +112,13 @@ def test_p9r2_registered_globals_resolve_inside_captured_bundle_and_execution_me
     bootstrap_members = {
         "member:render",
         "member:decode",
+        "member:render_v1",
+        "member:decode_v1",
         "member:resolve_bundle",
         "member:jcs_bootstrap",
+        "member:describe_bundle",
+        "member:derive_execution_binding",
+        "member:compare_execution_binding",
     }
 
     for member_id, slot in bundle[0]:
@@ -141,6 +146,7 @@ def test_p9r2_registered_globals_resolve_inside_captured_bundle_and_execution_me
                         builtins_table = member.__builtins__
                         target = builtins_table[name] if isinstance(builtins_table, dict) else getattr(builtins_table, name)
                     assert any(target is value for value in captured), (member_id, name)
+
 
 def test_p9r2_same_resolved_bundle_survives_post_resolution_global_substitution(monkeypatch):
     pack = _pack()
@@ -174,7 +180,7 @@ def test_p9r2_same_resolved_bundle_survives_post_resolution_global_substitution(
         "_sha_bound",
         "_domain_bound",
         "_failure_bound",
-        "_deepcopy_primitive",
+        "_jcs_clone_bound",
         "_b64encode_primitive",
         "_b64decode_primitive",
         "_sha256_primitive",
@@ -227,10 +233,13 @@ def test_p9r2_public_render_decode_resolve_exactly_one_fresh_bundle_per_call(mon
     assert resolved[0] is not resolved[1]
 
 
-def test_p9r2_preserves_v1_wire_family_and_stops_before_binding_implementation():
+def test_p9r2_historical_v1_wire_family_remains_unchanged_after_p9r3():
     assert renderer.RENDERER_CONTRACT == "reasoning-distiller-context-renderer/1"
     assert renderer.RENDERER_PROFILE_CONTRACT == "reasoning-distiller-context-renderer-profile/1"
     assert renderer.RENDERED_ACTIVATION_CONTRACT == "reasoning-distiller-context-rendered-activation/1"
-    assert not hasattr(renderer, "describe_bundle")
-    assert not hasattr(renderer, "derive_execution_binding")
-    assert not hasattr(renderer, "compare_execution_binding")
+    assert renderer.RENDERER_CONTRACT_V2 == "reasoning-distiller-context-renderer/2"
+    assert renderer.RENDERER_PROFILE_CONTRACT_V2 == "reasoning-distiller-context-renderer-profile/2"
+    assert renderer.RENDERED_ACTIVATION_CONTRACT_V2 == "reasoning-distiller-context-rendered-activation/2"
+    assert hasattr(renderer, "describe_bundle")
+    assert hasattr(renderer, "derive_execution_binding")
+    assert hasattr(renderer, "compare_execution_binding")
