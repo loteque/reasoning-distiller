@@ -1,6 +1,9 @@
 name: P10 G8 ec410a50 Engineer evidence
 
 on:
+  push:
+    branches:
+      - evidence/p10-g8-ec410a50-engineer-20260825
   pull_request:
     branches:
       - impl/p10-g7-migration-rollback-20260825
