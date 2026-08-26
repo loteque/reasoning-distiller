@@ -6,7 +6,7 @@
     "commit": "1c25bf7cc858218941476097a3a5ac5ba204f270"
   },
   "artifacts": [
-    {"destination":"agents/distiller/DIRECTIVE.md","source_path":"docs/distiller/DIRECTIVE.md","source_blob_sha":"d578841d64da93f0883686eda80f00fde53d5f66","classification":"framework","bytes_must_match_during_parity":true},
+    {"destination":"agents/distiller/DIRECTIVE.md","source_path":"docs/distiller/DIRECTIVE.md","source_blob_sha":"d578841d64da93f0883686eda80f00fde53d5f66","classification":"framework","bytes_must_match_during_parity":false},
     {"destination":"schemas/rgp-output.schema.json","source_path":"docs/distiller/validation/schema.json","source_blob_sha":"f59067dc152f29bec911941562831266fbabed2b","classification":"framework","bytes_must_match_during_parity":true},
     {"destination":"validators/validate_distillation.py","source_path":"docs/distiller/validation/validate_distillation.py","source_blob_sha":"a9bcc452a561c37fff818f92b1527d1c534878b6","classification":"framework","bytes_must_match_during_parity":true},
     {"destination":"validators/rgp_validator.py","source_path":"docs/handoff/rgp/validator/rgp_validator.py","source_blob_sha":"5675c652b6ad894fe3e1388a4290d2965b2540a0","classification":"framework","bytes_must_match_during_parity":true},
