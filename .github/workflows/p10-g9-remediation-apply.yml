@@ -1,0 +1,76 @@
+name: P10 G9 remediation patch applicator
+
+on:
+  push:
+    branches:
+      - impl/p10-g9-remediation-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  apply-remediation:
+    if: github.event.head_commit.message == 'ci: stage P10 G9 remediation patch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: impl/p10-g9-remediation-20260825
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.0'
+
+      - name: Apply bounded remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          prepare = Path('context_packaging/prepare_integration.py')
+          text = prepare.read_text(encoding='utf-8')
+
+          constants_old = '''ELIGIBILITY_CONTRACT = "reasoning-distiller-context-profile-eligibility/1"\nACTIVATION_BUNDLE_CONTRACT = "reasoning-distiller-activation-bundle/2"'''
+          constants_new = '''ELIGIBILITY_CONTRACT = "reasoning-distiller-context-profile-eligibility/1"\nPRODUCTION_CONSUMER_CONTRACT = INVOCATION_CONTRACT\nPRODUCTION_CONSUMER_ID = "rd-distill"\nACTIVATION_BUNDLE_CONTRACT = "reasoning-distiller-activation-bundle/2"'''
+          assert text.count(constants_old) == 1
+          text = text.replace(constants_old, constants_new, 1)
+
+          consumer_old = '''    if not isinstance(consumer, Mapping) or set(consumer) != {"consumer_contract", "consumer_id", "immutable_policy_snapshot_id"}:\n        raise _fail("preflight", "PROFILE_ELIGIBILITY_MISMATCH", "eligibility consumer binding is invalid", EXIT_PREFLIGHT)\n    if not isinstance(evidence, Mapping) or set(evidence) != {"contract", "immutable_snapshot_id", "raw_sha256"}:'''
+          consumer_new = '''    if not isinstance(consumer, Mapping) or set(consumer) != {"consumer_contract", "consumer_id", "immutable_policy_snapshot_id"}:\n        raise _fail("preflight", "PROFILE_ELIGIBILITY_MISMATCH", "eligibility consumer binding is invalid", EXIT_PREFLIGHT)\n    if (\n        consumer.get("consumer_contract") != PRODUCTION_CONSUMER_CONTRACT\n        or consumer.get("consumer_id") != PRODUCTION_CONSUMER_ID\n    ):\n        raise _fail(\n            "preflight",\n            "PROFILE_ELIGIBILITY_MISMATCH",\n            "eligibility consumer must bind exactly reasoning-distiller-invocation/2 and rd-distill",\n            EXIT_PREFLIGHT,\n        )\n    if not isinstance(evidence, Mapping) or set(evidence) != {"contract", "immutable_snapshot_id", "raw_sha256"}:'''
+          assert text.count(consumer_old) == 1
+          text = text.replace(consumer_old, consumer_new, 1)
+          prepare.write_text(text, encoding='utf-8')
+
+          g4 = Path('tests/test_context_packaging_production_integration_p10_g4.py')
+          g4_text = g4.read_text(encoding='utf-8')
+          old_consumer = '"consumer_contract": "reasoning-distiller-production-consumer/1"'
+          new_consumer = '"consumer_contract": "reasoning-distiller-invocation/2"'
+          assert g4_text.count(old_consumer) == 1
+          g4.write_text(g4_text.replace(old_consumer, new_consumer, 1), encoding='utf-8')
+
+          regression = Path('tests/test_context_packaging_production_integration_p10_g9_remediation.py')
+          regression.write_text('''from __future__ import annotations\n\nimport copy\nimport hashlib\nimport importlib.util\nimport json\nfrom pathlib import Path\nimport sys\n\nimport pytest\n\nimport context_packaging.prepare_integration as prepare\n\n\nROOT = Path(__file__).resolve().parents[1]\nREJECTED_G9_CANDIDATE = "ec410a501e7db051f59eb2fb373c30da150bd81a"\nGOVERNING_PLAN_COMMIT = "b435dff827b745d711a5c5a297587a0c4359bed1"\nGOVERNING_PLAN_BLOB = "eae54b9e2c0618faec61acf2f9e4acd942ec063d"\n\n\ndef _load_module(name: str, path: Path):\n    spec = importlib.util.spec_from_file_location(name, path)\n    module = importlib.util.module_from_spec(spec)\n    assert spec.loader is not None\n    spec.loader.exec_module(module)\n    return module\n\n\nG4 = _load_module(\n    "p10_g4_helpers_for_g9_remediation",\n    ROOT / "tests/test_context_packaging_production_integration_p10_g4.py",\n)\n\n\ndef _raw(value) -> bytes:\n    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")\n\n\ndef _sha(raw: bytes) -> str:\n    return "sha256:" + hashlib.sha256(raw).hexdigest()\n\n\ndef _exact_runtime() -> bool:\n    return (\n        sys.implementation.name == "cpython"\n        and sys.version_info[:3] == (3, 12, 0)\n        and sys.implementation.cache_tag == "cpython-312"\n    )\n\n\ndef test_pi09_frozen_production_consumer_constants_are_exact() -> None:\n    assert prepare.PRODUCTION_CONSUMER_CONTRACT == "reasoning-distiller-invocation/2"\n    assert prepare.PRODUCTION_CONSUMER_ID == "rd-distill"\n\n\n@pytest.mark.skipif(not _exact_runtime(), reason="P10 G9 remediation exact runtime is CPython 3.12.0/cpython-312")\n@pytest.mark.parametrize(\n    ("field", "wrong_value"),\n    [\n        ("consumer_contract", "reasoning-distiller-invocation/99"),\n        ("consumer_id", "not-rd-distill"),\n    ],\n)\ndef test_pi09_mutually_consistent_wrong_consumer_fails_preflight(tmp_path, field, wrong_value):\n    project, installed_root = G4._install_candidate(tmp_path)\n    request, _, _ = G4._request_for(project)\n\n    pack_path = project / "artifacts/pack.json"\n    eligibility_path = project / "artifacts/eligibility.json"\n    pack = json.loads(pack_path.read_bytes())\n    eligibility = json.loads(eligibility_path.read_bytes())\n\n    assert pack["eligibility"]["consumer_contract"] == "reasoning-distiller-invocation/2"\n    assert pack["eligibility"]["consumer_id"] == "rd-distill"\n    assert eligibility["consumer"]["consumer_contract"] == "reasoning-distiller-invocation/2"\n    assert eligibility["consumer"]["consumer_id"] == "rd-distill"\n\n    # Keep the sealed pack summary and full eligibility artifact mutually consistent.\n    # PI-09 requires rejection because the consumer itself is not the frozen /2 rd-distill consumer.\n    pack["eligibility"][field] = wrong_value\n    eligibility["consumer"][field] = wrong_value\n    pack_raw = _raw(pack)\n    eligibility_raw = _raw(eligibility)\n    pack_path.write_bytes(pack_raw)\n    eligibility_path.write_bytes(eligibility_raw)\n\n    mutated = copy.deepcopy(request)\n    mutated["context"]["pack"]["raw_sha256"] = _sha(pack_raw)\n    mutated["context"]["profile_eligibility"]["raw_sha256"] = _sha(eligibility_raw)\n\n    with pytest.raises(prepare.PrepareFailure) as exc_info:\n        prepare.prepare_invocation_v2(_raw(mutated), cwd=tmp_path, installed_root=installed_root)\n\n    failure = exc_info.value\n    assert failure.stage == "preflight"\n    assert failure.exit_code == prepare.EXIT_PREFLIGHT == 2\n    assert failure.reason_code == "PROFILE_ELIGIBILITY_MISMATCH"\n    assert not (project / "out/prepared.json").exists()\n    assert not (project / "out/registry.json").exists()\n''', encoding='utf-8')
+          PY
+
+      - name: Verify targeted remediation on exact runtime
+        run: |
+          python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+          python -m pytest -q \
+            tests/test_context_packaging_production_integration_p10_g4.py \
+            tests/test_context_packaging_production_integration_p10_g9_remediation.py
+
+      - name: Commit bounded semantic remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git status --short
+          git config user.name 'loteque'
+          git config user.email '69282314+loteque@users.noreply.github.com'
+          git add context_packaging/prepare_integration.py \
+                  tests/test_context_packaging_production_integration_p10_g4.py \
+                  tests/test_context_packaging_production_integration_p10_g9_remediation.py
+          git commit -m 'fix(p10): bind eligibility consumer for PI-09'
+          git push origin HEAD:impl/p10-g9-remediation-20260825
