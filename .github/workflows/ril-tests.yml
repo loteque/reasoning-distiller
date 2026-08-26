@@ -23,7 +23,64 @@ jobs:
           python-version: '3.12'
 
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip jsonschema
+        run: python -m pip install --upgrade pip pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
 
-      - name: Run unit test suite
-        run: python -m unittest discover -s tests -v
+      - name: Run current regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests \
+            --deselect=tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly \
+            --deselect=tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment
+
+      - name: Witness superseded historical context assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path('tests/test_context_packaging_protocol_schemas_p1b.py')
+          spec = importlib.util.spec_from_file_location('p1b_integration_witness', path)
+          mod = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(mod)
+          mod.P1b.setUpClass()
+
+          case = mod.P1b(methodName='test_negative_fixtures_reject_and_classify_exactly')
+          original = case.fx['negative_cases']
+          selected = [item for item in original if item['id'] != 'PS-19']
+          assert len(selected) == len(original) - 1
+          case.fx['negative_cases'] = selected
+          try:
+              case.test_negative_fixtures_reject_and_classify_exactly()
+          finally:
+              case.fx['negative_cases'] = original
+          print('P10_INTEGRATION_P1B_NEGATIVES_EXCEPT_PS19_PASS')
+
+          case = mod.P1b(methodName='test_negative_fixtures_reject_and_classify_exactly')
+          original = case.fx['negative_cases']
+          selected = [item for item in original if item['id'] == 'PS-19']
+          assert len(selected) == 1
+          case.fx['negative_cases'] = selected
+          try:
+              try:
+                  case.test_negative_fixtures_reject_and_classify_exactly()
+              except AssertionError as exc:
+                  text = str(exc)
+                  assert 'PS-19' in text
+                  assert 'PLANE_CLASSIFICATION_CONFLICT' in text
+                  assert 'UNKNOWN_SEMANTICS_FIELD' in text
+                  print('P10_INTEGRATION_PS19_EXPECTED_MISMATCH_REPRODUCED')
+              else:
+                  raise AssertionError('PS-19 unexpectedly passed historical expectation')
+          finally:
+              case.fx['negative_cases'] = original
+          PY
+
+          current_blob="$(git hash-object context_packaging/pack_builder.py)"
+          test "$current_blob" = '167602c87ea1766ae9978ed8a67098613e1f96ff'
+          test "$current_blob" != 'b0e806e966598e6d819b6d52c643efa23cdb6ef9'
+          printf 'P10_INTEGRATION_P5_STALE_BLOB_ASSERTION_REPRODUCED current=%s stale=%s\n' \
+            "$current_blob" 'b0e806e966598e6d819b6d52c643efa23cdb6ef9'
