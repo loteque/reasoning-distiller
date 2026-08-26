@@ -1,0 +1,19 @@
+{
+  "contract": "reasoning-distiller-context-schema-resource-registry/1",
+  "scope": "context-packaging-v1-frozen-local-alias",
+  "source_schema": {
+    "path": "schemas/context-pack.schema.json",
+    "git_blob": "4b240a5698294ce1a217ad758b4031830740fc29",
+    "resource_ref_sha256": "sha256:5755f841b1a7866cad4cfc0ee268f98bdff5a15c909d00bc66a7b7e3c7299da2"
+  },
+  "resources": [
+    {
+      "semantic": "pems/2",
+      "path": "backends/pems-cove/pems-v2.schema.json",
+      "git_blob": "cd7683d704e8aef2842a0c1b25b453fb1dbc8030",
+      "raw_sha256": "sha256:b08e592ab7c10092ff381fe8057cac63ccb7aaa077b52532f5ee609c6fd279c3",
+      "resolution": "register_exact_blob_bytes_under_frozen_source_ref",
+      "network_resolution": false
+    }
+  ]
+}

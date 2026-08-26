@@ -1,0 +1,65 @@
+{
+  "contract": "reasoning-distiller-renderer-execution-binding/1",
+  "derivation": {
+    "activation": "The /2 activation records the actual derived binding object. It MUST NOT copy an unchecked profile binding.",
+    "actual": "Each render/decode call independently resolves one closed bundle, validates its exact runtime ABI and dependency closure, constructs the frozen descriptor from only that captured bundle and accepted runtime information, and derives one actual binding.",
+    "comparison": "Successful execution requires exact canonical equality of the complete expected and actual binding objects before render/decode behavior succeeds.",
+    "expected": "A /2 renderer profile carries one complete expected binding object."
+  },
+  "descriptor_contract": "reasoning-distiller-python-closed-bundle-descriptor/1",
+  "digest": {
+    "algorithm": "sha256",
+    "domain_ascii": "reasoning-distiller-renderer-execution-binding/1\\x00python-closed-bundle/1\\x00",
+    "preimage": "ASCII bytes of domain_ascii with each \\x00 interpreted as one NUL byte, followed by exact jcs/1 bytes of the complete reasoning-distiller-python-closed-bundle-descriptor/1 object.",
+    "result": "lowercase sha256:<64 hex>"
+  },
+  "failure": {
+    "binding_mismatch": "TOOLCHAIN_IDENTITY_MISMATCH",
+    "failure_contract": "reasoning-distiller-context-pack-failure/1",
+    "runtime_abi_mismatch": "TOOLCHAIN_IDENTITY_MISMATCH",
+    "stage": "rendering",
+    "unsupported_dependency_shape": "UNSUPPORTED_RENDERER",
+    "unsupported_interpreter": "UNSUPPORTED_RENDERER"
+  },
+  "gate": "P9R1",
+  "governing_plan": {
+    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd"
+  },
+  "invariants": [
+    "Caller-declared binding syntax is not proof of execution identity.",
+    "The complete closed-bundle descriptor, including verifier/derivation/comparison behavior, is in the digest preimage.",
+    "No binding cache is permitted by python-closed-bundle/1.",
+    "No filesystem, source-file, repository, package-installation, current-branch, network, model, search, cache, or mutable project-state discovery participates in successful derivation.",
+    "A runtime ABI other than the exact frozen tuple is incompatible; no patch-floating or implicit equivalence is accepted.",
+    "This mechanism is deterministic execution binding under an accepted non-hostile runtime and is not external attestation."
+  ],
+  "runtime_abi": {
+    "cache_tag": "cpython-312",
+    "implementation": "cpython",
+    "major": 3,
+    "micro": 0,
+    "minor": 12
+  },
+  "scheme": "python-closed-bundle/1",
+  "serializer": "jcs/1",
+  "stage3_amendment": {
+    "blob": "90142ffe6b6652faceb3e8347f33fa71c8dc3ed9",
+    "commit": "373667be85521e6f0f83bf19fed3378357e51118",
+    "disposition": "P9_RENDERER_IDENTITY_STAGE3_RECONCILED_ACCEPTED_WITH_GATES"
+  },
+  "status": "frozen",
+  "threat_model": {
+    "accepted": [
+      "The exact runtime ABI is non-hostile and reports code/runtime introspection truthfully.",
+      "Repository-owned renderer behavior, helpers, constants, verifier behavior, and declared dependencies may be stale or mismatched and must be detected.",
+      "The process is not controlled by an adversary capable of arbitrarily rewriting both verifier and executing object graph during the same call."
+    ],
+    "escalation": "Any excluded hostile-runtime/same-process requirement, or inability to mechanically close the bundle, requires a separately governed immutable package/execution-boundary proposal before P9 continues.",
+    "not_proven": [
+      "Integrity against a hostile or instrumented interpreter that can falsify introspection.",
+      "Integrity against arbitrary hostile same-process mutation during a call.",
+      "Provenance that loaded objects came from a specific release package."
+    ]
+  }
+}

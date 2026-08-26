@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/context-pack-request-v2.schema.json",
+  "title": "Reasoning Distiller Context Pack Request v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "request_id", "profile", "source_bindings", "slot_bindings", "multiple_snapshot_sources", "accepted_canonical_standing", "knowledge_selection", "consistency_requirements", "output"],
+  "properties": {
+    "contract": {"const": "reasoning-distiller-context-pack-request/2"},
+    "request_id": {"type": "string", "minLength": 1},
+    "profile": {
+      "type": "object", "additionalProperties": false, "required": ["profile_id", "profile_version", "raw_sha256"],
+      "properties": {"profile_id": {"type": "string", "minLength": 1}, "profile_version": {"type": "string", "minLength": 1}, "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"}}
+    },
+    "eligibility": {"$ref": "https://reasoning-distiller.local/schemas/context-profile-eligibility.schema.json"},
+    "source_bindings": {"type": "array", "minItems": 1, "items": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json"}},
+    "slot_bindings": {"type": "array", "items": {"$ref": "#/$defs/slotBinding"}},
+    "multiple_snapshot_sources": {"type": "array", "uniqueItems": true, "items": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json#/$defs/sourceRef"}},
+    "accepted_canonical_standing": {"type": "array", "items": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json#/$defs/acceptedCanonicalStanding"}},
+    "knowledge_selection": {"$ref": "#/$defs/knowledgeSelection"},
+    "consistency_requirements": {"type": "array", "items": {"$ref": "#/$defs/consistencyRequirement"}},
+    "output": {
+      "type": "object", "additionalProperties": false, "required": ["pack_contract", "serializer", "knowledge_encoding"],
+      "properties": {"pack_contract": {"const": "reasoning-distiller-context-pack/2"}, "serializer": {"const": "jcs/1"}, "knowledge_encoding": {"enum": ["pems/2", "cove/1"]}}
+    }
+  },
+  "$defs": {
+    "slotBinding": {"oneOf": [{"$ref": "#/$defs/controlSlotBinding"}, {"$ref": "#/$defs/operationalEvidenceSlotBinding"}]},
+    "knowledgeSelection": {"type": "object", "additionalProperties": false, "required": ["snapshots"], "properties": {"snapshots": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/knowledgeSnapshotSelection"}}}},
+    "knowledgeSnapshotSelection": {
+      "type": "object", "additionalProperties": false, "required": ["canonical_snapshot_ref", "record_ids", "relation_ids"],
+      "properties": {
+        "canonical_snapshot_ref": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json#/$defs/canonicalSnapshotRef"},
+        "record_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "relation_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "consistencyRequirement": {
+      "type": "object", "additionalProperties": false, "required": ["predicate", "left_snapshot_ref", "right_snapshot_ref"],
+      "properties": {
+        "predicate": {"enum": ["same_project_identity", "canonical_declares_repository_snapshot"]},
+        "left_snapshot_ref": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json#/$defs/snapshotRef"},
+        "right_snapshot_ref": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json#/$defs/snapshotRef"}
+      }
+    },
+    "controlSlotBinding": {
+      "type": "object", "additionalProperties": false, "required": ["slot_id", "plane", "source_ref"],
+      "properties": {"slot_id": {"type": "string", "minLength": 1}, "plane": {"const": "control"}, "source_ref": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json#/$defs/controlSnapshotRef"}}
+    },
+    "operationalEvidenceSlotBinding": {
+      "type": "object", "additionalProperties": false, "required": ["slot_id", "plane", "source_ref"],
+      "properties": {"slot_id": {"type": "string", "minLength": 1}, "plane": {"const": "operational_evidence"}, "source_ref": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json#/$defs/operationalEvidenceSnapshotRef"}}
+    }
+  }
+}
