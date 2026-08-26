@@ -1,0 +1,184 @@
+name: P10 G9 ae5d5c21 Engineer evidence r5
+
+on:
+  push:
+    branches:
+      - evidence/p10-g9-ae5d5c21-engineer-20260825
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE: ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e
+  CANDIDATE_TREE: 81178c5efdc8f1419a068c61a92c0571b28f69fc
+  PACKAGE_VERSION: 0.0.0-p10-g9-r5
+  GOVERNING_PLAN: b435dff827b745d711a5c5a297587a0c4359bed1
+  GOVERNING_PLAN_BLOB: eae54b9e2c0618faec61acf2f9e4acd942ec063d
+
+jobs:
+  unsupported-runtime-witness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.1"
+
+      - name: Bind exact candidate package and unsupported runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          test "$(git rev-parse HEAD^{tree})" = "$CANDIDATE_TREE"
+          rm -rf /tmp/unsupported-package && mkdir -p /tmp/unsupported-package
+          python packaging/build_release_package.py \
+            --version "$PACKAGE_VERSION" \
+            --source-commit "$CANDIDATE" \
+            --output-dir /tmp/unsupported-package | tee /tmp/unsupported-build.json
+          python - <<'PY' | tee /tmp/pi-unsupported-runtime-package.json
+          import hashlib, json, os, shutil, subprocess
+          from pathlib import Path
+          build = json.loads(Path('/tmp/unsupported-build.json').read_text())
+          manifest_path = Path(build['manifest'])
+          archive_path = Path(build['archive'])
+          manifest = json.loads(manifest_path.read_text())
+          archive_sha = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+          assert manifest['source_commit'] == os.environ['CANDIDATE']
+          assert manifest['version'] == os.environ['PACKAGE_VERSION']
+          assert archive_sha == manifest['transport_sha256'] == build['transport_sha256']
+          assert manifest['content_identity'] == build['content_identity']
+          for root in manifest['managed_roots']:
+              path = Path(root)
+              if path.exists():
+                  shutil.rmtree(path)
+          subprocess.run(['tar', '-xzf', str(archive_path), '-C', '.'], check=True)
+          print(json.dumps({
+              'candidate': os.environ['CANDIDATE'],
+              'candidate_tree': os.environ['CANDIDATE_TREE'],
+              'content_identity': manifest['content_identity'],
+              'transport_sha256': archive_sha,
+              'version': manifest['version'],
+          }, sort_keys=True))
+          PY
+          python - <<'PY' | tee /tmp/pi-unsupported-runtime-runtime.json
+          import hashlib, json, pathlib, platform, sys
+          assert platform.python_implementation() == 'CPython'
+          assert sys.implementation.name == 'cpython'
+          assert sys.version_info[:3] == (3, 12, 1), sys.version
+          assert sys.implementation.cache_tag == 'cpython-312'
+          exe = pathlib.Path(sys.executable).resolve()
+          print(json.dumps({
+              'implementation': sys.implementation.name,
+              'version': '.'.join(map(str, sys.version_info[:3])),
+              'cache_tag': sys.implementation.cache_tag,
+              'executable': str(exe),
+              'executable_sha256': hashlib.sha256(exe.read_bytes()).hexdigest(),
+          }, sort_keys=True))
+          PY
+
+      - name: Execute PI-14 and PI-52 actual-runtime witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            tests/test_context_packaging_production_integration_p10_g7.py::test_p10_g7_v2_rejects_actual_unsupported_cpython_runtime \
+            2>&1 | tee /tmp/pi-unsupported-runtime.txt
+          echo 'P10_G9_UNSUPPORTED_RUNTIME_WITNESS_PASS' | tee -a /tmp/pi-unsupported-runtime.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p10-g9-unsupported-runtime-r5
+          if-no-files-found: error
+          path: |
+            /tmp/pi-unsupported-runtime.txt
+            /tmp/pi-unsupported-runtime-runtime.json
+            /tmp/pi-unsupported-runtime-package.json
+
+  full-g9-evidence-r5:
+    needs: unsupported-runtime-witness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+
+      - name: Install exact evidence dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          test "$(git rev-parse HEAD^{tree})" = "$CANDIDATE_TREE"
+          test "$(git status --porcelain)" = ""
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: p10-g9-unsupported-runtime-r5
+          path: /tmp/runtime-witness
+
+      - name: Retrieve exact r5 evidence construction
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/.github/evidence"
+          curl -L --fail --retry 3 -H "Authorization: Bearer ${GH_TOKEN}" \
+            "$base/p10-g9-evidence-r5.py" -o /tmp/p10-g9-evidence-r5.py
+          curl -L --fail --retry 3 -H "Authorization: Bearer ${GH_TOKEN}" \
+            "$base/p10-g9-evidence-r4.py" -o /tmp/p10-g9-evidence-r4.py
+          curl -L --fail --retry 3 -H "Authorization: Bearer ${GH_TOKEN}" \
+            "$base/p10-g9-pi-witness-remediation.py" -o /tmp/pi-witness-remediation.py
+          curl -L --fail --retry 3 -H "Authorization: Bearer ${GH_TOKEN}" \
+            "$base/p10-g9-pi-witness-remediation-base.py" -o /tmp/pi-witness-remediation-base.py
+          sha256sum \
+            /tmp/p10-g9-evidence-r5.py \
+            /tmp/p10-g9-evidence-r4.py \
+            /tmp/pi-witness-remediation.py \
+            /tmp/pi-witness-remediation-base.py \
+            | tee /tmp/pi-witness-scripts.sha256
+
+      - name: Execute exact candidate package runtime evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/p10-g9-evidence-r5.py 2>&1 | tee /tmp/orchestrator-r5.txt
+          grep -q 'P10_G9_WITNESS_REMEDIATION_ENGINEER_EXECUTION_PASS' /tmp/orchestrator-r5.txt
+          cp /tmp/orchestrator-r5.txt /tmp/evidence-r4/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p10-g9-ae5d5c21-evidence-r5
+          if-no-files-found: error
+          path: /tmp/evidence-r4
+
+      - name: Enforce r5 evidence gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'P10_G9_WITNESS_REMEDIATION_ENGINEER_EXECUTION_PASS' /tmp/evidence-r4/orchestrator-r5.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path('/tmp/evidence-r4/summary.json').read_text())
+          assert summary['candidate'] == 'ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e'
+          assert summary['candidate_tree'] == '81178c5efdc8f1419a068c61a92c0571b28f69fc'
+          assert summary['runtime']['version'] == '3.12.0'
+          assert summary['unsupported_runtime']['version'] == '3.12.1'
+          assert len(summary['pi_ledger']['rows']) == 60
+          assert set(summary['matrix'].values()) == {
+              'PASS',
+              'REPRODUCED_EXPECTED_MISMATCH',
+          }
+          print('P10_G9_R5_EXACT_EVIDENCE_GATE_PASS')
+          PY
