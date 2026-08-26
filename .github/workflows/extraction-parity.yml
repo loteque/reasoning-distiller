@@ -94,6 +94,8 @@ jobs:
 
   realistic-context-pack-preparation:
     runs-on: ubuntu-latest
+    env:
+      TRIAL_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,28 +105,52 @@ jobs:
           python-version: '3.12.0'
       - name: Install context-pack dependencies
         run: python -m pip install --disable-pip-version-check jsonschema==4.25.1 PyYAML==6.0.2
-      - name: Materialize realistic context pack and production preparation
+      - name: Attempt realistic context pack and production preparation
         env:
           PYTHONPATH: .reasoning-distiller
         run: |
-          set -o pipefail
+          set +e
           python --version
-          python evaluation/context-packaging/materialize_realistic_context_pack.py --out .context-pack-trial | tee .context-pack-trial.log
-      - name: Capture exact blocker evidence when materialization fails
-        if: always()
+          mkdir -p .context-pack-trial
+          python evaluation/context-packaging/materialize_realistic_context_pack.py --out .context-pack-trial 2>&1 | tee .context-pack-trial.log
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > .context-pack-trial/materialization-exit-code.txt
+          echo "materializer_exit_code=$status"
+          exit 0
+      - name: Capture exact blocker evidence when materialization is blocked
         run: |
           python - <<'PY'
           import hashlib
           import json
+          import os
           from pathlib import Path
           import sys
 
           out = Path('.context-pack-trial')
-          out.mkdir(parents=True, exist_ok=True)
           success = out / 'evidence-summary.json'
+          status_path = out / 'materialization-exit-code.txt'
+          log_path = Path('.context-pack-trial.log')
+          if not status_path.exists() or not log_path.exists():
+              raise SystemExit('materialization status/log missing')
+          materializer_exit = int(status_path.read_text(encoding='utf-8').strip())
+          log = log_path.read_text(encoding='utf-8', errors='replace')
+
           if success.exists():
+              if materializer_exit != 0:
+                  raise SystemExit('success evidence exists but materializer exit was nonzero')
               print('production preparation evidence exists; blocker record not needed')
               raise SystemExit(0)
+
+          if materializer_exit == 0:
+              raise SystemExit('materializer returned success without evidence-summary.json')
+          required_log_markers = (
+              'PEMS_SCHEMA_INVALID',
+              "'stage': 'projection'",
+              'canonical PEMS validation failed',
+          )
+          missing_markers = [marker for marker in required_log_markers if marker not in log]
+          if missing_markers:
+              raise SystemExit(f'unexpected materialization failure; missing markers: {missing_markers}')
 
           pems_path = Path('project-knowledge/canonical/pems2.jcs.json')
           cove_path = Path('project-knowledge/canonical/cove1.jcs.json')
@@ -143,11 +169,16 @@ jobs:
               'contract': 'reasoning-distiller-realistic-context-pack-blocker-evidence/1',
               'status': 'BLOCKED_PEMS_SCHEMA_INVALID',
               'coordination_revision': 'd46300a54a444cc866717986c1f5b493de3ab13f',
-              'trial_head': '5f92658a239bc096849025ed14ab9e57d0afb710',
+              'trial_head': os.environ['TRIAL_HEAD'],
               'runtime': {
                   'implementation': sys.implementation.name,
                   'version': '.'.join(map(str, sys.version_info[:3])),
                   'cache_tag': sys.implementation.cache_tag,
+              },
+              'materialization_attempt': {
+                  'exit_code': materializer_exit,
+                  'log_raw_sha256': sha(log_path.read_bytes()),
+                  'expected_p3_failure_markers_observed': True,
               },
               'canonical_pems': {
                   'path': str(pems_path),
@@ -197,15 +228,13 @@ jobs:
           print(json.dumps(record, indent=2, sort_keys=True))
           PY
       - name: Print exact evidence summary
-        if: always()
         run: |
           if [ -f .context-pack-trial/evidence-summary.json ]; then
             python -m json.tool .context-pack-trial/evidence-summary.json
           else
             python -m json.tool .context-pack-trial/blocker-evidence-summary.json
           fi
-      - name: Upload exact materialization evidence
-        if: always()
+      - name: Upload exact materialization or blocker evidence
         uses: actions/upload-artifact@v4
         with:
           name: realistic-context-pack-preparation-${{ github.run_id }}
@@ -213,3 +242,6 @@ jobs:
             .context-pack-trial/**
             .context-pack-trial.log
           if-no-files-found: error
+      - name: Verify evaluation evidence exists
+        run: |
+          test -f .context-pack-trial/evidence-summary.json || test -f .context-pack-trial/blocker-evidence-summary.json
