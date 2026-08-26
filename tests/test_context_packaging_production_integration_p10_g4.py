@@ -89,7 +89,7 @@ def _sealed_inputs():
         "raw_sha256": "sha256:" + "1" * 64,
     }
     eligibility_summary = {
-        "consumer_contract": "reasoning-distiller-production-consumer/1",
+        "consumer_contract": "reasoning-distiller-invocation/2",
         "consumer_id": "rd-distill",
         "policy_evidence_snapshot_id": "policy-snapshot-1",
         "decision": "eligible",

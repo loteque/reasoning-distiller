@@ -37,6 +37,8 @@ RESULT_CONTRACT = "reasoning-distiller-invocation-result/2"
 PACK_CONTRACT = "reasoning-distiller-context-pack/2"
 RENDERER_PROFILE_CONTRACT = "reasoning-distiller-context-renderer-profile/2"
 ELIGIBILITY_CONTRACT = "reasoning-distiller-context-profile-eligibility/1"
+PRODUCTION_CONSUMER_CONTRACT = INVOCATION_CONTRACT
+PRODUCTION_CONSUMER_ID = "rd-distill"
 ACTIVATION_BUNDLE_CONTRACT = "reasoning-distiller-activation-bundle/2"
 PREPARED_INVOCATION_CONTRACT = "reasoning-distiller-prepared-invocation/1"
 MODEL_TRANSPORT_CONTRACT = "reasoning-distiller-model-transport/1"
@@ -522,6 +524,16 @@ def _validate_eligibility(raw: bytes, request_ref: Mapping[str, Any], pack: Mapp
     evidence = eligibility.get("policy_evidence")
     if not isinstance(consumer, Mapping) or set(consumer) != {"consumer_contract", "consumer_id", "immutable_policy_snapshot_id"}:
         raise _fail("preflight", "PROFILE_ELIGIBILITY_MISMATCH", "eligibility consumer binding is invalid", EXIT_PREFLIGHT)
+    if (
+        consumer.get("consumer_contract") != PRODUCTION_CONSUMER_CONTRACT
+        or consumer.get("consumer_id") != PRODUCTION_CONSUMER_ID
+    ):
+        raise _fail(
+            "preflight",
+            "PROFILE_ELIGIBILITY_MISMATCH",
+            "eligibility consumer must bind exactly reasoning-distiller-invocation/2 and rd-distill",
+            EXIT_PREFLIGHT,
+        )
     if not isinstance(evidence, Mapping) or set(evidence) != {"contract", "immutable_snapshot_id", "raw_sha256"}:
         raise _fail("preflight", "PROFILE_ELIGIBILITY_MISMATCH", "eligibility policy evidence binding is invalid", EXIT_PREFLIGHT)
     try:
