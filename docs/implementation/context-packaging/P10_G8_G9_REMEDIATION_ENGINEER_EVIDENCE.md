@@ -105,3 +105,5 @@ Engineer execution result: `P10_G8_FULL_REGRESSION_ENGINEER_EXECUTION_PASS`.
 ## Next boundary
 
 The next consequential action belongs to a fresh independent P10-G9 implementation reviewer. The reviewer must independently re-resolve live coordination and governing contracts, bind this immutable semantic candidate and candidate/package/runtime evidence, challenge both remediated findings and the complete G9 gate, and issue only a P10-G9 independent-review disposition.
+
+The evidence branch is transport and evidence only; it is not the semantic candidate.
