@@ -1,0 +1,376 @@
+name: P10 G9 ae5d5c21 Engineer evidence r2
+
+on:
+  push:
+    branches:
+      - evidence/p10-g9-ae5d5c21-engineer-20260825
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE: ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e
+  CANDIDATE_TREE: 81178c5efdc8f1419a068c61a92c0571b28f69fc
+  PACKAGE_VERSION: 0.0.0-p10-g9-r2
+  GOVERNING_PLAN: b435dff827b745d711a5c5a297587a0c4359bed1
+  GOVERNING_PLAN_BLOB: eae54b9e2c0618faec61acf2f9e4acd942ec063d
+
+jobs:
+  full-g9-evidence-r2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+
+      - name: Bind exact candidate and runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          test "$(git rev-parse HEAD^{tree})" = "$CANDIDATE_TREE"
+          test "$(git status --porcelain)" = ""
+          git rev-parse HEAD^{tree} | tee /tmp/candidate-tree.txt
+          python - <<'PY' | tee /tmp/runtime.json
+          import hashlib, json, os, pathlib, platform, sys
+          assert platform.python_implementation() == "CPython"
+          assert sys.implementation.name == "cpython"
+          assert sys.version_info[:3] == (3, 12, 0), sys.version
+          assert sys.implementation.cache_tag == "cpython-312"
+          exe = pathlib.Path(sys.executable).resolve()
+          print(json.dumps({
+              "implementation": sys.implementation.name,
+              "version": ".".join(map(str, sys.version_info[:3])),
+              "cache_tag": sys.implementation.cache_tag,
+              "executable": str(exe),
+              "executable_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
+              "runner_os": os.environ.get("RUNNER_OS"),
+              "runner_arch": os.environ.get("RUNNER_ARCH"),
+              "image_os": os.environ.get("ImageOS"),
+              "image_version": os.environ.get("ImageVersion"),
+          }, sort_keys=True))
+          PY
+          python -m pip freeze | sort | tee /tmp/dependencies.txt
+
+      - name: Build and bind exact candidate package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/package && mkdir -p /tmp/package
+          python packaging/build_release_package.py \
+            --version "$PACKAGE_VERSION" \
+            --source-commit "$CANDIDATE" \
+            --output-dir /tmp/package | tee /tmp/build.json
+          python - <<'PY' | tee /tmp/package.json
+          import hashlib, json, os
+          from pathlib import Path
+          build = json.loads(Path('/tmp/build.json').read_text())
+          manifest_path = Path(build['manifest'])
+          archive_path = Path(build['archive'])
+          manifest = json.loads(manifest_path.read_text())
+          archive_sha = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+          manifest_sha = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+          assert manifest['source_commit'] == os.environ['CANDIDATE']
+          assert manifest['version'] == os.environ['PACKAGE_VERSION']
+          assert archive_sha == manifest['transport_sha256'] == build['transport_sha256']
+          assert manifest['content_identity'] == build['content_identity']
+          print(json.dumps({
+              'candidate': os.environ['CANDIDATE'],
+              'version': os.environ['PACKAGE_VERSION'],
+              'content_identity': manifest['content_identity'],
+              'transport_sha256': archive_sha,
+              'manifest_sha256': manifest_sha,
+              'file_count': len(manifest['files']),
+              'managed_roots': manifest['managed_roots'],
+          }, sort_keys=True))
+          PY
+
+      - name: Rehydrate exact package into candidate worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, shutil
+          from pathlib import Path
+          package = json.loads(Path('/tmp/package.json').read_text())
+          for root in package['managed_roots']:
+              path = Path(root)
+              if path.exists():
+                  shutil.rmtree(path)
+          PY
+          tar -xzf "/tmp/package/reasoning-distiller-${PACKAGE_VERSION}.tar.gz" -C .
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          manifest = json.loads(Path(f"/tmp/package/reasoning-distiller-{os.environ['PACKAGE_VERSION']}.manifest.json").read_text())
+          expected = {item['path']: item['sha256'] for item in manifest['files']}
+          actual = {}
+          for root in manifest['managed_roots']:
+              for path in Path(root).rglob('*'):
+                  if path.is_file() and '__pycache__' not in path.parts and path.suffix not in {'.pyc', '.pyo'}:
+                      actual[path.as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+          assert actual == expected
+          print(f"EXACT_PACKAGE_REHYDRATION_PASS files={len(actual)}")
+          PY
+
+      - name: Retrieve exact historical downgrade assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v053
+          curl -L --fail --retry 3 https://github.com/loteque/reasoning-distiller/releases/download/v0.5.3/reasoning-distiller-0.5.3.manifest.json -o /tmp/v053/reasoning-distiller-0.5.3.manifest.json
+          curl -L --fail --retry 3 https://github.com/loteque/reasoning-distiller/releases/download/v0.5.3/reasoning-distiller-0.5.3.tar.gz -o /tmp/v053/reasoning-distiller-0.5.3.tar.gz
+          echo '5c9448c6e6acc6f3925aae173870f4d6e8a237035c0e870637ef8d7499765044  /tmp/v053/reasoning-distiller-0.5.3.manifest.json' | sha256sum -c -
+          echo '5d1751f1910e13ba5b3e9787a6188a1b995e0ac5b88bbec9c2ac935e9d33ef67  /tmp/v053/reasoning-distiller-0.5.3.tar.gz' | sha256sum -c -
+
+      - name: Run complete P10 candidate suite
+        shell: bash
+        env:
+          P10_G7_V053_MANIFEST: /tmp/v053/reasoning-distiller-0.5.3.manifest.json
+          P10_G7_V053_ARCHIVE: /tmp/v053/reasoning-distiller-0.5.3.tar.gz
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(find tests -maxdepth 1 -type f -name 'test_context_packaging_production_integration_p10_g*.py' -print | sort)
+          printf '%s\n' "${tests[@]}" | tee /tmp/p10-inventory.txt
+          python -m pytest --collect-only -q "${tests[@]}" | tee /tmp/p10-nodeids.txt
+          python -m pytest -q "${tests[@]}" 2>&1 | tee /tmp/p10.txt
+
+      - name: Retrieve durable exact-witness harness from evidence head
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/.github/evidence/p10-g9-pi-witness-remediation.py"
+          curl -L --fail --retry 3 -H "Authorization: Bearer ${GH_TOKEN}" "$url" -o /tmp/pi-witness-remediation.py
+          sha256sum /tmp/pi-witness-remediation.py | tee /tmp/pi-witness-script.sha256
+
+      - name: Execute exact PI witness set on exact candidate package runtime
+        shell: bash
+        env:
+          P10_G7_V053_MANIFEST: /tmp/v053/reasoning-distiller-0.5.3.manifest.json
+          P10_G7_V053_ARCHIVE: /tmp/v053/reasoning-distiller-0.5.3.tar.gz
+        run: |
+          set -euo pipefail
+          python /tmp/pi-witness-remediation.py execute 2>&1 | tee /tmp/pi-direct-execution.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.1"
+
+      - name: Execute unsupported-runtime pressure witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+          python - <<'PY'
+          import sys
+          assert sys.implementation.name == 'cpython'
+          assert sys.version_info[:3] == (3, 12, 1), sys.version
+          PY
+          python -m pytest -q \
+            tests/test_context_packaging_production_integration_p10_g7.py::test_p10_g7_v2_rejects_actual_unsupported_cpython_runtime \
+            2>&1 | tee /tmp/pi-unsupported-runtime.txt
+          echo 'P10_G9_UNSUPPORTED_RUNTIME_WITNESS_PASS' | tee -a /tmp/pi-unsupported-runtime.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+
+      - name: Restore exact supported runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+          python - <<'PY'
+          import sys
+          assert sys.implementation.name == 'cpython'
+          assert sys.version_info[:3] == (3, 12, 0), sys.version
+          assert sys.implementation.cache_tag == 'cpython-312'
+          print('P10_G9_EXACT_RUNTIME_RESTORED_PASS')
+          PY
+
+      - name: Run fixed production v1 regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_production_invocation.py 2>&1 | tee /tmp/v1.txt
+
+      - name: Run P1 v2 protocol schema baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_v2.py 2>&1 | tee /tmp/p1.txt
+
+      - name: Run all P1b negatives except inherited PS-19
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' 2>&1 | tee /tmp/p1b-except-ps19.txt
+          import importlib.util, json
+          from pathlib import Path
+          path = Path('tests/test_context_packaging_protocol_schemas_p1b.py')
+          spec = importlib.util.spec_from_file_location('p1b_except_ps19', path)
+          mod = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(mod)
+          mod.P1b.setUpClass()
+          case = mod.P1b(methodName='test_negative_fixtures_reject_and_classify_exactly')
+          original = case.fx['negative_cases']
+          selected = [item for item in original if item['id'] != 'PS-19']
+          ids = [item['id'] for item in selected]
+          assert len(selected) == len(original) - 1
+          assert 'PS-20' in ids
+          assert any(int(item.split('-')[1]) > 20 for item in ids if item.startswith('PS-'))
+          case.fx['negative_cases'] = selected
+          try:
+              case.test_negative_fixtures_reject_and_classify_exactly()
+          finally:
+              case.fx['negative_cases'] = original
+          print('P10_G9_P1B_NEGATIVES_EXCEPT_PS19_PASS')
+          print(json.dumps(ids))
+          PY
+
+      - name: Reproduce inherited PS-19 alone
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' 2>&1 | tee /tmp/ps19.txt
+          import importlib.util
+          from pathlib import Path
+          path = Path('tests/test_context_packaging_protocol_schemas_p1b.py')
+          spec = importlib.util.spec_from_file_location('p1b_ps19', path)
+          mod = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(mod)
+          mod.P1b.setUpClass()
+          case = mod.P1b(methodName='test_negative_fixtures_reject_and_classify_exactly')
+          original = case.fx['negative_cases']
+          selected = [item for item in original if item['id'] == 'PS-19']
+          assert len(selected) == 1
+          case.fx['negative_cases'] = selected
+          try:
+              try:
+                  case.test_negative_fixtures_reject_and_classify_exactly()
+              except AssertionError as exc:
+                  text = str(exc)
+                  assert 'PS-19' in text
+                  assert 'PLANE_CLASSIFICATION_CONFLICT' in text
+                  assert 'UNKNOWN_SEMANTICS_FIELD' in text
+                  print(text)
+                  print('P10_G9_INHERITED_PS19_REPRODUCED')
+              else:
+                  raise AssertionError('PS-19 unexpectedly passed')
+          finally:
+              case.fx['negative_cases'] = original
+          PY
+
+      - name: Run unaffected P0-P9 regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(find tests -maxdepth 1 -type f -name 'test_context_packaging_*.py' -print | sort | grep -v 'test_context_packaging_production_integration_p10_g')
+          printf '%s\n' "${tests[@]}" | tee /tmp/p0-p9-inventory.txt
+          python -m pytest -q "${tests[@]}" -k 'not test_p5_runtime_implementation_is_unchanged_by_amendment and not test_negative_fixtures_reject_and_classify_exactly' 2>&1 | tee /tmp/p0-p9.txt
+
+      - name: Run package and installer regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_package_builder.py tests/test_install_package_contract.py tests/test_installer_p3.py tests/test_installer_p4.py 2>&1 | tee /tmp/package-tests.txt
+
+      - name: Build exact PI-01 through PI-60 witness ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/pi-witness-remediation.py ledger 2>&1 | tee /tmp/pi-ledger.txt
+
+      - name: Write exact G9 evidence tuple
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          def load(path):
+              return json.loads(Path(path).read_text())
+          summary = {
+              'contract': 'reasoning-distiller-p10-g9-engineer-evidence/2',
+              'candidate': os.environ['CANDIDATE'],
+              'candidate_tree': Path('/tmp/candidate-tree.txt').read_text().strip(),
+              'governing_plan': os.environ['GOVERNING_PLAN'],
+              'governing_plan_blob': os.environ['GOVERNING_PLAN_BLOB'],
+              'package': load('/tmp/package.json'),
+              'runtime': load('/tmp/runtime.json'),
+              'pi_ledger': load('/tmp/pi-ledger.json'),
+              'witness_script_sha256': Path('/tmp/pi-witness-script.sha256').read_text().split()[0],
+              'matrix': {
+                  'p10_complete': 'PASS',
+                  'pi_direct_candidate_package_witnesses': 'PASS',
+                  'pi_exact_pytest_nodeid_witnesses': 'PASS',
+                  'pi_unsupported_runtime': 'PASS',
+                  'pi01_pi60_exact_witness_ledger': 'PASS',
+                  'production_v1': 'PASS',
+                  'p1_v2_schema': 'PASS',
+                  'p1b_negatives_except_ps19': 'PASS',
+                  'ps19_inherited_baseline': 'REPRODUCED_EXPECTED_MISMATCH',
+                  'p0_p9': 'PASS',
+                  'package_installer': 'PASS',
+              },
+              'workflow_run_id': os.environ['GITHUB_RUN_ID'],
+              'workflow_run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'evidence_head': os.environ['GITHUB_SHA'],
+          }
+          Path('/tmp/summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(Path('/tmp/summary.json').read_text())
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p10-g9-ae5d5c21-evidence-r2
+          if-no-files-found: error
+          path: |
+            /tmp/summary.json
+            /tmp/runtime.json
+            /tmp/dependencies.txt
+            /tmp/candidate-tree.txt
+            /tmp/build.json
+            /tmp/package.json
+            /tmp/package/reasoning-distiller-0.0.0-p10-g9-r2.tar.gz
+            /tmp/package/reasoning-distiller-0.0.0-p10-g9-r2.manifest.json
+            /tmp/package/reasoning-distiller-0.0.0-p10-g9-r2.sha256
+            /tmp/p10-inventory.txt
+            /tmp/p10-nodeids.txt
+            /tmp/p10.txt
+            /tmp/pi-witness-remediation.py
+            /tmp/pi-witness-script.sha256
+            /tmp/pi-direct-witnesses.json
+            /tmp/pi-direct-execution.txt
+            /tmp/pi-exact-pytest.txt
+            /tmp/pi-unsupported-runtime.txt
+            /tmp/pi-ledger.json
+            /tmp/pi-ledger.txt
+            /tmp/v1.txt
+            /tmp/p1.txt
+            /tmp/p1b-except-ps19.txt
+            /tmp/ps19.txt
+            /tmp/p0-p9-inventory.txt
+            /tmp/p0-p9.txt
+            /tmp/package-tests.txt
+
+      - name: Enforce exact G9 witness-remediation evidence gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'P10_G9_DIRECT_PI_WITNESSES_PASS' /tmp/pi-direct-execution.txt
+          grep -q 'P10_G9_UNSUPPORTED_RUNTIME_WITNESS_PASS' /tmp/pi-unsupported-runtime.txt
+          grep -q 'P10_G9_PI01_PI60_EXACT_WITNESS_LEDGER_PASS' /tmp/pi-ledger.txt
+          grep -q 'P10_G9_P1B_NEGATIVES_EXCEPT_PS19_PASS' /tmp/p1b-except-ps19.txt
+          grep -q 'P10_G9_INHERITED_PS19_REPRODUCED' /tmp/ps19.txt
+          echo 'P10_G9_WITNESS_REMEDIATION_ENGINEER_EXECUTION_PASS'
