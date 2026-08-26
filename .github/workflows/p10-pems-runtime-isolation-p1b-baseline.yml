@@ -1,0 +1,31 @@
+name: P10 P1b negative-fixture baseline comparison
+
+on:
+  push:
+    branches:
+      - evidence/p10-pems-runtime-isolation-824c812e-20260826
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: closed-semantic-base
+            ref: ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e
+          - label: remediation
+            ref: 824c812ed6ffe79b6a9afe7bfc9c1f6eab656a27
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Run P1b negative fixtures on ${{ matrix.label }}
+        run: python -m pytest -q tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly
