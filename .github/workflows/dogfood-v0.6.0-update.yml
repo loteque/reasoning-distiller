@@ -23,6 +23,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install package-contract dependency
+        run: python -m pip install --disable-pip-version-check jsonschema==4.25.1
+
       - name: Verify starting installation and accepted release
         shell: bash
         run: |
@@ -79,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
           record=json.loads(Path('.reasoning-distiller/.installation/INSTALLATION.json').read_text())
           manifest=json.loads(Path('.reasoning-distiller/.installation/MANIFEST.json').read_text())
@@ -93,8 +96,8 @@ jobs:
               assert record[key]==value, (key,record.get(key),value)
           assert record['source_repository']=='loteque/reasoning-distiller'
           assert record['source_locator']=='v0.6.0'
-          assert record['runner']['invocation_id']==f"github-actions:{__import__('os').environ['GITHUB_RUN_ID']}"
-          assert record['update_locator']==f"github-actions-run:{__import__('os').environ['GITHUB_RUN_ID']}"
+          assert record['runner']['invocation_id']==f"github-actions:{os.environ['GITHUB_RUN_ID']}"
+          assert record['update_locator']==f"github-actions-run:{os.environ['GITHUB_RUN_ID']}"
           assert manifest['version']=='0.6.0'
           assert manifest['source_commit']==expected['source_commit']
           assert manifest['content_identity']==expected['content_identity']
