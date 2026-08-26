@@ -132,3 +132,20 @@ R13 PASS requires tests proving at least:
 10. exact retry is idempotent;
 11. conflicting second admission is rejected;
 12. canonical mutation occurs only through a valid admission path.
+
+## Canonical PEMS/COVE recovery boundary amendment
+
+This section is normative for the accepted Mode A V1 recovery design in `RIL_CANONICAL_PEMS_COVE_RECOVERY_CONTRACT.md` and narrows the phrase “only RIL primitive” above to **only ordinary admission primitive**.
+
+1. R13 remains the sole ordinary admission primitive allowed to mutate canonical PEMS/COVE.
+2. `RIL_CANONICAL_PEMS_COVE_RECOVERY_CONTRACT.md` is the sole explicit V1 exceptional mutation path for an already-invalid canonical PEMS/COVE pair.
+3. The exception does not weaken any ordinary admission authority, activation, reconciliation, plan, exact-base, validation, receipt, or idempotence requirement.
+4. Invalid Canon is never an R13 base. R13 MUST NOT parse-normalize, reinterpret, or repair an invalid canonical base into admissible state.
+5. R13 MUST refuse any present `project-knowledge/recovery/canonical-pems-cove/active.json`, including malformed, unsafe-path, unknown-contract, or indeterminate barrier state.
+6. Supported R13 canonical I/O MUST use the shared canonical-store exclusive-lock and barrier boundary frozen by the recovery contract before G1 may be considered complete.
+7. After a recovery transaction is complete, the barrier is absent, and R14 V2 verifies the exact current pair as `PASS/VERIFIED_RECOVERED`, that valid pair may be used as the base of a later ordinary admission transaction.
+8. A later admission over recovered state remains an independent R13 act and still requires a valid admission reconciliation disposition, independent `admission` activation, exact transaction plan, exact-base guard, and new admission receipt.
+9. A canonical-recovery completion record is recovery-native provenance. It is never an admission receipt and MUST NOT be relabeled, rewritten, or accepted as one.
+10. R13 admission and canonical recovery MUST NOT mutate Canon concurrently.
+
+These recovery-boundary rules do not authorize a real recovery operation and do not authorize or resume P3.
