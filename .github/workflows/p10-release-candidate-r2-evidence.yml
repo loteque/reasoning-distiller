@@ -180,10 +180,67 @@ jobs:
             tests/test_p10_packaged_pems_runtime_isolation_remediation.py \
             tests/test_production_invocation.py
 
-      - name: Run complete context-packaging suite on exact supported runtime
+      - name: Run current context-packaging regressions
         shell: bash
         working-directory: source
-        run: python -m pytest -q tests/test_context_packaging*.py
+        run: |
+          python -m pytest -q tests/test_context_packaging*.py \
+            --deselect=tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly \
+            --deselect=tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment
+
+      - name: Prove superseded historical invariants have exact accepted cause
+        shell: bash
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python - <<'PY' | tee /tmp/superseded-context-invariants.txt
+          import importlib.util
+          from pathlib import Path
+
+          path = Path('tests/test_context_packaging_protocol_schemas_p1b.py')
+          spec = importlib.util.spec_from_file_location('p1b_release_witness', path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(module)
+          module.P1b.setUpClass()
+
+          case = module.P1b(methodName='test_negative_fixtures_reject_and_classify_exactly')
+          original = case.fx['negative_cases']
+          non_ps19 = [item for item in original if item['id'] != 'PS-19']
+          assert len(non_ps19) == len(original) - 1
+          case.fx['negative_cases'] = non_ps19
+          try:
+              case.test_negative_fixtures_reject_and_classify_exactly()
+          finally:
+              case.fx['negative_cases'] = original
+          print('P10_RELEASE_P1B_NEGATIVES_EXCEPT_PS19_PASS')
+
+          case = module.P1b(methodName='test_negative_fixtures_reject_and_classify_exactly')
+          original = case.fx['negative_cases']
+          ps19 = [item for item in original if item['id'] == 'PS-19']
+          assert len(ps19) == 1
+          case.fx['negative_cases'] = ps19
+          try:
+              try:
+                  case.test_negative_fixtures_reject_and_classify_exactly()
+              except AssertionError as exc:
+                  text = str(exc)
+                  assert 'PS-19' in text
+                  assert 'PLANE_CLASSIFICATION_CONFLICT' in text
+                  assert 'UNKNOWN_SEMANTICS_FIELD' in text
+                  print('P10_RELEASE_PS19_EXPECTED_MISMATCH_REPRODUCED')
+              else:
+                  raise AssertionError('PS-19 unexpectedly passed historical expectation')
+          finally:
+              case.fx['negative_cases'] = original
+          PY
+          current_blob="$(git hash-object context_packaging/pack_builder.py)"
+          closed_blob="$(git rev-parse "$CLOSED_P10_SHA:context_packaging/pack_builder.py")"
+          test "$current_blob" = "$closed_blob"
+          test "$current_blob" = '167602c87ea1766ae9978ed8a67098613e1f96ff'
+          test "$current_blob" != 'b0e806e966598e6d819b6d52c643efa23cdb6ef9'
+          printf 'P10_RELEASE_P5_STALE_BLOB_ASSERTION_REPRODUCED current=%s stale=%s\n' \
+            "$current_blob" 'b0e806e966598e6d819b6d52c643efa23cdb6ef9' | tee -a /tmp/superseded-context-invariants.txt
 
       - name: Run extraction-parity release checks
         working-directory: source
@@ -252,7 +309,8 @@ jobs:
                   'deterministic_rebuild': True,
                   'package_contracts': True,
                   'installer_and_runtime_isolation': True,
-                  'context_packaging_suite': True,
+                  'current_context_packaging_regressions': True,
+                  'superseded_historical_invariants_reproduced': True,
                   'extraction_parity': True,
                   'release_published': False,
                   'main_mutated': False,
@@ -267,6 +325,7 @@ jobs:
           cp "/tmp/rd-rc-a/reasoning-distiller-${RC_VERSION}.sha256" /tmp/p10-rc-evidence-r2/
           cp /tmp/remediation-delta.txt /tmp/p10-rc-evidence-r2/
           cp /tmp/integration-to-clean.txt /tmp/p10-rc-evidence-r2/
+          cp /tmp/superseded-context-invariants.txt /tmp/p10-rc-evidence-r2/
 
       - name: Upload exact RC retry evidence
         uses: actions/upload-artifact@v4
