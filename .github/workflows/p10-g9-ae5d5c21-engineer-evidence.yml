@@ -93,22 +93,23 @@ jobs:
           python - <<'PY'
           import json, shutil
           from pathlib import Path
-          p = json.loads(Path('/tmp/package.json').read_text())
-          for root in p['managed_roots']:
+          package = json.loads(Path('/tmp/package.json').read_text())
+          for root in package['managed_roots']:
               path = Path(root)
-              if path.exists(): shutil.rmtree(path)
+              if path.exists():
+                  shutil.rmtree(path)
           PY
           tar -xzf "/tmp/package/reasoning-distiller-${PACKAGE_VERSION}.tar.gz" -C .
           python - <<'PY'
           import hashlib, json, os
           from pathlib import Path
-          m = json.loads(Path(f"/tmp/package/reasoning-distiller-{os.environ['PACKAGE_VERSION']}.manifest.json").read_text())
-          expected = {x['path']: x['sha256'] for x in m['files']}
+          manifest = json.loads(Path(f"/tmp/package/reasoning-distiller-{os.environ['PACKAGE_VERSION']}.manifest.json").read_text())
+          expected = {item['path']: item['sha256'] for item in manifest['files']}
           actual = {}
-          for root in m['managed_roots']:
-              for p in Path(root).rglob('*'):
-                  if p.is_file() and '__pycache__' not in p.parts and p.suffix not in {'.pyc', '.pyo'}:
-                      actual[p.as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
+          for root in manifest['managed_roots']:
+              for path in Path(root).rglob('*'):
+                  if path.is_file() and '__pycache__' not in path.parts and path.suffix not in {'.pyc', '.pyo'}:
+                      actual[path.as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
           assert actual == expected
           print(f"EXACT_PACKAGE_REHYDRATION_PASS files={len(actual)}")
           PY
@@ -129,16 +130,16 @@ jobs:
           P10_G7_V053_MANIFEST: /tmp/v053/reasoning-distiller-0.5.3.manifest.json
           P10_G7_V053_ARCHIVE: /tmp/v053/reasoning-distiller-0.5.3.tar.gz
         run: |
-          set +e
+          set -euo pipefail
           mapfile -t tests < <(find tests -maxdepth 1 -type f -name 'test_context_packaging_production_integration_p10_g*.py' -print | sort)
           printf '%s\n' "${tests[@]}" | tee /tmp/p10-inventory.txt
+          python -m pytest --collect-only -q "${tests[@]}" | tee /tmp/p10-nodeids.txt
           python -m pytest -q "${tests[@]}" 2>&1 | tee /tmp/p10.txt
-          s=${PIPESTATUS[0]}; set -e; echo "P10_STATUS=$s" >> "$GITHUB_ENV"
 
       - name: Exercise PI-09 through installed rd-distill entrypoint
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           python - <<'PY' 2>&1 | tee /tmp/pi09-installed-entry.txt
           import copy, hashlib, importlib.util, json, os, shutil, subprocess, sys
           from pathlib import Path
@@ -150,18 +151,26 @@ jobs:
               assert spec.loader is not None
               spec.loader.exec_module(mod)
               return mod
+
           g4 = load('p10_g9_pi09_g4', ROOT / 'tests/test_context_packaging_production_integration_p10_g4.py')
           manifest = json.loads(Path(f"/tmp/package/reasoning-distiller-{os.environ['PACKAGE_VERSION']}.manifest.json").read_text())
           archive = Path(f"/tmp/package/reasoning-distiller-{os.environ['PACKAGE_VERSION']}.tar.gz")
           manifest_path = Path(f"/tmp/package/reasoning-distiller-{os.environ['PACKAGE_VERSION']}.manifest.json")
-          def raw(v):
-              return json.dumps(v, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
-          def sha(b):
-              return 'sha256:' + hashlib.sha256(b).hexdigest()
-          for field, wrong in [('consumer_contract','reasoning-distiller-invocation/99'), ('consumer_id','not-rd-distill')]:
+
+          def raw(value):
+              return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
+          def sha(data):
+              return 'sha256:' + hashlib.sha256(data).hexdigest()
+
+          for field, wrong in [
+              ('consumer_contract', 'reasoning-distiller-invocation/99'),
+              ('consumer_id', 'not-rd-distill'),
+          ]:
               base = Path('/tmp') / f'pi09-{field}'
-              if base.exists(): shutil.rmtree(base)
-              project = base / 'project'; project.mkdir(parents=True)
+              if base.exists():
+                  shutil.rmtree(base)
+              project = base / 'project'
+              project.mkdir(parents=True)
               installed = g4.installer.install(archive, manifest_path, manifest['transport_sha256'], project)
               assert installed['status'] == 'PASS'
               request, _, request_path = g4._request_for(project)
@@ -171,8 +180,10 @@ jobs:
               eligibility = json.loads(eligibility_path.read_bytes())
               pack['eligibility'][field] = wrong
               eligibility['consumer'][field] = wrong
-              pack_raw = raw(pack); eligibility_raw = raw(eligibility)
-              pack_path.write_bytes(pack_raw); eligibility_path.write_bytes(eligibility_raw)
+              pack_raw = raw(pack)
+              eligibility_raw = raw(eligibility)
+              pack_path.write_bytes(pack_raw)
+              eligibility_path.write_bytes(eligibility_raw)
               mutated = copy.deepcopy(request)
               mutated['context']['pack']['raw_sha256'] = sha(pack_raw)
               mutated['context']['profile_eligibility']['raw_sha256'] = sha(eligibility_raw)
@@ -192,19 +203,21 @@ jobs:
               print(f'PI09_INSTALLED_ENTRY_FAIL_CLOSED_PASS field={field}')
           print('P10_G9_PI09_INSTALLED_RD_DISTILL_NO_BYPASS_PASS')
           PY
-          s=${PIPESTATUS[0]}; set -e; echo "PI09_ENTRY_STATUS=$s" >> "$GITHUB_ENV"
 
       - name: Build mechanically complete PI-01 through PI-60 execution ledger
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           python - <<'PY' 2>&1 | tee /tmp/pi-ledger.txt
-          import importlib.util, json
+          import importlib.util, json, os
           from pathlib import Path
-          root = Path.cwd()
-          path = root / 'tests/test_context_packaging_production_integration_p10_g0.py'
+
+          path = Path('tests/test_context_packaging_production_integration_p10_g0.py')
           spec = importlib.util.spec_from_file_location('p10_g0_ledger', path)
-          g0 = importlib.util.module_from_spec(spec); assert spec.loader is not None; spec.loader.exec_module(g0)
+          g0 = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(g0)
+
           inventory = [line.strip() for line in Path('/tmp/p10-inventory.txt').read_text().splitlines() if line.strip()]
           groups = {
               'G1': 'tests/test_context_packaging_production_integration_p10_g1.py',
@@ -216,155 +229,180 @@ jobs:
               'G7': 'tests/test_context_packaging_production_integration_p10_g7.py',
               'G9R': 'tests/test_context_packaging_production_integration_p10_g9_remediation.py',
           }
-          assert all(v in inventory for v in groups.values()), (inventory, groups)
-          def witnesses(n):
-              if n <= 14: return ['G4','G9R'] if n == 9 else ['G4']
-              if n <= 22: return ['G3','G6']
-              if n <= 31: return ['G1','G4','G5']
-              if n <= 40: return ['G2','G4','G6','G7']
-              if n <= 48: return ['G1','G3','G6']
-              if n <= 54: return ['G2','G4','G5']
-              return ['G1','G6','G7']
-          rows=[]
+          assert all(value in inventory for value in groups.values())
+
+          def witnesses(number):
+              if number <= 14:
+                  return ['G4', 'G9R'] if number == 9 else ['G4']
+              if number <= 22:
+                  return ['G3', 'G6']
+              if number <= 31:
+                  return ['G1', 'G4', 'G5']
+              if number <= 40:
+                  return ['G2', 'G4', 'G6', 'G7']
+              if number <= 48:
+                  return ['G1', 'G3', 'G6']
+              if number <= 54:
+                  return ['G2', 'G4', 'G5']
+              return ['G1', 'G6', 'G7']
+
+          rows = []
           for case in g0.PRESSURE_CASES:
-              n=int(case[0].split('-')[1])
+              number = int(case[0].split('-')[1])
               rows.append({
-                  'id': case[0], 'frozen_outcome': case[3], 'failure_class': case[4],
-                  'witness_suites': [groups[x] for x in witnesses(n)],
-                  'candidate_suite_status_source': '/tmp/p10.txt',
+                  'id': case[0],
+                  'frozen_outcome': case[3],
+                  'failure_class': case[4],
+                  'witness_suites': [groups[key] for key in witnesses(number)],
+                  'candidate_suite_log': '/tmp/p10.txt',
+                  'collected_nodeids': '/tmp/p10-nodeids.txt',
                   'special_entrypoint_witness': '/tmp/pi09-installed-entry.txt' if case[0] == 'PI-09' else None,
               })
-          assert [r['id'] for r in rows] == [f'PI-{i:02d}' for i in range(1,61)]
-          assert len(rows) == 60 and all(r['witness_suites'] for r in rows)
-          Path('/tmp/pi-ledger.json').write_text(json.dumps({
-              'contract':'reasoning-distiller-p10-g9-pi-execution-ledger/1',
-              'candidate': __import__('os').environ['CANDIDATE'],
-              'governing_plan': __import__('os').environ['GOVERNING_PLAN'],
+
+          assert [row['id'] for row in rows] == [f'PI-{number:02d}' for number in range(1, 61)]
+          assert len(rows) == 60 and all(row['witness_suites'] for row in rows)
+          output = {
+              'contract': 'reasoning-distiller-p10-g9-pi-execution-ledger/1',
+              'candidate': os.environ['CANDIDATE'],
+              'candidate_tree': os.environ['CANDIDATE_TREE'],
+              'governing_plan': os.environ['GOVERNING_PLAN'],
               'rows': rows,
-          }, indent=2, sort_keys=True)+'\n')
+          }
+          Path('/tmp/pi-ledger.json').write_text(json.dumps(output, indent=2, sort_keys=True) + '\n')
           print(Path('/tmp/pi-ledger.json').read_text())
           print('P10_G9_PI01_PI60_LEDGER_COMPLETE_PASS')
           PY
-          s=${PIPESTATUS[0]}; set -e; echo "PI_LEDGER_STATUS=$s" >> "$GITHUB_ENV"
 
       - name: Run fixed production v1 regressions
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           python -m pytest -q tests/test_production_invocation.py 2>&1 | tee /tmp/v1.txt
-          s=${PIPESTATUS[0]}; set -e; echo "V1_STATUS=$s" >> "$GITHUB_ENV"
 
-      - name: Run P1 protocol schema baseline
+      - name: Run P1 v2 protocol schema baseline
         shell: bash
         run: |
-          set +e
-          python -m pytest -q tests/test_context_packaging_protocol_schemas.py 2>&1 | tee /tmp/p1.txt
-          s=${PIPESTATUS[0]}; set -e; echo "P1_STATUS=$s" >> "$GITHUB_ENV"
+          set -euo pipefail
+          python -m pytest -q tests/test_context_packaging_protocol_schemas_v2.py 2>&1 | tee /tmp/p1.txt
 
       - name: Run all P1b negatives except inherited PS-19
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           python - <<'PY' 2>&1 | tee /tmp/p1b-except-ps19.txt
           import importlib.util, json
           from pathlib import Path
+
           path = Path('tests/test_context_packaging_protocol_schemas_p1b.py')
           spec = importlib.util.spec_from_file_location('p1b_except_ps19', path)
-          mod = importlib.util.module_from_spec(spec); assert spec.loader is not None; spec.loader.exec_module(mod)
+          mod = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(mod)
           mod.P1b.setUpClass()
           case = mod.P1b(methodName='test_negative_fixtures_reject_and_classify_exactly')
           original = case.fx['negative_cases']
-          selected = [x for x in original if x['id'] != 'PS-19']
-          ids = [x['id'] for x in selected]
+          selected = [item for item in original if item['id'] != 'PS-19']
+          ids = [item['id'] for item in selected]
           assert len(selected) == len(original) - 1
-          assert ids and 'PS-20' in ids and any(int(x.split('-')[1]) > 20 for x in ids if x.startswith('PS-'))
+          assert 'PS-20' in ids
+          assert any(int(item.split('-')[1]) > 20 for item in ids if item.startswith('PS-'))
           case.fx['negative_cases'] = selected
-          try: case.test_negative_fixtures_reject_and_classify_exactly()
-          finally: case.fx['negative_cases'] = original
+          try:
+              case.test_negative_fixtures_reject_and_classify_exactly()
+          finally:
+              case.fx['negative_cases'] = original
           print('P10_G9_P1B_NEGATIVES_EXCEPT_PS19_PASS')
           print(json.dumps(ids))
           PY
-          s=${PIPESTATUS[0]}; set -e; echo "P1B_STATUS=$s" >> "$GITHUB_ENV"
 
       - name: Reproduce inherited PS-19 alone
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           python - <<'PY' 2>&1 | tee /tmp/ps19.txt
           import importlib.util
           from pathlib import Path
+
           path = Path('tests/test_context_packaging_protocol_schemas_p1b.py')
           spec = importlib.util.spec_from_file_location('p1b_ps19', path)
-          mod = importlib.util.module_from_spec(spec); assert spec.loader is not None; spec.loader.exec_module(mod)
+          mod = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(mod)
           mod.P1b.setUpClass()
           case = mod.P1b(methodName='test_negative_fixtures_reject_and_classify_exactly')
-          original = case.fx['negative_cases']; selected = [x for x in original if x['id'] == 'PS-19']; assert len(selected) == 1
+          original = case.fx['negative_cases']
+          selected = [item for item in original if item['id'] == 'PS-19']
+          assert len(selected) == 1
           case.fx['negative_cases'] = selected
           try:
-              try: case.test_negative_fixtures_reject_and_classify_exactly()
+              try:
+                  case.test_negative_fixtures_reject_and_classify_exactly()
               except AssertionError as exc:
                   text = str(exc)
-                  assert 'PS-19' in text and 'PLANE_CLASSIFICATION_CONFLICT' in text and 'UNKNOWN_SEMANTICS_FIELD' in text, text
-                  print(text); print('P10_G9_INHERITED_PS19_REPRODUCED')
-              else: raise AssertionError('PS-19 unexpectedly passed')
-          finally: case.fx['negative_cases'] = original
+                  assert 'PS-19' in text
+                  assert 'PLANE_CLASSIFICATION_CONFLICT' in text
+                  assert 'UNKNOWN_SEMANTICS_FIELD' in text
+                  print(text)
+                  print('P10_G9_INHERITED_PS19_REPRODUCED')
+              else:
+                  raise AssertionError('PS-19 unexpectedly passed')
+          finally:
+              case.fx['negative_cases'] = original
           PY
-          s=${PIPESTATUS[0]}; set -e; echo "PS19_STATUS=$s" >> "$GITHUB_ENV"
 
       - name: Run unaffected P0-P9 regressions
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           mapfile -t tests < <(find tests -maxdepth 1 -type f -name 'test_context_packaging_*.py' -print | sort | grep -v 'test_context_packaging_production_integration_p10_g')
           printf '%s\n' "${tests[@]}" | tee /tmp/p0-p9-inventory.txt
           python -m pytest -q "${tests[@]}" -k 'not test_p5_runtime_implementation_is_unchanged_by_amendment and not test_negative_fixtures_reject_and_classify_exactly' 2>&1 | tee /tmp/p0-p9.txt
-          s=${PIPESTATUS[0]}; set -e; echo "P0_P9_STATUS=$s" >> "$GITHUB_ENV"
 
       - name: Run package and installer regressions
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           python -m pytest -q tests/test_package_builder.py tests/test_install_package_contract.py tests/test_installer_p3.py tests/test_installer_p4.py 2>&1 | tee /tmp/package-tests.txt
-          s=${PIPESTATUS[0]}; set -e; echo "PACKAGE_STATUS=$s" >> "$GITHUB_ENV"
 
       - name: Write exact G9 evidence tuple
-        if: always()
         shell: bash
         run: |
+          set -euo pipefail
           python - <<'PY'
           import json, os
           from pathlib import Path
-          def load(p):
-              q=Path(p); return json.loads(q.read_text()) if q.exists() else None
-          summary={
-              'contract':'reasoning-distiller-p10-g9-engineer-evidence/1',
-              'candidate':os.environ.get('CANDIDATE'),
-              'candidate_tree':Path('/tmp/candidate-tree.txt').read_text().strip() if Path('/tmp/candidate-tree.txt').exists() else None,
-              'governing_plan':os.environ.get('GOVERNING_PLAN'),
-              'governing_plan_blob':os.environ.get('GOVERNING_PLAN_BLOB'),
-              'package':load('/tmp/package.json'),
-              'runtime':load('/tmp/runtime.json'),
-              'pi_ledger':load('/tmp/pi-ledger.json'),
-              'statuses':{
-                  'p10_complete':os.environ.get('P10_STATUS'),
-                  'pi09_installed_entry':os.environ.get('PI09_ENTRY_STATUS'),
-                  'pi01_pi60_ledger':os.environ.get('PI_LEDGER_STATUS'),
-                  'production_v1':os.environ.get('V1_STATUS'),
-                  'p1_schema':os.environ.get('P1_STATUS'),
-                  'p1b_negatives_except_ps19':os.environ.get('P1B_STATUS'),
-                  'ps19_inherited_baseline':os.environ.get('PS19_STATUS'),
-                  'p0_p9':os.environ.get('P0_P9_STATUS'),
-                  'package_installer':os.environ.get('PACKAGE_STATUS'),
+
+          def load(path):
+              return json.loads(Path(path).read_text())
+
+          summary = {
+              'contract': 'reasoning-distiller-p10-g9-engineer-evidence/1',
+              'candidate': os.environ['CANDIDATE'],
+              'candidate_tree': Path('/tmp/candidate-tree.txt').read_text().strip(),
+              'governing_plan': os.environ['GOVERNING_PLAN'],
+              'governing_plan_blob': os.environ['GOVERNING_PLAN_BLOB'],
+              'package': load('/tmp/package.json'),
+              'runtime': load('/tmp/runtime.json'),
+              'pi_ledger': load('/tmp/pi-ledger.json'),
+              'matrix': {
+                  'p10_complete': 'PASS',
+                  'pi09_installed_entry': 'PASS',
+                  'pi01_pi60_ledger': 'PASS',
+                  'production_v1': 'PASS',
+                  'p1_v2_schema': 'PASS',
+                  'p1b_negatives_except_ps19': 'PASS',
+                  'ps19_inherited_baseline': 'REPRODUCED_EXPECTED_MISMATCH',
+                  'p0_p9': 'PASS',
+                  'package_installer': 'PASS',
               },
-              'workflow_run_id':os.environ.get('GITHUB_RUN_ID'),
-              'workflow_run_attempt':os.environ.get('GITHUB_RUN_ATTEMPT'),
+              'workflow_run_id': os.environ['GITHUB_RUN_ID'],
+              'workflow_run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
           }
-          Path('/tmp/summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+          Path('/tmp/summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
           print(Path('/tmp/summary.json').read_text())
           PY
 
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: p10-g9-ae5d5c21-evidence
           if-no-files-found: error
@@ -379,6 +417,7 @@ jobs:
             /tmp/package/reasoning-distiller-0.0.0-p10-g9-r1.manifest.json
             /tmp/package/reasoning-distiller-0.0.0-p10-g9-r1.sha256
             /tmp/p10-inventory.txt
+            /tmp/p10-nodeids.txt
             /tmp/p10.txt
             /tmp/pi09-installed-entry.txt
             /tmp/pi-ledger.json
@@ -395,13 +434,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$P10_STATUS" -eq 0
-          test "$PI09_ENTRY_STATUS" -eq 0
-          test "$PI_LEDGER_STATUS" -eq 0
-          test "$V1_STATUS" -eq 0
-          test "$P1_STATUS" -eq 0
-          test "$P1B_STATUS" -eq 0
-          test "$PS19_STATUS" -eq 0
-          test "$P0_P9_STATUS" -eq 0
-          test "$PACKAGE_STATUS" -eq 0
+          grep -q 'P10_G9_PI09_INSTALLED_RD_DISTILL_NO_BYPASS_PASS' /tmp/pi09-installed-entry.txt
+          grep -q 'P10_G9_PI01_PI60_LEDGER_COMPLETE_PASS' /tmp/pi-ledger.txt
+          grep -q 'P10_G9_P1B_NEGATIVES_EXCEPT_PS19_PASS' /tmp/p1b-except-ps19.txt
+          grep -q 'P10_G9_INHERITED_PS19_REPRODUCED' /tmp/ps19.txt
           echo 'P10_G9_REMEDIATION_ENGINEER_EXECUTION_PASS'
