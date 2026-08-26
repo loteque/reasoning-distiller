@@ -1,0 +1,6 @@
+{
+  "contract": "reasoning-distiller-p1c-closure-descriptor-identity-fixture/1",
+  "p1d_closure_rules_included": false,
+  "scope": "P1C_TOOLCHAIN_IDENTITY_ONLY",
+  "semantic": "pems/2"
+}

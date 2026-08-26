@@ -15,9 +15,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RELEASE_VERSION: '0.5.2'
-  RELEASE_TAG: 'v0.5.2'
-  SOURCE_SHA: '90bc23ed90f12f06d41d019c79994747709ab326'
+  RELEASE_VERSION: '0.5.3'
+  RELEASE_TAG: 'v0.5.3'
+  SOURCE_SHA: '1d781baf8be8f21d25eb85ddc340f1d2bc93922b'
 
 jobs:
   accept-release:

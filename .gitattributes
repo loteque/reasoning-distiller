@@ -1,0 +1,34 @@
+# P7 reproducibility: these artifacts are hashed as exact behavior bytes.
+# Disable checkout-time text conversion so Git blob bytes remain the runtime bytes
+# on every host, including Windows configurations with core.autocrlf enabled.
+backends/pems-cove/pems-v2.schema.json -text
+backends/pems-cove/validate_pems2_contract.py -text
+protocols/rgp/pems2-context-closure-v1.json -text
+protocols/rgp/context-renderer-v1.json -text
+protocols/rgp/context-renderer-v2.json -text
+protocols/rgp/renderer-execution-binding-v1.json -text
+protocols/rgp/python-closed-bundle-v1.json -text
+schemas/context-renderer-profile.schema.json -text
+schemas/context-rendered-activation.schema.json -text
+schemas/context-renderer-profile-v2.schema.json -text
+schemas/context-rendered-activation-v2.schema.json -text
+schemas/renderer-execution-binding.schema.json -text
+schemas/python-closed-bundle-descriptor.schema.json -text
+context_packaging/pems_projection.py -text
+context_packaging/pack_builder.py -text
+context_packaging/pack_builder_v1.py -text
+context_packaging/source_resolver.py -text
+context_packaging/cove_adapter.py -text
+context_packaging/renderer.py -text
+context_packaging/provenance_bridge.py -text
+admission/apply_admission_transaction.py -text
+
+# P10-G1 protocol/handoff freeze: preserve exact protocol and schema bytes.
+protocols/rgp/production-integration-v2.json -text
+schemas/invocation-request-v2.schema.json -text
+schemas/activation-bundle-v2.schema.json -text
+schemas/invocation-result-v2.schema.json -text
+schemas/context-provenance-registry.schema.json -text
+schemas/prepared-invocation.schema.json -text
+schemas/model-transport.schema.json -text
+tests/fixtures/p10-g1-protocol-fixtures-v1.json -text

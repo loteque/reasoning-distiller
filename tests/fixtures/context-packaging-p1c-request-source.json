@@ -1,0 +1,149 @@
+{
+  "contract": "reasoning-distiller-context-pack-request/1",
+  "request_id": "r1",
+  "profile": {
+    "profile_id": "p1",
+    "profile_version": "1",
+    "raw_sha256": "sha256:f56f5222cc7e84ffa9798ccf0f3e64f746d881dd728386daa5ace81c4f51ab35"
+  },
+  "source_bindings": [
+    {
+      "commit": "1111111111111111111111111111111111111111",
+      "contract": "reasoning-distiller-context-source-binding/1",
+      "logical_namespace": "repo:x",
+      "logical_source_id": "ctrl",
+      "path": "c",
+      "raw_sha256": "sha256:8e4621379786ef42a4fec155cd525c291dd7db3c1fde3478522f4f61c03fd1bd",
+      "repository": "x/y",
+      "source_class": "repository_control"
+    },
+    {
+      "backend_config_identity": "cfg",
+      "backend_contract": "backend/1",
+      "backend_type": "pems-cove",
+      "contract": "reasoning-distiller-context-source-binding/1",
+      "immutable_snapshot_id": "s1",
+      "logical_namespace": "project:p",
+      "logical_source_id": "k",
+      "pems_semantic": "pems/2",
+      "pems_sha256": "sha256:ba2b16d612b2b7defef3d9061d95d4875e8ec8a28fb1078031f24f813968b5df",
+      "project_id": "p",
+      "serializer": "jcs/1",
+      "source_class": "canonical_state",
+      "standing_evidence": [
+        {
+          "contract": "standing/1",
+          "immutable_snapshot_id": "e1",
+          "raw_sha256": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"
+        }
+      ]
+    },
+    {
+      "artifact_contract": "op/1",
+      "contract": "reasoning-distiller-context-source-binding/1",
+      "immutable_snapshot_id": "o1",
+      "logical_namespace": "project:p",
+      "logical_source_id": "op",
+      "raw_sha256": "sha256:29bac992cbe2034c4ae38df89585e69040c24f7398a28a9311d7260d3ecdc926",
+      "source_class": "operational_evidence",
+      "validation_status": "carried_unvalidated"
+    }
+  ],
+  "slot_bindings": [
+    {
+      "slot_id": "control",
+      "plane": "control",
+      "source_ref": {
+        "commit": "1111111111111111111111111111111111111111",
+        "logical_namespace": "repo:x",
+        "logical_source_id": "ctrl",
+        "path": "c",
+        "raw_sha256": "sha256:8e4621379786ef42a4fec155cd525c291dd7db3c1fde3478522f4f61c03fd1bd",
+        "repository": "x/y",
+        "source_class": "repository_control"
+      }
+    },
+    {
+      "slot_id": "op",
+      "plane": "operational_evidence",
+      "source_ref": {
+        "artifact_contract": "op/1",
+        "immutable_snapshot_id": "o1",
+        "logical_namespace": "project:p",
+        "logical_source_id": "op",
+        "raw_sha256": "sha256:29bac992cbe2034c4ae38df89585e69040c24f7398a28a9311d7260d3ecdc926",
+        "source_class": "operational_evidence",
+        "validation_status": "carried_unvalidated"
+      }
+    }
+  ],
+  "multiple_snapshot_sources": [],
+  "accepted_canonical_standing": [
+    {
+      "condition": "accepted_project_backend_canonical_standing",
+      "canonical_ref": {
+        "source_class": "canonical_state",
+        "logical_namespace": "project:p",
+        "logical_source_id": "k"
+      },
+      "canonical_snapshot_address": {
+        "project_id": "p",
+        "backend_type": "pems-cove",
+        "backend_contract": "backend/1",
+        "backend_config_identity": "cfg",
+        "immutable_snapshot_id": "s1"
+      },
+      "canonical_fingerprint": {
+        "project_id": "p",
+        "backend_type": "pems-cove",
+        "backend_contract": "backend/1",
+        "backend_config_identity": "cfg",
+        "immutable_snapshot_id": "s1",
+        "pems_semantic": "pems/2",
+        "serializer": "jcs/1",
+        "pems_sha256": "sha256:ba2b16d612b2b7defef3d9061d95d4875e8ec8a28fb1078031f24f813968b5df",
+        "standing_evidence": [
+          {
+            "contract": "standing/1",
+            "immutable_snapshot_id": "e1",
+            "raw_sha256": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"
+          }
+        ]
+      }
+    }
+  ],
+  "knowledge_selection": {
+    "snapshots": [
+      {
+        "canonical_snapshot_ref": {
+          "backend_config_identity": "cfg",
+          "backend_contract": "backend/1",
+          "backend_type": "pems-cove",
+          "immutable_snapshot_id": "s1",
+          "logical_namespace": "project:p",
+          "logical_source_id": "k",
+          "pems_semantic": "pems/2",
+          "pems_sha256": "sha256:ba2b16d612b2b7defef3d9061d95d4875e8ec8a28fb1078031f24f813968b5df",
+          "project_id": "p",
+          "serializer": "jcs/1",
+          "source_class": "canonical_state",
+          "standing_evidence": [
+            {
+              "contract": "standing/1",
+              "immutable_snapshot_id": "e1",
+              "raw_sha256": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"
+            }
+          ]
+        },
+        "record_ids": [],
+        "relation_ids": []
+      }
+    ]
+  },
+  "consistency_requirements": [],
+  "output": {
+    "pack_contract": "reasoning-distiller-context-pack/1",
+    "serializer": "jcs/1",
+    "knowledge_encoding": "pems/2"
+  }
+}
