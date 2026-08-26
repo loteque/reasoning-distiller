@@ -2,7 +2,7 @@ name: Extraction Parity
 
 on:
   push:
-    branches: [main]
+    branches: [main, eval/realistic-context-pack-py312-20260826]
   pull_request:
   workflow_dispatch:
 
