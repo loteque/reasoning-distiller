@@ -1,0 +1,115 @@
+name: P10 G7 ec410a50 Engineer evidence
+
+on:
+  pull_request:
+    branches:
+      - impl/p10-g7-migration-rollback-20260825
+
+permissions:
+  contents: read
+
+jobs:
+  g7-compatibility-and-downgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact G7 semantic candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ec410a501e7db051f59eb2fb373c30da150bd81a
+          fetch-depth: 0
+      - name: Set up exact certified runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Verify immutable candidate, G6 base, bounded delta, and exact ABI
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "ec410a501e7db051f59eb2fb373c30da150bd81a"
+          test "$(git merge-base HEAD ed04d9f711d2c5298b3b86ca5bf5ea6937d4082a)" = "ed04d9f711d2c5298b3b86ca5bf5ea6937d4082a"
+          expected_delta='tests/test_context_packaging_production_integration_p10_g7.py'
+          test "$(git diff --name-only ed04d9f711d2c5298b3b86ca5bf5ea6937d4082a..HEAD)" = "$expected_delta"
+          python - <<'PY'
+          import sys
+          assert sys.implementation.name == 'cpython'
+          assert sys.version_info[:3] == (3, 12, 0), sys.version
+          assert sys.implementation.cache_tag == 'cpython-312', sys.implementation.cache_tag
+          print('P10_G7_EXACT_RUNTIME_PASS')
+          PY
+          python -m py_compile tests/test_context_packaging_production_integration_p10_g7.py
+      - name: Retrieve exact historical v0.5.3 release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/p10-g7-v053
+          curl -L --fail --retry 3 \
+            https://github.com/loteque/reasoning-distiller/releases/download/v0.5.3/reasoning-distiller-0.5.3.manifest.json \
+            -o /tmp/p10-g7-v053/reasoning-distiller-0.5.3.manifest.json
+          curl -L --fail --retry 3 \
+            https://github.com/loteque/reasoning-distiller/releases/download/v0.5.3/reasoning-distiller-0.5.3.tar.gz \
+            -o /tmp/p10-g7-v053/reasoning-distiller-0.5.3.tar.gz
+          echo '5c9448c6e6acc6f3925aae173870f4d6e8a237035c0e870637ef8d7499765044  /tmp/p10-g7-v053/reasoning-distiller-0.5.3.manifest.json' | sha256sum -c -
+          echo '5d1751f1910e13ba5b3e9787a6188a1b995e0ac5b88bbec9c2ac935e9d33ef67  /tmp/p10-g7-v053/reasoning-distiller-0.5.3.tar.gz' | sha256sum -c -
+      - name: Run exact G7 compatibility, rollback, and true-downgrade gate
+        env:
+          P10_G7_V053_MANIFEST: /tmp/p10-g7-v053/reasoning-distiller-0.5.3.manifest.json
+          P10_G7_V053_ARCHIVE: /tmp/p10-g7-v053/reasoning-distiller-0.5.3.tar.gz
+        run: python -m pytest -q tests/test_context_packaging_production_integration_p10_g7.py
+
+  g7-unsupported-runtime-pressure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact G7 semantic candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ec410a501e7db051f59eb2fb373c30da150bd81a
+          fetch-depth: 0
+      - name: Set up unsupported CPython pressure runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.0"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Verify exact pressure runtime and reject invocation/2
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "ec410a501e7db051f59eb2fb373c30da150bd81a"
+          python - <<'PY'
+          import sys
+          assert sys.implementation.name == 'cpython'
+          assert sys.version_info[:3] == (3, 13, 0), sys.version
+          assert sys.implementation.cache_tag == 'cpython-313', sys.implementation.cache_tag
+          print('P10_G7_UNSUPPORTED_RUNTIME_PRESSURE')
+          PY
+          python -m pytest -q tests/test_context_packaging_production_integration_p10_g7.py -k actual_unsupported_cpython_runtime
+
+  g7-predecessor-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ec410a501e7db051f59eb2fb373c30da150bd81a
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.0"
+      - run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+      - name: Verify exact candidate and run G2-G6 plus installer and legacy regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "ec410a501e7db051f59eb2fb373c30da150bd81a"
+          python -m pytest -q \
+            tests/test_context_packaging_production_integration_p10_g2.py \
+            tests/test_context_packaging_production_integration_p10_g3.py \
+            tests/test_context_packaging_production_integration_p10_g4.py \
+            tests/test_context_packaging_production_integration_p10_g5.py \
+            tests/test_context_packaging_production_integration_p10_g6.py \
+            tests/test_package_builder.py \
+            tests/test_install_package_contract.py \
+            tests/test_installer_p3.py \
+            tests/test_installer_p4.py \
+            tests/test_production_invocation.py
