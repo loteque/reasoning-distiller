@@ -107,11 +107,105 @@ jobs:
         env:
           PYTHONPATH: .reasoning-distiller
         run: |
+          set -o pipefail
           python --version
           python evaluation/context-packaging/materialize_realistic_context_pack.py --out .context-pack-trial | tee .context-pack-trial.log
+      - name: Capture exact blocker evidence when materialization fails
+        if: always()
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          import sys
+
+          out = Path('.context-pack-trial')
+          out.mkdir(parents=True, exist_ok=True)
+          success = out / 'evidence-summary.json'
+          if success.exists():
+              print('production preparation evidence exists; blocker record not needed')
+              raise SystemExit(0)
+
+          pems_path = Path('project-knowledge/canonical/pems2.jcs.json')
+          cove_path = Path('project-knowledge/canonical/cove1.jcs.json')
+          schema_path = Path('.reasoning-distiller/backends/pems-cove/pems-v2.schema.json')
+          receipt_path = Path('project-knowledge/admission/receipts/35ae25fea959c5567eeb70194889309c0ad89dde0dff8e5400df5ba1653b50ec.json')
+          pems_raw = pems_path.read_bytes()
+          cove_raw = cove_path.read_bytes()
+          schema_raw = schema_path.read_bytes()
+          receipt_raw = receipt_path.read_bytes()
+          pems = json.loads(pems_raw)
+          schema = json.loads(schema_raw)
+          receipt = json.loads(receipt_raw)
+          sha = lambda raw: 'sha256:' + hashlib.sha256(raw).hexdigest()
+
+          record = {
+              'contract': 'reasoning-distiller-realistic-context-pack-blocker-evidence/1',
+              'status': 'BLOCKED_PEMS_SCHEMA_INVALID',
+              'coordination_revision': 'd46300a54a444cc866717986c1f5b493de3ab13f',
+              'trial_head': '5f92658a239bc096849025ed14ab9e57d0afb710',
+              'runtime': {
+                  'implementation': sys.implementation.name,
+                  'version': '.'.join(map(str, sys.version_info[:3])),
+                  'cache_tag': sys.implementation.cache_tag,
+              },
+              'canonical_pems': {
+                  'path': str(pems_path),
+                  'git_blob': 'bb7c474e935243b45ff02a5778a94bbcdc654d72',
+                  'raw_sha256': sha(pems_raw),
+                  'admission_receipt_admitted_pems_sha256': 'sha256:' + receipt['admitted_pems_sha256'].removeprefix('sha256:'),
+                  'top_level_keys': sorted(pems),
+                  'semantic_present': 'semantic' in pems,
+                  'semantic_value': pems.get('semantic'),
+              },
+              'canonical_cove': {
+                  'path': str(cove_path),
+                  'git_blob': '7ff52fb925a667c4cc1782da9b475dff831e45ef',
+                  'raw_sha256': sha(cove_raw),
+                  'admission_receipt_admitted_cove_sha256': 'sha256:' + receipt['admitted_cove_sha256'].removeprefix('sha256:'),
+              },
+              'pems_schema': {
+                  'path': str(schema_path),
+                  'git_blob_at_coordination_revision': 'cd7683d704e8aef2842a0c1b25b453fb1dbc8030',
+                  'raw_sha256': sha(schema_raw),
+                  'required_top_level_keys': schema.get('required'),
+                  'semantic_constraint': schema.get('properties', {}).get('semantic'),
+              },
+              'admission_receipt': {
+                  'path': str(receipt_path),
+                  'git_blob': '3d35dd4af7ab868262305a79a12cbe991d1d21ef',
+                  'raw_sha256': sha(receipt_raw),
+                  'contract': receipt.get('contract'),
+              },
+              'observed_p3_failure': {
+                  'contract': 'reasoning-distiller-context-pack-failure/1',
+                  'code': 'PEMS_SCHEMA_INVALID',
+                  'stage': 'projection',
+                  'diagnostic': 'canonical PEMS validation failed',
+              },
+              'boundary': {
+                  'pack_materialized': False,
+                  'production_prepare_performed': False,
+                  'model_execution_performed': False,
+                  'finalize_performed': False,
+                  'submission_created': False,
+                  'admission_or_canonical_mutation_performed': False,
+              },
+          }
+          path = out / 'blocker-evidence-summary.json'
+          path.write_text(json.dumps(record, sort_keys=True, separators=(',', ':')), encoding='utf-8')
+          print(json.dumps(record, indent=2, sort_keys=True))
+          PY
       - name: Print exact evidence summary
-        run: python -m json.tool .context-pack-trial/evidence-summary.json
+        if: always()
+        run: |
+          if [ -f .context-pack-trial/evidence-summary.json ]; then
+            python -m json.tool .context-pack-trial/evidence-summary.json
+          else
+            python -m json.tool .context-pack-trial/blocker-evidence-summary.json
+          fi
       - name: Upload exact materialization evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: realistic-context-pack-preparation-${{ github.run_id }}
