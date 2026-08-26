@@ -1,0 +1,70 @@
+{
+  "contract": "reasoning-distiller-context-renderer/1",
+  "status": "frozen",
+  "gate": "P9",
+  "governing_plan": {
+    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd",
+    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "path": "docs/proposals/context-packaging/FINAL_PLAN.md"
+  },
+  "inputs": {
+    "pack": [
+      "reasoning-distiller-context-pack/1",
+      "reasoning-distiller-context-pack/2"
+    ],
+    "renderer_profile": "reasoning-distiller-context-renderer-profile/1"
+  },
+  "output": "reasoning-distiller-context-rendered-activation/1",
+  "serializer": "jcs/1",
+  "framing": {
+    "contract": "reasoning-distiller-context-renderer-framing/1",
+    "text_encoding": "utf-8",
+    "item_encoding": "base64",
+    "plane_order": [
+      "control",
+      "knowledge",
+      "operational_evidence"
+    ],
+    "sequence": [
+      "one metadata frame containing the canonical pack with all three plane containers removed",
+      "zero or more control plane-item frames in canonical pack item order",
+      "zero or more knowledge plane-item frames in canonical pack item order",
+      "zero or more operational_evidence plane-item frames in canonical pack item order"
+    ],
+    "frame_payload": "Each frame payload is the exact jcs/1 byte serialization of its structural object, encoded with RFC 4648 standard Base64 including required padding and no whitespace.",
+    "frame_digest": "raw_sha256 hashes the decoded frame payload bytes.",
+    "decoding": "A decoder verifies canonical activation bytes, activation identity, profile/component binding, frame order, Base64 validity, frame digests, canonical frame payloads, pack summary, and pack digest before returning the reconstructed pack."
+  },
+  "trust_channel_invariants": [
+    "Plane classification is structural and comes only from the canonical pack plane containers.",
+    "Renderer content is never parsed for instruction, role, authority, activation, trust, admission, or canonical-standing semantics.",
+    "Knowledge and operational-evidence payloads cannot create control frames because payload bytes are opaque Base64 inside a frame whose plane is fixed structurally.",
+    "Identical text in distinct source identities or planes remains in distinct frames and is never deduplicated by content similarity.",
+    "Rendering creates no authority, activation, reconciliation, admission, canonical standing, or role state."
+  ],
+  "purity_invariants": [
+    "Rendering is a pure function of the supplied pack and exact renderer-profile bytes/object.",
+    "Rendering performs no source discovery, repository lookup, filesystem lookup, network access, model call, semantic search, ranking, summarization, persistence, cache mutation, or project-state mutation.",
+    "Repository-owned JSON parsing and JCS serialization behavior used by rendering and decoding is self-contained in the exact renderer component blob; rendering does not consult mutable repository helper implementations at runtime.",
+    "Input pack and renderer profile are not mutated."
+  ],
+  "identity": {
+    "renderer_component": "The renderer profile binds the exact renderer implementation as a toolchain component with contract, immutable identity, and raw SHA-256; that blob contains the repository-owned parsing and serialization behavior used by P9.",
+    "renderer_profile": "The activation records renderer profile id, version, and SHA-256 of exact profile bytes.",
+    "pack": "The activation records pack contract, pack profile identity, request identity, pack identity SHA-256, and SHA-256 of canonical pack bytes.",
+    "activation_identity": "activation_identity_sha256 is a domain-separated SHA-256 over canonical activation bytes with the identity field absent; no field hashes bytes containing itself."
+  },
+  "limits": {
+    "metric": "serialized activation bytes after activation identity is attached",
+    "profile_field": "limits.max_activation_bytes",
+    "overflow": "RENDER_LIMIT_EXCEEDED",
+    "behavior": "Fail with no rendered activation. Never truncate, omit, rank, summarize, or replace content to satisfy the limit."
+  },
+  "fail_closed": {
+    "unsupported_or_malformed": "UNSUPPORTED_RENDERER",
+    "limit": "RENDER_LIMIT_EXCEEDED",
+    "failure_contract": "reasoning-distiller-context-pack-failure/1",
+    "failure_stage": "rendering"
+  },
+  "production_integration_authorized": false
+}
