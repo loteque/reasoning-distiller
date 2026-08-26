@@ -1,0 +1,214 @@
+{
+  "blocked_candidate": "e961eb83d2c5dd1719b986c89a8915c102e395c3",
+  "cases": [
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-01",
+      "origin": "stage1",
+      "required_outcome": "Current renderer behavior with a matching independently derived /2 execution binding renders and decodes successfully; activation records that derived binding.",
+      "slug": "truthful_current_binding"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-02",
+      "origin": "stage1",
+      "required_outcome": "Holding an old profile binding constant after a behavior-bearing render entrypoint change fails before successful activation.",
+      "slug": "stale_render_entrypoint"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-03",
+      "origin": "stage1",
+      "required_outcome": "Holding an old profile binding constant after a behavior-bearing repository-owned helper change fails before success.",
+      "slug": "stale_behavior_helper"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-04",
+      "origin": "stage1",
+      "required_outcome": "Changing a behavior-bearing constant changes the derived binding; reuse of the old profile fails closed.",
+      "slug": "stale_behavior_constant"
+    },
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-05",
+      "origin": "stage1",
+      "required_outcome": "Comments, source location, line/debug metadata, and other frozen non-semantic noise do not change the execution binding.",
+      "slug": "debug_only_noise"
+    },
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-06",
+      "origin": "stage1",
+      "required_outcome": "Equivalent implementation loaded from a different filesystem path derives the same execution binding and activation bytes.",
+      "slug": "equivalent_different_path"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-07",
+      "origin": "stage1",
+      "required_outcome": "A runtime ABI change without an explicit frozen equivalence rule is incompatible and fails before success.",
+      "slug": "unproven_runtime_abi_equivalence"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-08",
+      "origin": "stage1",
+      "required_outcome": "A syntactically valid caller-supplied false binding is rejected after independent derivation.",
+      "slug": "false_caller_binding"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "UNSUPPORTED_RENDERER",
+      "id": "RI-09",
+      "origin": "stage1",
+      "required_outcome": "A /1 renderer profile is not accepted as a /2 execution-bound profile and cannot be reinterpreted as proof.",
+      "slug": "v1_profile_reuse"
+    },
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-10",
+      "origin": "stage1",
+      "required_outcome": "A truthful /2 render/decode succeeds when repository and filesystem discovery APIs are forced to fail.",
+      "slug": "repository_file_apis_unavailable"
+    },
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-11",
+      "origin": "stage1",
+      "required_outcome": "Ambient installation manifests, caches, current branch, and repository HEAD do not affect a matching binding or render result.",
+      "slug": "ambient_install_cache_head_changes"
+    },
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-12",
+      "origin": "stage1",
+      "required_outcome": "Identical pack/profile and execution bundle repeatedly produce byte-identical activation bytes.",
+      "slug": "repeat_byte_determinism"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-13",
+      "origin": "stage1",
+      "required_outcome": "Instruction-like knowledge or operational-evidence remains in its structural plane while the independent identity attack fails.",
+      "slug": "plane_attack_plus_identity_attack"
+    },
+    {
+      "expected_result": "composite",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH|RENDER_LIMIT_EXCEEDED",
+      "id": "RI-14",
+      "origin": "stage1",
+      "required_outcome": "A mismatching identity fails before success; with matching identity, the existing exact activation-byte-limit behavior is preserved with no truncation.",
+      "slug": "identity_precedes_activation_limit"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "UNSUPPORTED_RENDERER",
+      "id": "RI-15",
+      "origin": "stage1",
+      "required_outcome": "Bundle construction/execution rejects an architecture where the measured graph can diverge from the graph executed for the call.",
+      "slug": "verify_one_execute_another"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "UNSUPPORTED_RENDERER",
+      "id": "RI-16",
+      "origin": "stage1",
+      "required_outcome": "An unenumerated mutable repository-local dependency causes bundle resolution to fail closed.",
+      "slug": "unenumerated_repository_dependency"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-17",
+      "origin": "stage2",
+      "required_outcome": "A behavior-bearing change to descriptor/binding verifier code invalidates the old profile binding.",
+      "slug": "binding_verifier_mutation"
+    },
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-18",
+      "origin": "stage2",
+      "required_outcome": "After bundle resolution and derivation, substituting a module-global helper cannot change the executed behavior; execution remains through the captured bound reference.",
+      "slug": "post_resolution_global_substitution"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "UNSUPPORTED_RENDERER",
+      "id": "RI-19",
+      "origin": "stage2",
+      "required_outcome": "A mutable closure/default dependency not deterministically represented and non-divergent is rejected during bundle construction.",
+      "slug": "mutable_closure_or_default"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-20",
+      "origin": "stage2",
+      "required_outcome": "An otherwise matching profile reused across a different CPython micro version without frozen equivalence fails before success.",
+      "slug": "runtime_micro_mismatch"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "TOOLCHAIN_IDENTITY_MISMATCH",
+      "id": "RI-21",
+      "origin": "stage2",
+      "required_outcome": "A semantically different substitution for an allowlisted runtime primitive is detected or represented by a changed binding, so the old profile fails.",
+      "slug": "runtime_primitive_substitution"
+    },
+    {
+      "expected_result": "fail_closed",
+      "failure_class": "UNSUPPORTED_RENDERER",
+      "id": "RI-22",
+      "origin": "stage2",
+      "required_outcome": "An interpreter implementation outside the frozen runtime ABI allowlist fails closed.",
+      "slug": "unsupported_interpreter_family"
+    },
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-23",
+      "origin": "stage2",
+      "required_outcome": "Filename, checkout path, first source line, line/debug tables, and frozen non-executable doc/comment noise do not alter the binding.",
+      "slug": "descriptor_noise_stability"
+    },
+    {
+      "expected_result": "success",
+      "failure_class": null,
+      "id": "RI-24",
+      "origin": "stage2",
+      "required_outcome": "Truthful /2 render/decode still succeeds with repository, filesystem, installation-state, branch, network, model/search, and cache APIs forced to fail.",
+      "slug": "no_discovery_identity_validation"
+    }
+  ],
+  "contract": "reasoning-distiller-p9-renderer-identity-pressure-cases/1",
+  "gate": "P9R0",
+  "governing_plan": {
+    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd"
+  },
+  "repository": "loteque/reasoning-distiller",
+  "semantics": {
+    "composite": "the case contains multiple ordered assertions with the listed stable failure classes",
+    "fail_closed": "the case must fail before a successful rendered activation/decoded pack is returned",
+    "success": "the case must complete with the frozen success property once P9R2/P9R3 exist"
+  },
+  "stage3_renderer_identity_amendment": {
+    "blob": "90142ffe6b6652faceb3e8347f33fa71c8dc3ed9",
+    "commit": "373667be85521e6f0f83bf19fed3378357e51118",
+    "disposition": "P9_RENDERER_IDENTITY_STAGE3_RECONCILED_ACCEPTED_WITH_GATES"
+  }
+}

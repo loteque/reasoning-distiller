@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/context-pack-receipt.schema.json",
+  "title": "Reasoning Distiller Context Pack Receipt",
+  "description": "Out-of-band receipt structure. P1c defines digest preimages; P6 defines persistence behavior.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "request_id", "operation", "result", "pack_identity_sha256", "serialized_pack_sha256"],
+      "properties": {
+        "contract": {"const": "reasoning-distiller-context-pack-receipt/1"},
+        "request_id": {"type": "string", "minLength": 1},
+        "operation": {"const": "build"},
+        "result": {"const": "built"},
+        "pack_identity_sha256": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"},
+        "serialized_pack_sha256": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "request_id", "operation", "result", "pack_identity_sha256", "serialized_pack_sha256", "artifact_locator"],
+      "properties": {
+        "contract": {"const": "reasoning-distiller-context-pack-receipt/1"},
+        "request_id": {"type": "string", "minLength": 1},
+        "operation": {"const": "persist"},
+        "result": {"enum": ["written", "no_change"]},
+        "pack_identity_sha256": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"},
+        "serialized_pack_sha256": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"},
+        "artifact_locator": {"type": "string", "minLength": 1}
+      }
+    }
+  ]
+}
