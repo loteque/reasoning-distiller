@@ -69,11 +69,39 @@ jobs:
             tests/test_p10_packaged_pems_runtime_isolation_remediation.py \
             tests/test_runtime_isolation_p5.py \
             tests/test_package_builder.py \
-            tests/test_context_packaging_protocol_schemas_p1b.py \
+            tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_inventory_meta_and_closed_world \
+            tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_positive_examples \
+            tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_p1a_multi_snapshot_is_separately_addressable \
+            tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_p0_pressure_binding_and_guardrails \
             tests/test_context_packaging_protocol_schemas_v2.py \
             tests/test_context_packaging_production_integration_p10_g7.py::test_p10_g7_explicit_v2_selection_preserves_v1_and_contract_rollback \
             2>&1 | tee /tmp/remediation-pytest.txt
           echo P10_PACKAGED_PEMS_REMEDIATION_REGRESSION_PASS | tee -a /tmp/remediation-pytest.txt
+
+      - name: Prove pre-existing P1b negative-fixture baseline parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add --detach /tmp/p10-semantic-base "$SEMANTIC_BASE"
+          set +e
+          python -m pytest -q \
+            tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly \
+            > /tmp/remediation-p1b-negative.txt 2>&1
+          remediation_status=$?
+          (
+            cd /tmp/p10-semantic-base
+            python -m pytest -q \
+              tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly \
+              > /tmp/base-p1b-negative.txt 2>&1
+          )
+          base_status=$?
+          set -e
+          test "$remediation_status" -eq "$base_status"
+          test "$base_status" -ne 0
+          printf '{"semantic_base_exit":%s,"remediation_exit":%s,"status":"BASELINE_PARITY"}\n' \
+            "$base_status" "$remediation_status" \
+            | tee /tmp/remediation-p1b-baseline-parity.json
+          echo P10_P1B_NEGATIVE_FIXTURE_BASELINE_PARITY_PASS
 
       - name: Prove installed package closes PEMS resolution with source checkout absent
         shell: bash
@@ -176,6 +204,9 @@ jobs:
           path: |
             /tmp/remediation-binding.json
             /tmp/remediation-pytest.txt
+            /tmp/remediation-p1b-baseline-parity.json
+            /tmp/base-p1b-negative.txt
+            /tmp/remediation-p1b-negative.txt
             /tmp/remediation-build.json
             /tmp/remediation-install.json
             /tmp/remediation-isolation-audit.json
@@ -187,6 +218,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -q P10_PACKAGED_PEMS_REMEDIATION_REGRESSION_PASS /tmp/remediation-pytest.txt
+          grep -q BASELINE_PARITY /tmp/remediation-p1b-baseline-parity.json
           grep -q P10_PACKAGED_PEMS_RUNTIME_ISOLATION_PASS /tmp/remediation-runtime-isolation.txt
           grep -q P10_PACKAGED_PEMS_OFFLINE_VALIDATION_PASS /tmp/remediation-offline-schema-validation.txt
           echo P10_PACKAGED_PEMS_RUNTIME_ISOLATION_ENGINEER_EXECUTION_PASS
