@@ -77,7 +77,24 @@ jobs:
             protocols/rgp/python-closed-bundle-v1.json \
             protocols/rgp/renderer-execution-binding-v1.json \
             runtime/rd_distill.py \
-            'schemas/*context*' \
+            schemas/context-pack-failure.schema.json \
+            schemas/context-pack-receipt.schema.json \
+            schemas/context-pack-request-v2.schema.json \
+            schemas/context-pack-request.schema.json \
+            schemas/context-pack-result-v2.schema.json \
+            schemas/context-pack-result.schema.json \
+            schemas/context-pack-v2.schema.json \
+            schemas/context-pack.schema.json \
+            schemas/context-profile-eligibility.schema.json \
+            schemas/context-profile-v2.schema.json \
+            schemas/context-profile.schema.json \
+            schemas/context-provenance-registry.schema.json \
+            schemas/context-rendered-activation-v2.schema.json \
+            schemas/context-rendered-activation.schema.json \
+            schemas/context-renderer-profile-v2.schema.json \
+            schemas/context-renderer-profile.schema.json \
+            schemas/context-source-binding.schema.json \
+            schemas/resources/context-packaging-v2-resource-registry.json \
             schemas/activation-bundle-v2.schema.json \
             schemas/invocation-request-v2.schema.json \
             schemas/invocation-result-v2.schema.json \
