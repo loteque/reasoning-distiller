@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/context-profile-eligibility.schema.json",
+  "title": "Reasoning Distiller Context Profile Eligibility Binding",
+  "description": "Structural binding only. P1e governs how a consumer produces or accepts this binding.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "consumer", "profile", "policy_evidence", "decision"],
+  "properties": {
+    "contract": {"const": "reasoning-distiller-context-profile-eligibility/1"},
+    "consumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer_contract", "consumer_id", "immutable_policy_snapshot_id"],
+      "properties": {
+        "consumer_contract": {"type": "string", "minLength": 1},
+        "consumer_id": {"type": "string", "minLength": 1},
+        "immutable_policy_snapshot_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "profile_version", "raw_sha256"],
+      "properties": {
+        "profile_id": {"type": "string", "minLength": 1},
+        "profile_version": {"type": "string", "minLength": 1},
+        "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"}
+      }
+    },
+    "policy_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "immutable_snapshot_id", "raw_sha256"],
+      "properties": {
+        "contract": {"type": "string", "minLength": 1},
+        "immutable_snapshot_id": {"type": "string", "minLength": 1},
+        "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"}
+      }
+    },
+    "decision": {"enum": ["eligible", "ineligible"]},
+    "reason_code": {"type": "string", "minLength": 1}
+  }
+}

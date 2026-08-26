@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/context-pack-failure.schema.json",
+  "title": "Reasoning Distiller Context Pack Failure",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "code", "stage"],
+  "properties": {
+    "contract": {"const": "reasoning-distiller-context-pack-failure/1"},
+    "code": {"enum": ["INVALID_PROFILE", "UNSUPPORTED_PROFILE", "INVALID_REQUEST", "PROFILE_INELIGIBLE", "ELIGIBILITY_BINDING_MISSING", "UNKNOWN_SEMANTICS_FIELD", "SOURCE_IDENTITY_INVALID", "UNSUPPORTED_SOURCE_CLASS", "SOURCE_CLASS_CONFLICT", "IMMUTABLE_SNAPSHOT_UNAVAILABLE", "CONTROL_SOURCE_INVALID", "SOURCE_DIGEST_MISMATCH", "CANONICAL_BINDING_UNPROVEN", "CANONICAL_BINDING_CONFLICT", "CANONICAL_STATE_STALE", "OPERATIONAL_EVIDENCE_IDENTITY_INVALID", "LOGICAL_SOURCE_CONFLICT", "CROSS_SOURCE_CONSISTENCY_UNPROVEN", "MISSING_REQUIRED_CONTROL", "MISSING_REQUIRED_OPERATIONAL_EVIDENCE", "REQUIRED_ACTIVATION_EVIDENCE_MISSING", "PLANE_CLASSIFICATION_CONFLICT", "SELECTED_SEMANTIC_ID_MISSING", "UNDEFINED_CLOSURE_RULE", "CLOSURE_LIMIT_EXCEEDED", "EMPTY_RESULT_DISALLOWED", "PEMS_SCHEMA_INVALID", "PEMS_SEMANTIC_INVALID", "UNSUPPORTED_ENCODING_TUPLE", "COVE_ROUNDTRIP_MISMATCH", "TOOLCHAIN_IDENTITY_MISMATCH", "PACK_LIMIT_EXCEEDED", "NONDETERMINISTIC_OUTPUT", "BUILD_SIDE_EFFECT_DETECTED", "IMMUTABLE_OUTPUT_COLLISION", "RENDER_LIMIT_EXCEEDED", "UNSUPPORTED_RENDERER"]},
+    "stage": {"enum": ["profile", "request", "eligibility", "source_binding", "source_resolution", "projection", "encoding", "pack", "persistence", "rendering", "toolchain"]},
+    "source_ref": {"$ref": "https://reasoning-distiller.local/schemas/context-source-binding.schema.json#/$defs/sourceRef"},
+    "diagnostics": {"type": "array", "items": {"type": "string"}}
+  }
+}
