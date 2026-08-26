@@ -1,0 +1,244 @@
+name: P10 Release Candidate Evidence
+
+on:
+  push:
+    branches: [evidence/p10-release-candidate-20260825]
+    paths:
+      - '.github/workflows/p10-release-candidate-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  COORDINATION_SHA: '80b6e89ad2efe84b088ca06b908a257c449fac15'
+  CLOSED_P10_SHA: 'ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e'
+  CLOSED_P10_TREE: '81178c5efdc8f1419a068c61a92c0571b28f69fc'
+  INTEGRATION_SHA: 'b7c36e2fc8c9b09d899f4468e660e70a1d31a2c6'
+  RC_SOURCE_SHA: '5bfd2a00232421ee56547d0b2e577398d10d2d45'
+  RC_SOURCE_TREE: 'a4d419c60a62e5968c93b40baaa1dfe310a51bdf'
+  RC_VERSION: '0.0.0-p10-rc1'
+  ENGINEER_EVIDENCE_SHA: 'ff09627f8e83abc60f430b378bed342cbeaceb79'
+  ENGINEER_EVIDENCE_RUN: '32933482638'
+  INDEPENDENT_REVIEW_SHA: '53928833ff2735c08615c966c91e50f08322b4df'
+  STEWARD_CLOSURE_SHA: '631906e33c701d8a1eb6257b29d2402b23c9de28'
+
+jobs:
+  rc-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact clean RC source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RC_SOURCE_SHA }}
+          path: source
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.0'
+
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
+
+      - name: Verify exact source identity and clean-source rule
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd source
+          test "$(git rev-parse HEAD)" = "$RC_SOURCE_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$RC_SOURCE_TREE"
+          test ! -e .reasoning-distiller
+          ! git ls-files | grep -q '^\.reasoning-distiller/'
+          echo "PASS exact clean RC source $RC_SOURCE_SHA tree $RC_SOURCE_TREE"
+
+      - name: Prove closed P10 semantic bytes are unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd source
+          git fetch --no-tags origin "$CLOSED_P10_SHA" "$INTEGRATION_SHA"
+          test "$(git rev-parse "$CLOSED_P10_SHA^{tree}")" = "$CLOSED_P10_TREE"
+          git diff --exit-code "$CLOSED_P10_SHA" "$RC_SOURCE_SHA" -- \
+            .gitattributes \
+            context_packaging \
+            'docs/design/CONTEXT_PACKAGING*' \
+            docs/implementation/context-packaging \
+            docs/proposals/context-packaging \
+            packaging/package-build.json \
+            protocols/rgp/context-renderer-v1.json \
+            protocols/rgp/context-renderer-v2.json \
+            protocols/rgp/pems2-context-closure-v1.json \
+            protocols/rgp/production-integration-v2.json \
+            protocols/rgp/python-closed-bundle-v1.json \
+            protocols/rgp/renderer-execution-binding-v1.json \
+            runtime/rd_distill.py \
+            'schemas/*context*' \
+            schemas/activation-bundle-v2.schema.json \
+            schemas/invocation-request-v2.schema.json \
+            schemas/invocation-result-v2.schema.json \
+            schemas/model-transport.schema.json \
+            schemas/prepared-invocation.schema.json \
+            schemas/python-closed-bundle-descriptor.schema.json \
+            schemas/renderer-execution-binding.schema.json \
+            'tests/fixtures/context-packaging*' \
+            'tests/fixtures/p10-*' \
+            'tests/support/context_packaging*' \
+            'tests/test_context_packaging*'
+          echo 'PASS closed P10 semantic paths are byte-identical'
+
+      - name: Prove release-source transformation removes only installed state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd source
+          git diff --name-only "$INTEGRATION_SHA" "$RC_SOURCE_SHA" > /tmp/integration-to-clean.txt
+          test -s /tmp/integration-to-clean.txt
+          awk '!/^\.reasoning-distiller\// { bad=1; print "unexpected clean-source delta: " $0 > "/dev/stderr" } END { exit bad }' /tmp/integration-to-clean.txt
+          echo 'PASS clean-source transform removed only .reasoning-distiller/'
+
+      - name: Verify release plumbing covers context packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd source
+          grep -q "context_packaging/\\*\\*" .github/workflows/package-builder.yml
+          grep -q "context_packaging/\\*\\*" .github/workflows/package-installer.yml
+          grep -q "context_packaging/\\*\\*" .github/workflows/runtime-isolation.yml
+          grep -q "admission agents backends context_packaging protocols runtime schemas validators" .github/workflows/package-builder.yml
+          echo 'PASS release CI includes the P10 managed root'
+
+      - name: Run package contract and builder suites
+        working-directory: source
+        run: |
+          python -m unittest -v \
+            tests/test_package_builder.py \
+            tests/test_install_package_contract.py \
+            tests/test_installer_runner_contract.py
+
+      - name: Build deterministic RC package twice
+        shell: bash
+        working-directory: source
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/rd-rc-a /tmp/rd-rc-b
+          python packaging/build_release_package.py --version "$RC_VERSION" --source-commit "$RC_SOURCE_SHA" --output-dir /tmp/rd-rc-a
+          python packaging/build_release_package.py --version "$RC_VERSION" --source-commit "$RC_SOURCE_SHA" --output-dir /tmp/rd-rc-b
+          cmp "/tmp/rd-rc-a/reasoning-distiller-${RC_VERSION}.tar.gz" "/tmp/rd-rc-b/reasoning-distiller-${RC_VERSION}.tar.gz"
+          cmp "/tmp/rd-rc-a/reasoning-distiller-${RC_VERSION}.manifest.json" "/tmp/rd-rc-b/reasoning-distiller-${RC_VERSION}.manifest.json"
+          cmp "/tmp/rd-rc-a/reasoning-distiller-${RC_VERSION}.sha256" "/tmp/rd-rc-b/reasoning-distiller-${RC_VERSION}.sha256"
+          python packaging/validate_install_package_contract.py --manifest "/tmp/rd-rc-a/reasoning-distiller-${RC_VERSION}.manifest.json"
+          tar -tzf "/tmp/rd-rc-a/reasoning-distiller-${RC_VERSION}.tar.gz" | cut -d/ -f1 | sort -u > /tmp/package-roots.txt
+          printf '%s\n' admission agents backends context_packaging protocols runtime schemas validators > /tmp/expected-roots.txt
+          diff -u /tmp/expected-roots.txt /tmp/package-roots.txt
+
+      - name: Run installer and runtime-isolation release suites
+        working-directory: source
+        run: |
+          python -m unittest -v \
+            tests/test_installer_p3.py \
+            tests/test_installer_p4.py \
+            tests/test_runtime_isolation_p5.py \
+            tests/test_production_invocation.py
+
+      - name: Run complete context-packaging suite on exact supported runtime
+        shell: bash
+        working-directory: source
+        run: python -m pytest -q tests/test_context_packaging*.py
+
+      - name: Run extraction-parity release checks
+        working-directory: source
+        run: |
+          python tests/run_fixture_tests.py
+          python tests/check_project_package.py
+          python tests/check_framework_isolation.py
+          python tests/check_corpus_integrity.py
+          python validators/rgp_validator.py --version
+          python backends/pems-cove/validate_pems2_contract.py
+          python backends/pems-cove/validate_rgp_uncertainty_import.py
+          python admission/test_admission_transaction_v2.py
+
+      - name: Verify P10 payload and write evidence report
+        shell: bash
+        working-directory: source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/p10-rc-evidence
+          python - <<'PY'
+          import json, os, platform, sys
+          from pathlib import Path
+
+          version = os.environ['RC_VERSION']
+          manifest_path = Path(f'/tmp/rd-rc-a/reasoning-distiller-{version}.manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          paths = {item['path'] for item in manifest['files']}
+          required = {
+              'context_packaging/prepare_integration.py',
+              'context_packaging/model_transport.py',
+              'context_packaging/finalize_integration.py',
+              'runtime/rd_distill.py',
+              'protocols/rgp/production-integration-v2.json',
+              'schemas/invocation-request-v2.schema.json',
+              'schemas/invocation-result-v2.schema.json',
+              'schemas/activation-bundle-v2.schema.json',
+              'schemas/prepared-invocation.schema.json',
+              'schemas/model-transport.schema.json',
+          }
+          missing = sorted(required - paths)
+          assert not missing, missing
+          assert not any(p.startswith(('docs/', 'tests/', 'evaluation/', 'project-knowledge/', '.github/')) for p in paths)
+          assert manifest['source_commit'] == os.environ['RC_SOURCE_SHA']
+          assert manifest['version'] == version
+          detached = Path(f'/tmp/rd-rc-a/reasoning-distiller-{version}.sha256').read_text(encoding='utf-8').split()[0]
+          assert detached == manifest['transport_sha256']
+          report = {
+              'contract': 'reasoning-distiller-p10-release-candidate-evidence/1',
+              'status': 'PASS',
+              'coordination_sha': os.environ['COORDINATION_SHA'],
+              'closed_p10': {
+                  'candidate_sha': os.environ['CLOSED_P10_SHA'],
+                  'candidate_tree': os.environ['CLOSED_P10_TREE'],
+                  'engineer_evidence_sha': os.environ['ENGINEER_EVIDENCE_SHA'],
+                  'engineer_evidence_run': os.environ['ENGINEER_EVIDENCE_RUN'],
+                  'independent_review_sha': os.environ['INDEPENDENT_REVIEW_SHA'],
+                  'steward_closure_sha': os.environ['STEWARD_CLOSURE_SHA'],
+              },
+              'integration_sha': os.environ['INTEGRATION_SHA'],
+              'rc_source_sha': os.environ['RC_SOURCE_SHA'],
+              'rc_source_tree': os.environ['RC_SOURCE_TREE'],
+              'rc_version': version,
+              'package_content_identity': manifest['content_identity'],
+              'transport_sha256': manifest['transport_sha256'],
+              'runtime': {
+                  'implementation': sys.implementation.name,
+                  'version': platform.python_version(),
+                  'cache_tag': sys.implementation.cache_tag,
+              },
+              'proofs': {
+                  'clean_source': True,
+                  'closed_p10_semantic_bytes_unchanged': True,
+                  'release_plumbing_context_packaging_covered': True,
+                  'deterministic_rebuild': True,
+                  'package_contracts': True,
+                  'installer_and_runtime_isolation': True,
+                  'context_packaging_suite': True,
+                  'extraction_parity': True,
+                  'release_published': False,
+                  'main_mutated': False,
+                  'release_source_mutated': False,
+              },
+          }
+          out = Path('/tmp/p10-rc-evidence/evidence.json')
+          out.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(report, sort_keys=True))
+          PY
+          cp "/tmp/rd-rc-a/reasoning-distiller-${RC_VERSION}.manifest.json" /tmp/p10-rc-evidence/
+          cp "/tmp/rd-rc-a/reasoning-distiller-${RC_VERSION}.sha256" /tmp/p10-rc-evidence/
+          cp /tmp/integration-to-clean.txt /tmp/p10-rc-evidence/
+
+      - name: Upload exact RC evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: p10-release-candidate-evidence
+          path: /tmp/p10-rc-evidence
+          if-no-files-found: error
