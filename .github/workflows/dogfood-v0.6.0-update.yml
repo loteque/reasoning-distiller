@@ -52,13 +52,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /tmp/rd-v0.6.0
+          mkdir -p /tmp/rd-v0.6.0 /tmp/schemas
           gh release download v0.6.0 --repo "$GITHUB_REPOSITORY" --dir /tmp/rd-v0.6.0 \
             --pattern 'reasoning-distiller-0.6.0.tar.gz' \
             --pattern 'reasoning-distiller-0.6.0.manifest.json' \
             --pattern 'reasoning-distiller-0.6.0.sha256' \
             --pattern 'rd_install.py' \
-            --pattern 'validate_install_package_contract.py'
+            --pattern 'validate_install_package_contract.py' \
+            --pattern 'install-package-manifest.schema.json' \
+            --pattern 'installation-record.schema.json'
+          mv /tmp/rd-v0.6.0/install-package-manifest.schema.json /tmp/schemas/install-package-manifest.schema.json
+          mv /tmp/rd-v0.6.0/installation-record.schema.json /tmp/schemas/installation-record.schema.json
           test "$(sha256sum /tmp/rd-v0.6.0/reasoning-distiller-0.6.0.tar.gz | awk '{print $1}')" = '4fa53c1c4afb3ba07eb365158b4ec5e2a8090284aa485d07b0e35abcfa323cde'
 
       - name: Install accepted v0.6.0 into managed tree
