@@ -1,5 +1,17 @@
 # Reasoning Distiller
 
+## Purpose
+
+AI reasoning is powerful, but without clear boundaries it can become a black box: unclear evidence, fuzzy provenance, hidden context, and conclusions that quietly gain more authority than they deserve.
+
+Reasoning Distiller exists to make that process inspectable. It gives models a sealed evidence set, records exactly what they produce, preserves where ideas came from, and keeps reasoning separate from acceptance and authority.
+
+The long-term ambition is a system where projects can build durable knowledge through repeated cycles of **evidence → reasoning → review → admission**, while still being able to answer a simple question years later:
+
+**What did we know, why did we believe it, and how did it become part of the project?**
+
+A kind of flight recorder for collective reasoning, with fewer mystery buttons. ✦
+
 Standalone knowledge-system framework extracted from `loteque/gdscript-voxel-engine` under the Steward-approved Phase 6.0 extraction plan.
 
 Phase 6.0 extraction parity is established for the frozen voxel-engine baseline. `rgp/1` semantics remain unchanged. The accepted consumer pin is `fb7290622d6a9d929a059f111cdd60cd50496fcf`; durable parity evidence is in `docs/extraction/phase6-parity-report.json` and the immutable marker branch is `phase6.0-parity-baseline`.
