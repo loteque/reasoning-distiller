@@ -1,26 +1,26 @@
-# ChatGPT Project Integration Contract
+# Project Integration Contract
 
 Status: **Normative v1 operational integration contract**
 
 Contract:
 
-- `reasoning-distiller-chatgpt-project/1`
+- `reasoning-distiller-project-integration/1`
 
 ## Purpose
 
-Define the safe operating boundary between a ChatGPT Project and the live `loteque/reasoning-distiller` repository.
+Define the safe operating boundary between an interactive Project workspace and the live `loteque/reasoning-distiller` repository.
 
-The ChatGPT Project is an interactive coordination and working-context surface. It is not a second project knowledge package, not an authority registry, not a canonical memory backend, and not an alternate Distiller or Steward implementation.
+The Project workspace is an interactive coordination and working-context surface. It is not a second project knowledge package, not an authority registry, not a canonical memory backend, and not an alternate Distiller or Steward implementation.
 
 The central invariant is:
 
 > **Project memory is orientation, never authority.**
 
-This contract preserves the repository's existing authority, activation, production-invocation, reconciliation, and admission boundaries while allowing ChatGPT Projects to provide useful conversational continuity around them.
+This contract preserves the repository's existing authority, activation, production-invocation, reconciliation, and admission boundaries while allowing Project workspaces to provide useful conversational continuity around them.
 
 ## 1. Scope
 
-This contract governs ChatGPT Project setup and ChatGPT-hosted work involving this repository, including:
+This contract governs Project workspace setup and interactive Project-hosted work involving this repository, including:
 
 - repository orientation and navigation;
 - architecture and engineering discussion;
@@ -41,9 +41,9 @@ This contract does not redefine:
 
 Where another repository contract governs a domain operation, that contract remains controlling.
 
-## 2. Recommended ChatGPT Project configuration
+## 2. Recommended Project workspace configuration
 
-Use one primary ChatGPT Project for ordinary governed development.
+Use one primary Project workspace for ordinary governed development.
 
 Recommended configuration:
 
@@ -80,7 +80,7 @@ Live repository access establishes current repository bytes. It does **not** by 
 
 The following may help the assistant reason, but MUST NOT be treated as project authority, approval, canonical knowledge, or current repository state merely because they are present:
 
-- ChatGPT Project memory;
+- Project memory;
 - earlier chats in the same Project;
 - assistant summaries;
 - uploaded repository snapshots;
@@ -95,7 +95,7 @@ Unknown authority MUST remain unknown. The assistant MUST NOT fill an authority 
 
 ## 5. Project instructions kernel
 
-The primary ChatGPT Project SHOULD use a small instruction kernel equivalent to the following:
+The primary Project workspace SHOULD use a small instruction kernel equivalent to the following:
 
 ```text
 This Project works on the live GitHub repository:
@@ -129,7 +129,7 @@ This kernel is intentionally thin. Role directives and mutable governance belong
 
 ## 6. Role-bounded chats
 
-A ChatGPT chat may be used as a bounded activation surface for architecture, engineering, review, or coordination work.
+A Project chat may be used as a bounded activation surface for architecture, engineering, review, or coordination work.
 
 For consequential work, the assistant SHOULD make the operational role and scope explicit, for example:
 
@@ -162,11 +162,13 @@ chat/project role label
     != accepted RIL activation
 ```
 
-The ChatGPT Project MUST NOT collapse these distinctions.
+The Project workspace MUST NOT collapse these distinctions.
 
 ## 8. Role transitions and handoffs
 
 Consequential role transitions SHOULD use explicit bounded handoffs rather than silent role switching inside one continuous activation.
+
+Interactive handoff timing, bounded-work-unit continuation, and terminal stopping are governed by `docs/operations/PROJECT_CHAT_TRANSITION_AMENDMENT.md`.
 
 A handoff SHOULD preserve:
 
@@ -189,7 +191,7 @@ Stage 2: independent Engineer review/synthesis
 Stage 3: Project Engineering Steward reconciliation/final plan
 ```
 
-For high-consequence reviews, Stage 2 SHOULD run in an isolated ChatGPT Project or otherwise isolated context containing only the frozen problem, constraints, complete Stage-1 artifact, and explicitly supplied governing evidence.
+For high-consequence reviews, Stage 2 SHOULD run in an isolated Project workspace or otherwise isolated context containing only the frozen problem, constraints, complete Stage-1 artifact, and explicitly supplied governing evidence.
 
 This clean-room isolation is stronger than merely opening a new chat inside a Project whose memory may contain Stage-1 conclusions.
 
@@ -197,13 +199,13 @@ For routine implementation, mechanical refactors, typo fixes, or already-determi
 
 ## 10. Production Distiller boundary
 
-Ambient ChatGPT Project context MUST NOT silently broaden a production `rd-distill` evidence set.
+Ambient Project workspace context MUST NOT silently broaden a production `rd-distill` evidence set.
 
 For production invocation, `docs/operations/PRODUCTION_INVOCATION_CONTRACT.md` remains controlling.
 
 The model-side reasoning boundary is the prepared activation bundle produced from the explicit invocation request and fixed evidence set.
 
-The following MUST NOT be implicitly injected into production distillation merely because ChatGPT knows them:
+The following MUST NOT be implicitly injected into production distillation merely because the interactive assistant has access to them:
 
 - prior Project chats;
 - Project memory;
@@ -217,7 +219,7 @@ If conversational material is intended to become evidence, it must first be made
 
 ## 11. Repository writes and completion claims
 
-A ChatGPT Project may coordinate repository writes only through an available write-capable tool or execution environment.
+A Project workspace may coordinate repository writes only through an available write-capable tool or execution environment.
 
 The assistant MUST NOT claim that a change was committed, pushed, merged, tested, admitted, or otherwise completed until that result has been directly observed.
 
@@ -232,7 +234,7 @@ A conversational intention to write is not a repository mutation.
 
 ## 12. Durable knowledge boundary
 
-A conclusion reached in ChatGPT becomes durable project knowledge only through the repository's existing governed project-knowledge mechanisms.
+A conclusion reached in an interactive Project workspace becomes durable project knowledge only through the repository's existing governed project-knowledge mechanisms.
 
 Chat history is not an alternate canonical backend.
 
@@ -251,7 +253,7 @@ conversation / analysis / implementation discussion
       canonical project knowledge
 ```
 
-The ChatGPT Project may help create candidate artifacts, but it does not bypass Steward reconciliation, authorization, admission, or backend contracts.
+The Project workspace may help create candidate artifacts, but it does not bypass Steward reconciliation, authorization, admission, or backend contracts.
 
 ## 13. Uploaded files
 
@@ -282,7 +284,7 @@ Stopping at a boundary is preferable to manufacturing continuity, authority, or 
 
 ## 15. Conformance checklist
 
-A ChatGPT Project setup conforms to this contract when:
+A Project workspace setup conforms to this contract when:
 
 1. live repository state is preferred over mutable uploaded snapshots;
 2. Project memory is explicitly non-authoritative;
@@ -292,11 +294,11 @@ A ChatGPT Project setup conforms to this contract when:
 6. independent review can be isolated when required;
 7. production `rd-distill` receives only its explicit activation bundle/evidence boundary;
 8. repository writes are not claimed before observation;
-9. ChatGPT conversation history cannot directly become canonical project knowledge;
+9. interactive conversation history cannot directly become canonical project knowledge;
 10. existing repository governance and authority contracts remain controlling.
 
 ## 16. Non-goals
 
-This contract does not define a new ChatGPT-specific authority model, memory backend, canonical store, RGP variant, role registry, Steward implementation, evidence format, model transport, or repository write protocol.
+This contract does not define a new workspace-specific authority model, memory backend, canonical store, RGP variant, role registry, Steward implementation, evidence format, model transport, or repository write protocol.
 
 It exists only to prevent the convenience of a persistent conversational workspace from eroding the explicit boundaries already defined by Reasoning Distiller.
