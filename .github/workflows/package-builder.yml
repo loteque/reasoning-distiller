@@ -13,6 +13,7 @@ on:
       - 'admission/**'
       - 'agents/**'
       - 'backends/**'
+      - 'context_packaging/**'
       - 'protocols/**'
       - 'runtime/**'
       - 'schemas/**'
@@ -30,6 +31,7 @@ on:
       - 'admission/**'
       - 'agents/**'
       - 'backends/**'
+      - 'context_packaging/**'
       - 'protocols/**'
       - 'runtime/**'
       - 'schemas/**'
@@ -75,5 +77,5 @@ jobs:
         run: |
           set -euo pipefail
           tar -tzf /tmp/rd-build-a/reasoning-distiller-0.2.0-p2-ci.tar.gz | cut -d/ -f1 | sort -u > /tmp/package-roots.txt
-          printf '%s\n' admission agents backends protocols runtime schemas validators > /tmp/expected-roots.txt
+          printf '%s\n' admission agents backends context_packaging protocols runtime schemas validators > /tmp/expected-roots.txt
           diff -u /tmp/expected-roots.txt /tmp/package-roots.txt
