@@ -5,16 +5,12 @@ on:
     branches: [main]
     paths:
       - 'runtime/ril_activation.py'
-      - 'runtime/ril_activation_fast_path.py'
-      - 'runtime/ril_cli.py'
       - 'runtime/ril_steward_authorization.py'
       - 'runtime/ril_roles.py'
       - 'runtime/ril_operators.py'
       - 'runtime/ril_mutation.py'
       - 'tests/test_ril_activation.py'
-      - 'tests/test_ril_activation_fast_path.py'
       - 'docs/operations/RIL_ACTIVATION_EVIDENCE_CONTRACT.md'
-      - 'docs/operations/RIL_ACTIVATION_FAST_PATH_CONTRACT.md'
       - '.github/workflows/ril-activation-evidence.yml'
   workflow_dispatch:
 
@@ -29,7 +25,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Run R8 activation conformance suites
-        run: python -m unittest tests/test_ril_activation.py tests/test_ril_activation_fast_path.py -v
-      - name: Compile R8 activation surfaces
-        run: python -m py_compile runtime/ril_activation.py runtime/ril_activation_fast_path.py runtime/ril_cli.py
+      - name: Run R8 activation-evidence conformance suite
+        run: python -m unittest tests/test_ril_activation.py -v
+      - name: Compile R8 primitive
+        run: python -m py_compile runtime/ril_activation.py

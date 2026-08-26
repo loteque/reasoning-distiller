@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reasoning-distiller.local/schemas/context-rendered-activation.schema.json",
+  "title": "Reasoning Distiller Rendered Activation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "renderer_profile",
+    "renderer_component",
+    "pack",
+    "framing",
+    "frames",
+    "identity"
+  ],
+  "properties": {
+    "contract": {"const": "reasoning-distiller-context-rendered-activation/1"},
+    "renderer_profile": {"$ref": "#/$defs/profileIdentity"},
+    "renderer_component": {"$ref": "#/$defs/rendererComponent"},
+    "pack": {"$ref": "#/$defs/packSummary"},
+    "framing": {"$ref": "#/$defs/framing"},
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"oneOf": [{"$ref": "#/$defs/metadataFrame"}, {"$ref": "#/$defs/planeFrame"}]}
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activation_identity_sha256"],
+      "properties": {
+        "activation_identity_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "$defs": {
+    "profileIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "profile_version", "raw_sha256"],
+      "properties": {
+        "profile_id": {"type": "string", "minLength": 1},
+        "profile_version": {"type": "string", "minLength": 1},
+        "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "requestIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_id", "raw_sha256"],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "rendererComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "contract", "immutable_identity", "raw_sha256"],
+      "properties": {
+        "role": {"const": "renderer"},
+        "contract": {"const": "reasoning-distiller-context-renderer/1"},
+        "immutable_identity": {"type": "string", "pattern": "^git-blob:[0-9a-f]{40}$"},
+        "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "framing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "serializer", "text_encoding", "item_encoding", "plane_order"],
+      "properties": {
+        "contract": {"const": "reasoning-distiller-context-renderer-framing/1"},
+        "serializer": {"const": "jcs/1"},
+        "text_encoding": {"const": "utf-8"},
+        "item_encoding": {"const": "base64"},
+        "plane_order": {"const": ["control", "knowledge", "operational_evidence"]}
+      }
+    },
+    "packSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "profile",
+        "request",
+        "pack_identity_sha256",
+        "serialized_pack_sha256"
+      ],
+      "properties": {
+        "contract": {"enum": ["reasoning-distiller-context-pack/1", "reasoning-distiller-context-pack/2"]},
+        "profile": {"$ref": "#/$defs/profileIdentity"},
+        "request": {"$ref": "#/$defs/requestIdentity"},
+        "pack_identity_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "serialized_pack_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "frameBase": {
+      "type": "object",
+      "properties": {
+        "frame_index": {"type": "integer", "minimum": 0},
+        "kind": {"enum": ["metadata", "plane_item"]},
+        "encoding": {"const": "base64"},
+        "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "data": {"type": "string", "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"}
+      }
+    },
+    "metadataFrame": {
+      "allOf": [
+        {"$ref": "#/$defs/frameBase"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["frame_index", "kind", "encoding", "raw_sha256", "data"],
+          "properties": {
+            "frame_index": {"const": 0},
+            "kind": {"const": "metadata"},
+            "encoding": {"const": "base64"},
+            "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "data": {"type": "string", "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"}
+          }
+        }
+      ]
+    },
+    "planeFrame": {
+      "allOf": [
+        {"$ref": "#/$defs/frameBase"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["frame_index", "kind", "plane", "item_index", "encoding", "raw_sha256", "data"],
+          "properties": {
+            "frame_index": {"type": "integer", "minimum": 1},
+            "kind": {"const": "plane_item"},
+            "plane": {"enum": ["control", "knowledge", "operational_evidence"]},
+            "item_index": {"type": "integer", "minimum": 0},
+            "encoding": {"const": "base64"},
+            "raw_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "data": {"type": "string", "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"}
+          }
+        }
+      ]
+    }
+  }
+}

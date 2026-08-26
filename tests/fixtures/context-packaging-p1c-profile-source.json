@@ -1,0 +1,76 @@
+{
+  "contract": "reasoning-distiller-context-profile/1",
+  "profile_id": "p1",
+  "profile_version": "1",
+  "contracts": {
+    "request": "reasoning-distiller-context-pack-request/1",
+    "pack": "reasoning-distiller-context-pack/1",
+    "result": "reasoning-distiller-context-pack-result/1",
+    "failure": "reasoning-distiller-context-pack-failure/1",
+    "source_binding": "reasoning-distiller-context-source-binding/1",
+    "eligibility": "reasoning-distiller-context-profile-eligibility/1",
+    "receipt": "reasoning-distiller-context-pack-receipt/1"
+  },
+  "source_requirements": {
+    "control_slots": [
+      {
+        "slot_id": "control",
+        "source_classes": [
+          "repository_control"
+        ],
+        "cardinality": "exactly_one"
+      }
+    ],
+    "operational_evidence_slots": [
+      {
+        "slot_id": "op",
+        "cardinality": "exactly_one",
+        "accepted_statuses": [
+          "carried_unvalidated"
+        ]
+      }
+    ],
+    "consistency_rules": []
+  },
+  "knowledge": {
+    "required": true,
+    "canonical_slot_id": "canonical",
+    "selector_kinds": [
+      "record_id",
+      "relation_id"
+    ],
+    "empty_result": "allow",
+    "snapshot_multiplicity": "single",
+    "closure_descriptor": {
+      "contract": "reasoning-distiller-p1c-closure-descriptor-identity-fixture/1",
+      "semantic": "pems/2",
+      "immutable_snapshot_id": "git-blob:804ff749cd543d7d634492cb90761175f445710b",
+      "raw_sha256": "sha256:894763b9af93ded33b9e6ce605c72013ade39c2e6b2927fccfdbeb62eff86381"
+    }
+  },
+  "limits": {
+    "source_resolution": {
+      "max_bindings": 16,
+      "max_single_source_bytes": 1048576,
+      "max_total_source_bytes": 4194304
+    },
+    "projection": {
+      "max_records": 1000,
+      "max_relations": 1000,
+      "max_depth": 64,
+      "max_bytes": 4194304
+    },
+    "canonical_pack": {
+      "max_control_items": 32,
+      "max_operational_evidence_items": 32,
+      "max_bytes": 8388608
+    },
+    "rendering": {
+      "max_activation_bytes": 2097152
+    }
+  },
+  "output": {
+    "serializer": "jcs/1",
+    "knowledge_encoding": "pems/2"
+  }
+}

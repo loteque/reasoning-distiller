@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-import ril_activation_fast_path as activation_fast_path
 import ril_admission as admission
 import ril_authority_grant as grants
 import ril_mutation as mutation
@@ -254,9 +253,6 @@ def parser() -> argparse.ArgumentParser:
     approval = sp.add_parser("approval"); _add_list_show(approval, "approval")
     candidate = sp.add_parser("candidate"); _add_list_show(candidate, "candidate")
 
-    act = sp.add_parser("activation"); actsp = act.add_subparsers(dest="verb", required=True)
-    actrun = actsp.add_parser("run"); actrun.add_argument("--role", required=True); actrun.add_argument("--scope", required=True); actrun.add_argument("--invocation-id", required=True); actrun.add_argument("--source", required=True)
-
     rec = sp.add_parser("reconciliation"); recsp = rec.add_subparsers(dest="verb", required=True)
     rr = recsp.add_parser("run"); rr.add_argument("candidate"); rr.add_argument("--activation", required=True); rr.add_argument("--assessment", required=True)
     rs = recsp.add_parser("show"); rs.add_argument("reference")
@@ -416,10 +412,6 @@ def execute(ns: argparse.Namespace, cwd: Path | None = None) -> dict[str, Any]:
         elif ns.resource in {"proposal", "approval", "candidate"}:
             kind = ns.resource
             value = _inventory(root, kind) if ns.verb == "list" else inspect_typed(root, getattr(ns, kind), 0)
-        elif ns.resource == "activation" and ns.verb == "run":
-            value = activation_fast_path.run_activation(root, ns.role, ns.scope, ns.invocation_id, ns.source)
-            validation = value["validation"]
-            return _result(validation["status"], validation["outcome"], project_root=str(root), value=value)
         elif ns.resource == "reconciliation" and ns.verb == "run": value = reconciliation.reconcile_candidate(root, _candidate_path(root, ns.candidate), _json(ns.activation), _json(ns.assessment))
         elif ns.resource == "reconciliation" and ns.verb == "show":
             ref = ns.reference
@@ -465,7 +457,7 @@ def render(result: dict[str, Any], ns: argparse.Namespace) -> str:
     if ns.quiet:
         value = result.get("value")
         if isinstance(value, dict):
-            for key in ("reference", "workflow", "grant", "proposal_digest", "disposition_digest", "receipt_digest", "activation_digest"):
+            for key in ("reference", "workflow", "grant", "proposal_digest", "disposition_digest", "receipt_digest"):
                 if isinstance(value.get(key), str): return value[key]
         if isinstance(value, str): return value
         return result.get("outcome", "")

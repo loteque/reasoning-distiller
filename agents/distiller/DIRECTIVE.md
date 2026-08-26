@@ -220,9 +220,7 @@ A distillation is defective if it:
 
 ## Interactive chat transition responsibility
 
-This section applies only when the Distiller role is being used interactively in a Project workspace outside the model-side production `rd-distill` activation governed by `docs/operations/PRODUCTION_INVOCATION_CONTRACT.md`.
-
-For interactive Project coordination, follow `docs/operations/PROJECT_CHAT_TRANSITION_AMENDMENT.md`.
+This section applies only when the Distiller role is being used interactively in a ChatGPT Project outside the model-side production `rd-distill` activation governed by `docs/operations/PRODUCTION_INVOCATION_CONTRACT.md`.
 
 Monitor whether interactive work has reached a chat boundary, including when a fixed evidence task is complete and the next consequential work belongs to a Steward or another role, when an independent activation should not inherit the current conversation, or when accumulated context would materially bias a fresh activation.
 

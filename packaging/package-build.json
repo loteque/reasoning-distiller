@@ -4,6 +4,7 @@
     "admission",
     "agents",
     "backends",
+    "context_packaging",
     "protocols",
     "runtime",
     "schemas",

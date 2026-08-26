@@ -1,0 +1,84 @@
+{
+  "contract": "reasoning-distiller-context-renderer/2",
+  "execution_binding": {
+    "activation_record": "the exact independently derived actual binding",
+    "actual_source": "independently derived from the exact closed bundle resolved for that call",
+    "comparison": "exact complete canonical binding equality before success",
+    "contract": "reasoning-distiller-renderer-execution-binding/1",
+    "expected_source": "renderer profile /2",
+    "scheme": "python-closed-bundle/1"
+  },
+  "fail_closed": {
+    "binding_or_runtime_mismatch": "TOOLCHAIN_IDENTITY_MISMATCH",
+    "failure_contract": "reasoning-distiller-context-pack-failure/1",
+    "failure_stage": "rendering",
+    "unsupported_profile_bundle_dependency_or_interpreter": "UNSUPPORTED_RENDERER"
+  },
+  "framing": {
+    "contract": "reasoning-distiller-context-renderer-framing/1",
+    "item_encoding": "base64",
+    "plane_order": [
+      "control",
+      "knowledge",
+      "operational_evidence"
+    ],
+    "semantics": "Unchanged from reasoning-distiller-context-renderer/1.",
+    "serializer": "jcs/1",
+    "text_encoding": "utf-8"
+  },
+  "gate": "P9R1",
+  "governing_plan": {
+    "blob": "8474d2da42f863f0a190fd80292085176d3f97f0",
+    "commit": "0803bcca5343224d6feefa53c2f1b8baf1d4a8cd"
+  },
+  "historical_v1": {
+    "activation_schema_blob": "f52c6007be3e7aa84c7e65f5e0708641e6920367",
+    "profile_schema_blob": "768bcae7051e2805594df6d45402d331dc43bda4",
+    "renderer_contract_blob": "c8f18df390f92bfd25d6ac01c5932aeaf3ac396c",
+    "renderer_implementation_blob": "7d28edfa63302475343b2e8b10ef0309089429ff",
+    "rule": "All /1 bytes and semantics remain historical and unchanged. /2 does not reinterpret /1 renderer_component fields."
+  },
+  "inputs": {
+    "pack": [
+      "reasoning-distiller-context-pack/1",
+      "reasoning-distiller-context-pack/2"
+    ],
+    "renderer_profile": "reasoning-distiller-context-renderer-profile/2"
+  },
+  "limits": {
+    "behavior": "Unchanged /1 semantics: fail with no activation; never truncate, omit, rank, summarize, or replace content.",
+    "metric": "serialized activation bytes after activation identity is attached",
+    "overflow": "RENDER_LIMIT_EXCEEDED",
+    "profile_field": "limits.max_activation_bytes"
+  },
+  "migration": [
+    "reasoning-distiller-context-renderer-profile/1 is unsupported as /2 execution-bound input.",
+    "reasoning-distiller-context-rendered-activation/1 remains historical evidence and is not reinterpreted.",
+    "No /1 Git blob or raw SHA-256 renderer_component value can be copied or transformed into /2 execution proof.",
+    "Migration requires resolving an actual supported python-closed-bundle/1 instance and deriving a new reasoning-distiller-renderer-execution-binding/1 value.",
+    "Context-pack /1 and /2 semantics are unchanged.",
+    "Activation identity changes caused by the /2 renderer execution-binding representation are expected."
+  ],
+  "output": "reasoning-distiller-context-rendered-activation/2",
+  "production_integration_authorized": false,
+  "purity": [
+    "Rendering/decoding consumes only the supplied canonical pack, exact renderer-profile bytes/object, the one captured in-memory execution bundle, and exact accepted runtime information.",
+    "No source/repository/filesystem/install/network/model/search/cache/project-state discovery is allowed.",
+    "Input pack and profile are not mutated.",
+    "No persistence, authority, activation-state, reconciliation, admission, or canonical mutation occurs."
+  ],
+  "same_bundle_sequence": [
+    "resolve one closed execution bundle",
+    "validate dependency shapes and exact runtime ABI",
+    "derive normalized descriptor and execution binding",
+    "compare expected /2 profile binding exactly; mismatch fails closed",
+    "execute render/decode through only references captured in that same bundle",
+    "record the same derived binding in the /2 activation"
+  ],
+  "stage3_amendment": {
+    "blob": "90142ffe6b6652faceb3e8347f33fa71c8dc3ed9",
+    "commit": "373667be85521e6f0f83bf19fed3378357e51118",
+    "disposition": "P9_RENDERER_IDENTITY_STAGE3_RECONCILED_ACCEPTED_WITH_GATES"
+  },
+  "status": "frozen"
+}

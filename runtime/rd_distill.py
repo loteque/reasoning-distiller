@@ -2,9 +2,11 @@
 """Reasoning Distiller invocation adapter with explicit ingestion source typing.
 
 The proven v0.4.1 adapter is preserved in ``rd_distill_core.py``. This
-compatibility entrypoint adds explicit ``governed_artifact`` evidence selection
-and recognizes the accepted reasoning-distiller-project/2 identity contract
-without inferring authority or project identity.
+compatibility entrypoint adds explicit ``governed_artifact`` evidence selection,
+recognizes the accepted reasoning-distiller-project/2 identity contract, and
+dispatches explicit reasoning-distiller-invocation/2 preparation and
+finalization into the package-bound P10 boundaries without coercing legacy /1
+requests.
 """
 from __future__ import annotations
 
@@ -28,6 +30,7 @@ for _name in dir(_core):
 
 INGEST_SOURCE_TYPES = frozenset({"repository_file", "governed_artifact"})
 PROJECT_CONTRACT_V2 = "reasoning-distiller-project/2"
+PREPARE_CONTRACT_V2 = "reasoning-distiller-invocation/2"
 
 
 def load_project_config(project_root: _Path) -> dict[str, _Any]:
@@ -464,6 +467,183 @@ def ingest_command(args) -> int:
         return _core.EXIT_INTERNAL
 
 
+def _load_prepare_v2_module():
+    installed_root = _Path(__file__).resolve().parents[1]
+    root_text = str(installed_root)
+    if root_text not in _sys.path:
+        _sys.path.insert(0, root_text)
+    from context_packaging import prepare_integration
+
+    return prepare_integration
+
+
+def _load_finalize_v2_module():
+    installed_root = _Path(__file__).resolve().parents[1]
+    root_text = str(installed_root)
+    if root_text not in _sys.path:
+        _sys.path.insert(0, root_text)
+    from context_packaging import finalize_integration
+
+    return finalize_integration
+
+
+def _read_prepare_contract(path: _Path) -> str | None:
+    """Inspect only the request contract so legacy /1 needs no P10 package import."""
+    try:
+        document = _core.json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, _core.json.JSONDecodeError):
+        return None
+    return document.get("contract") if isinstance(document, dict) else None
+
+
+def _emit_p10_failure(p10, invocation_id: str, failure) -> int:
+    _core.emit_json(p10.failure_result(invocation_id, failure))
+    return failure.exit_code
+
+
+def prepare_command(args) -> int:
+    if _read_prepare_contract(args.request) != PREPARE_CONTRACT_V2:
+        return _core.prepare_command(args)
+
+    p10 = _load_prepare_v2_module()
+    request_raw: bytes | None = None
+    request_document: dict[str, _Any] | None = None
+    try:
+        try:
+            request_raw = args.request.read_bytes()
+        except OSError as exc:
+            raise p10.PrepareFailure(
+                "preflight",
+                "REQUEST_READ_FAILED",
+                str(exc),
+                p10.EXIT_PREFLIGHT,
+            ) from exc
+        try:
+            parsed = p10._strict_json(request_raw)
+            if isinstance(parsed, dict):
+                request_document = parsed
+        except Exception:
+            request_document = None
+
+        if args.bundle_out is not None:
+            raise p10.PrepareFailure(
+                "preflight",
+                "INVALID_REQUEST",
+                "--bundle-out is not a governed invocation/2 locator; exact /2 activation bytes are emitted on stdout",
+                p10.EXIT_PREFLIGHT,
+            )
+
+        result = p10.prepare_invocation_v2(request_raw, cwd=_Path.cwd())
+        # No newline is appended: prepared-invocation binds these exact bytes.
+        _sys.stdout.buffer.write(result.serialized_activation_bundle)
+        return 0
+    except p10.PrepareFailure as exc:
+        invocation_id = (
+            request_document.get("invocation_id", "unknown")
+            if isinstance(request_document, dict)
+            else "unknown"
+        )
+        return _emit_p10_failure(p10, invocation_id, exc)
+    except (p10.ImmutableOutputCollisionError, p10.PersistenceBoundaryError) as exc:
+        invocation_id = (
+            request_document.get("invocation_id", "unknown")
+            if isinstance(request_document, dict)
+            else "unknown"
+        )
+        failure = p10.PrepareFailure(
+            "persistence",
+            "IMMUTABLE_OUTPUT_COLLISION",
+            str(exc),
+            p10.EXIT_PERSISTENCE,
+        )
+        return _emit_p10_failure(p10, invocation_id, failure)
+    except Exception as exc:
+        invocation_id = (
+            request_document.get("invocation_id", "unknown")
+            if isinstance(request_document, dict)
+            else "unknown"
+        )
+        failure = p10.PrepareFailure(
+            "internal",
+            "INTERNAL_ERROR",
+            str(exc),
+            p10.EXIT_INTERNAL,
+        )
+        return _emit_p10_failure(p10, invocation_id, failure)
+
+
+def finalize_command(args) -> int:
+    if _read_prepare_contract(args.request) != PREPARE_CONTRACT_V2:
+        return _core.finalize_command(args)
+
+    p10 = _load_finalize_v2_module()
+    request_document: dict[str, _Any] | None = None
+    try:
+        try:
+            request_raw = args.request.read_bytes()
+        except OSError as exc:
+            raise p10.FinalizeFailure(
+                "preflight",
+                "REQUEST_READ_FAILED",
+                str(exc),
+                p10.EXIT_PREFLIGHT,
+            ) from exc
+        try:
+            parsed = p10._strict_json(request_raw)
+            if isinstance(parsed, dict):
+                request_document = parsed
+        except Exception:
+            request_document = None
+
+        try:
+            raw_model_bytes = args.raw_candidate.read_bytes()
+        except OSError as exc:
+            raise p10.FinalizeFailure(
+                "activation",
+                "MODEL_TRANSPORT_NONCONFORMING",
+                f"provider result is unavailable: {exc}",
+                p10.EXIT_ACTIVATION,
+            ) from exc
+
+        transport_raw = b""
+        if args.transport_binding is not None:
+            try:
+                transport_raw = args.transport_binding.read_bytes()
+            except OSError:
+                # Raw provider bytes still cross the G6 boundary and therefore
+                # must be persisted before transport-receipt rejection.
+                transport_raw = b""
+
+        result = p10.finalize_invocation_v2(
+            request_raw,
+            raw_model_bytes,
+            transport_raw,
+            cwd=_Path.cwd(),
+        )
+        _core.emit_json(result.result)
+        return 0
+    except p10.FinalizeFailure as exc:
+        invocation_id = (
+            request_document.get("invocation_id", "unknown")
+            if isinstance(request_document, dict)
+            else "unknown"
+        )
+        return _emit_p10_failure(p10, invocation_id, exc)
+    except Exception as exc:
+        invocation_id = (
+            request_document.get("invocation_id", "unknown")
+            if isinstance(request_document, dict)
+            else "unknown"
+        )
+        failure = p10.FinalizeFailure(
+            "internal",
+            "INTERNAL_ERROR",
+            str(exc),
+            p10.EXIT_INTERNAL,
+        )
+        return _emit_p10_failure(p10, invocation_id, failure)
+
+
 def build_parser():
     parser = _core.build_parser()
     subparsers = next(
@@ -480,6 +660,15 @@ def build_parser():
             "governed_artifact; repeat for multiple selections"
         ),
     )
+    finalize_parser = subparsers.choices["finalize"]
+    finalize_parser.add_argument(
+        "--transport-binding",
+        type=_Path,
+        help=(
+            "exact reasoning-distiller-model-transport/1 receipt returned by "
+            "the conforming invocation/2 runner"
+        ),
+    )
     return parser
 
 
@@ -492,9 +681,9 @@ def main() -> int:
     if args.command == "ingest":
         return ingest_command(args)
     if args.command == "prepare":
-        return _core.prepare_command(args)
+        return prepare_command(args)
     if args.command == "finalize":
-        return _core.finalize_command(args)
+        return finalize_command(args)
     parser.error("ingest, prepare, or finalize is required")
     return _core.EXIT_INTERNAL
 

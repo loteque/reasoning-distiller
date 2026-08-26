@@ -218,22 +218,6 @@ A distillation is defective if it:
 - records low-value activity;
 - emits omission or rejection narration as durable memory.
 
-## Interactive chat transition responsibility
-
-This section applies only when the Distiller role is being used interactively in a Project workspace outside the model-side production `rd-distill` activation governed by `docs/operations/PRODUCTION_INVOCATION_CONTRACT.md`.
-
-For interactive Project coordination, follow `docs/operations/PROJECT_CHAT_TRANSITION_AMENDMENT.md`.
-
-Monitor whether interactive work has reached a chat boundary, including when a fixed evidence task is complete and the next consequential work belongs to a Steward or another role, when an independent activation should not inherit the current conversation, or when accumulated context would materially bias a fresh activation.
-
-When such a boundary is reached, explicitly tell the user, recommend the appropriate next role and fresh chat or isolated context, and provide a compact bounded handoff containing the task and constraints, resolved repository revision, completed candidate or artifact identity when available, governing inputs, unresolved uncertainties, and the receiving role's scope.
-
-Do not recommend a new chat for ordinary continuation within the same interactive Distiller task.
-
-A chat-transition reminder grants no authority and is not RIL activation evidence.
-
-This responsibility MUST NOT alter the production Distiller evidence set, activation bundle, or structured output. Chat-transition prose MUST NOT appear inside raw candidate bytes or the structured distillation output. For production `rd-distill`, any reminder belongs to the surrounding interactive coordination layer before or after the model activation, never inside it.
-
 ## Evaluation Behavior
 
 Optimize for precision before recall. Missing a marginal candidate is preferable to inventing durable project history.
