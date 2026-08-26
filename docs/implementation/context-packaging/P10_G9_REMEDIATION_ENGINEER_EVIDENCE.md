@@ -1,6 +1,6 @@
-# P10-G9 remediation Engineer evidence construction
+# P10-G9 PI witness remediation Engineer evidence construction
 
-Status: **EVIDENCE CONSTRUCTION ONLY; INDEPENDENT G9 RE-REVIEW REQUIRED**
+Status: **EVIDENCE CONSTRUCTION ONLY; FRESH INDEPENDENT G9 RE-REVIEW REQUIRED**
 
 Repository: `loteque/reasoning-distiller`
 
@@ -10,63 +10,84 @@ Governing P10 Stage 3 plan: `b435dff827b745d711a5c5a297587a0c4359bed1`
 
 Plan blob: `eae54b9e2c0618faec61acf2f9e4acd942ec063d`
 
-Reviewed semantic candidate: `ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e`
+Semantic candidate: `ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e`
 
 Candidate tree: `81178c5efdc8f1419a068c61a92c0571b28f69fc`
 
-Prior Engineer evidence head: `99da31f907093be6ad53aee7e9d5db249f5cd3d0`
+Reviewed prior Engineer evidence head: `cfc314edf2c9d2440eac2a96643766d5fb97cd64`
 
-Prior evidence PR: `#90`
+Evidence PR: `#91`
 
-Prior independent disposition: `P10_G9_INDEPENDENT_REVIEW_CHANGES_REQUIRED`
+Independent disposition: `P10_G9_INDEPENDENT_REVIEW_CHANGES_REQUIRED`
 
-Blocking finding: `P10_G9_REMEDIATED_CANDIDATE_BOUND_EVIDENCE_NOT_FULLY_ESTABLISHED`
+Blocking finding: `P10_G9_PI_WITNESS_LEDGER_INSUFFICIENT`
 
 ## Engineer diagnosis
 
-The inspected semantic candidate contains substantive code/harness remediations for the two prior semantic mechanisms:
+The prior G9 execution itself was successful, but its PI-01 through PI-60 ledger used broad suite-file attribution rather than proving a concrete executed or mechanically inspectable witness for each frozen pressure case. Independent review immediately identified PI-05, PI-06, and PI-10 as unproven mappings.
 
-- `P10_PI09_ELIGIBILITY_CONSUMER_UNBOUND`: the `/2` prepare path now validates the eligibility consumer contract and consumer ID against the frozen production constants `reasoning-distiller-invocation/2` and `rd-distill`, rather than merely comparing two mutually mutable input artifacts.
-- `P10_G8_PS19_BASELINE_MASKS_LATER_NEGATIVE_REGRESSIONS`: the corrected evidence harness executes every P1b negative other than inherited PS-19 independently, then reproduces PS-19 alone as the inherited baseline mismatch.
+Live inspection found existing fail-closed production branches for those states. Candidate-bound direct execution subsequently exercised the repaired witness harness without exposing a semantic implementation defect. The semantic candidate is therefore preserved unless later exact evidence falsifies it.
 
-The remaining G9 blocker is therefore treated as an **evidence-construction gap unless the new complete proof exposes a semantic defect**. This evidence branch does not change production behavior.
+This branch is an evidence surface only. It does not alter production semantic bytes in candidate `ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e`.
 
-## Exact proof construction
+## Exact witness construction
 
-`.github/workflows/p10-g9-ae5d5c21-engineer-evidence.yml` is bound to the exact semantic candidate and candidate tree above. It intentionally checks out the semantic candidate rather than the evidence branch head.
+The remediation replaces broad suite-file attribution with one traceable witness for every frozen PI case.
 
-The workflow must establish all of the following on one exact tuple:
+Direct candidate/package/runtime execution covers cases whose existing test node did not instantiate the frozen pressure state precisely enough, including:
 
-1. exact candidate commit and tree;
-2. exact CPython `3.12.0` / `cpython-312` runtime;
-3. one release package built from that candidate as `0.0.0-p10-g9-r1`;
-4. package transport digest, manifest digest, managed roots, file count, and `content_identity`;
-5. exact package rehydration before P10/runtime regressions;
-6. complete P10 G0-G7 plus G9-remediation candidate suite;
-7. installed `rd-distill prepare` PI-09 adversarial execution for both wrong consumer-contract and wrong consumer-ID variants, with both pack and eligibility inputs made mutually consistent and request digests updated;
-8. fail-closed PI-09 result at the public installed entrypoint: exit `2`, stage `preflight`, reason `PROFILE_ELIGIBILITY_MISMATCH`, with no prepared invocation or provenance registry persisted;
-9. a mechanically complete PI-01 through PI-60 ledger derived from the frozen G0 table, with every ID attached to executed P10 witness suites and PI-09 attached to the installed-entrypoint witness;
+- PI-04, PI-05, PI-06, PI-08, PI-09, PI-10, PI-11, PI-12, PI-13;
+- PI-27, PI-28, PI-29;
+- PI-34, PI-36, PI-37, PI-38, PI-39;
+- PI-41, PI-42, PI-44, PI-59.
+
+The direct probes install the exact package built from the semantic candidate and exercise the installed `/2` runtime or exact finalization path. They assert the expected stage/reason code, output absence or immutability where applicable, and success invariants for positive cases.
+
+PI-14 and PI-52 use an actual CPython `3.12.1` execution of the exact unsupported-runtime G7 witness. That runtime witness is isolated from the main evidence job so the main tuple remains on CPython `3.12.0` / `cpython-312` for its entire execution.
+
+Every remaining PI case is bound to an exact pytest node ID rather than a broad test file. The generated ledger is derived from the frozen G0 `PRESSURE_CASES` table and fails unless PI-01 through PI-60 are covered exactly once by direct execution, the unsupported-runtime witness, or an exact node-ID mapping.
+
+## Exact evidence tuple
+
+The final G9 evidence workflow must establish all of the following:
+
+1. semantic candidate `ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e` and tree `81178c5efdc8f1419a068c61a92c0571b28f69fc`;
+2. governing Stage 3 plan and blob above;
+3. main evidence runtime CPython `3.12.0` / `cpython-312`;
+4. one exact release package built from the semantic candidate, including transport digest, manifest digest, content identity, managed roots, and file count;
+5. exact package rehydration before candidate/runtime tests;
+6. complete P10 candidate suite;
+7. direct PI witness harness execution against the exact package;
+8. isolated actual CPython `3.12.1` unsupported-runtime witness for PI-14 and PI-52;
+9. mechanically complete exact-witness PI-01 through PI-60 ledger;
 10. fixed production `/1` regressions;
 11. P1 schema baseline;
-12. every P1b negative except inherited PS-19 in one independent invocation whose selected IDs are emitted into the evidence;
-13. inherited PS-19 reproduced alone and required to show the known `PLANE_CLASSIFICATION_CONFLICT` versus `UNKNOWN_SEMANTICS_FIELD` mismatch;
-14. unaffected P0-P9 regressions with only the two already-governed exclusions used by G8;
+12. every P1b negative except inherited PS-19, with selected IDs emitted;
+13. inherited PS-19 reproduced alone with its governed known mismatch;
+14. unaffected P0-P9 regressions under the already-governed exclusions;
 15. package-builder and installer regressions;
-16. one uploaded evidence artifact containing the exact tuple, logs, package/manifest, PI ledger, P1/P1b records, and status matrix.
+16. uploaded package, manifest, runtime record, exact witness scripts and digests, direct witness results, unsupported-runtime log, exact-node log, PI ledger, regression logs, and summary tuple;
+17. a final gate marker emitted only after all required evidence has passed.
+
+## Evidence-construction diagnostics
+
+Two intermediate evidence-only runs are retained as diagnostics and are not semantic candidate failures:
+
+- run `32930085320` passed candidate/package setup and the complete P10 suite, then failed before PI execution because the downloaded witness script started with `/tmp` rather than the candidate checkout on `sys.path`;
+- run `32930277830` passed the complete P10 suite, the full direct PI witness set, and the actual CPython `3.12.1` unsupported-runtime witness, then failed because repeated `setup-python` use did not restore the shell's active interpreter to `3.12.0`.
+
+The final construction removes that runtime-switch ambiguity by isolating unsupported-runtime execution in its own job and keeping the full evidence job on exact CPython `3.12.0` throughout.
 
 ## Candidate versus evidence identity
 
-No production semantic change is made by this remediation work unit unless the candidate-bound proof fails in a way that establishes a new semantic defect.
+The semantic candidate remains `ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e` with tree `81178c5efdc8f1419a068c61a92c0571b28f69fc` unless exact testing establishes a semantic defect.
 
-Accordingly:
+The evidence branch head is a separate durable proof identity. It must not be substituted for the production semantic candidate.
 
-- semantic candidate remains `ae5d5c21de1f646b7b7c4450a1f9e8db6fcbcf0e`;
-- semantic candidate tree remains `81178c5efdc8f1419a068c61a92c0571b28f69fc`;
-- the evidence branch is a separate durable proof surface and must not be mistaken for a new production semantic candidate;
-- a successful workflow execution is Engineer execution evidence only, not an independent G9 PASS disposition.
+A successful evidence workflow is Engineer execution evidence only. It is not an independent G9 PASS disposition.
 
 ## Authority and terminal boundary
 
 This work unit performs no G10 Steward reconciliation, admission, canonical mutation, role registration, RIL activation, Steward-authorization mutation, authority mutation, or later P10 gate.
 
-If the new exact proof passes, the next consequential work belongs to a **fresh independent P10-G9 implementation reviewer**. That reviewer must independently re-resolve live coordination/contracts and challenge the exact semantic candidate against the new bound evidence. This Engineer work unit cannot issue `P10_INDEPENDENT_REVIEW_PASS` for its own evidence.
+After exact evidence passes, the next consequential work belongs to a **fresh independent P10-G9 implementation reviewer**. That reviewer must independently re-resolve live coordination/contracts and challenge the exact semantic candidate, package/runtime tuple, direct witnesses, and complete PI ledger. This Engineer work unit cannot review or approve its own evidence.
