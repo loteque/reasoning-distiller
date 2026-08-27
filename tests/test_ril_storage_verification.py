@@ -40,7 +40,7 @@ class StorageVerificationR14Tests(unittest.TestCase):
         return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
 
     def digest(self, data: bytes) -> str:
-        return "sha256:" + hashlib.sha256(data).hexdigest()
+        return hashlib.sha256(data).hexdigest()
 
     def write_control(self, root: Path, relative: str, value: dict) -> str:
         path = root / relative
@@ -85,66 +85,86 @@ class StorageVerificationR14Tests(unittest.TestCase):
         pems_path, cove_path, pems_bytes, cove_bytes = self.install_pair(root)
         generation = "generation-test"
         base = f"project-knowledge/recovery/canonical-pems-cove/generations/{generation}"
-        project = {"id": "pems:project:p"}
-        inventory_path = f"{base}/preserved-inventory.json"
+        inventory_path = f"{base}/inventory.json"
         equivalence_path = f"{base}/equivalence-proof.json"
         journal_path = f"{base}/journal.json"
-        inventory_digest = self.write_control(root, inventory_path, {"contract": "test-preserved-inventory/1", "generation": generation})
-        equivalence_digest = self.write_control(root, equivalence_path, {"contract": "test-equivalence-proof/1", "generation": generation, "eligible": True})
-        journal_digest = self.write_control(root, journal_path, {"contract": "test-recovery-journal/1", "generation": generation, "state": "COMPLETED"})
+        inventory_digest = self.write_control(root, inventory_path, {"entries": []})
+        equivalence_digest = self.write_control(root, equivalence_path, {"mode": "A", "recipe_id": "missing_top_level_semantic_pems2/1"})
+        journal_digest = self.write_control(root, journal_path, {"contract": "reasoning-distiller-canonical-recovery-journal/1", "generation": generation, "transaction_state": "ACTIVE"})
         pems_sha = sha256_bytes(pems_bytes)
         cove_sha = sha256_bytes(cove_bytes)
+        recipe_identity = {"path": "runtime/ril_canonical_recovery_recipe.py", "sha256": "5" * 64, "git_blob": "5" * 40}
+        implementation_closure = {
+            "recipe": recipe_identity,
+            "schema": {"path": "schema", "sha256": "6" * 64, "git_blob": "6" * 40},
+            "validator": {"path": "validator", "sha256": "7" * 64, "git_blob": "7" * 40},
+            "normalizer": {"path": "normalizer", "sha256": "8" * 64, "git_blob": "8" * 40},
+            "serializer": {"path": "serializer", "sha256": "9" * 64, "git_blob": "9" * 40},
+            "cove_codec": {"path": "codec", "sha256": "a" * 64, "git_blob": "a" * 40},
+            "planner": {"path": "planner", "sha256": "b" * 64, "git_blob": "b" * 40},
+            "canonical_store": {"path": "store", "sha256": "c" * 64, "git_blob": "c" * 40},
+            "recovery_executor": {"path": "executor", "sha256": "d" * 64, "git_blob": "d" * 40},
+            "behavior_dependencies": [{"path": "dep", "sha256": "e" * 64, "git_blob": "e" * 40}],
+            "package_build": {"path": "package", "sha256": "f" * 64, "git_blob": "f" * 40},
+        }
+        recovery_contract_identity = {"path": "docs/operations/RIL_CANONICAL_PEMS_COVE_RECOVERY_CONTRACT.md", "sha256": "1" * 64, "git_blob": "1" * 40}
+        r14_identity = {"path": "docs/operations/RIL_STORAGE_VERIFICATION_CONTRACT.md", "sha256": "2" * 64, "git_blob": "2" * 40}
+        prestate = {"pems_sha256": "3" * 64, "cove_sha256": "4" * 64, "pems_git_blob": "3" * 40, "cove_git_blob": "4" * 40}
         plan = {
             "contract": "reasoning-distiller-canonical-recovery-plan/1",
-            "project": project,
+            "project_id": "pems:project:p",
             "generation": generation,
+            "canonical_paths": {"pems": "project-knowledge/canonical/pems2.jcs.json", "cove": "project-knowledge/canonical/cove1.jcs.json"},
+            "prestate": prestate,
+            "preserved_evidence_inventory_sha256": inventory_digest,
             "mode": "A",
             "recipe_id": "missing_top_level_semantic_pems2/1",
-            "recipe_implementation_identity": "sha256:" + "5" * 64,
-            "candidate_pems_sha256": pems_sha,
-            "candidate_cove_sha256": cove_sha,
-            "preserved_evidence_inventory_digest": inventory_digest,
-            "equivalence_proof_digest": equivalence_digest,
-            "executor_closure_identity": "sha256:" + "6" * 64,
-            "recovery_contract_identity": "git-blob:" + "7" * 40,
-            "r14_v2_contract_identity": "git-blob:" + "8" * 40,
+            "recipe_implementation_identity": recipe_identity,
+            "candidate": {"pems_sha256": pems_sha, "cove_sha256": cove_sha},
+            "equivalence_proof_sha256": equivalence_digest,
+            "implementation_closure": implementation_closure,
+            "runtime_identity": {"python_implementation": "CPython"},
+            "recovery_contract_identity": recovery_contract_identity,
+            "r14_v2_contract_identity": r14_identity,
+            "expected_barrier_identity": {"contract": "reasoning-distiller-canonical-recovery-barrier/1", "transaction_state": "ACTIVE", "recovery_contract_sha256": recovery_contract_identity["sha256"]},
             "expected_terminal_provenance_class": "VERIFIED_RECOVERED",
         }
-        plan_path = f"{base}/recovery-plan.json"
+        plan_path = f"{base}/plan.json"
         plan_digest = self.write_control(root, plan_path, plan)
         approval_path = f"{base}/root-approval.json"
         approval = {
             "contract": "reasoning-distiller-canonical-recovery-root-approval/1",
-            "project": project,
+            "project_id": plan["project_id"],
             "generation": generation,
-            "recovery_plan_digest": plan_digest,
-            "authentication_method": "human_confirmation",
-            "confirmation": "AUTHORIZE_CANONICAL_PEMS_COVE_RECOVERY",
+            "recovery_plan_sha256": plan_digest,
+            "protected_root_id": "operator:root-at-recovery",
+            "authentication": {
+                "method": "human_confirmation",
+                "confirmation": "AUTHORIZE_CANONICAL_PEMS_COVE_RECOVERY",
+            },
         }
         approval_digest = self.write_control(root, approval_path, approval)
         completion = {
             "contract": "reasoning-distiller-canonical-recovery-completion/1",
-            "project": project,
+            "project_id": plan["project_id"],
             "generation": generation,
-            "recovery_plan_digest": plan_digest,
+            "recovery_plan_sha256": plan_digest,
             "root_approval_path": approval_path,
-            "root_approval_digest": approval_digest,
+            "root_approval_sha256": approval_digest,
             "preserved_evidence_inventory_path": inventory_path,
-            "preserved_evidence_inventory_digest": inventory_digest,
+            "preserved_evidence_inventory_sha256": inventory_digest,
             "equivalence_proof_path": equivalence_path,
-            "equivalence_proof_digest": equivalence_digest,
-            "prestate_pems_sha256": "a" * 64,
-            "prestate_cove_sha256": "b" * 64,
-            "poststate_pems_sha256": pems_sha,
-            "poststate_cove_sha256": cove_sha,
+            "equivalence_proof_sha256": equivalence_digest,
+            "prestate": prestate,
+            "poststate": plan["candidate"],
             "recipe_id": plan["recipe_id"],
             "recipe_implementation_identity": plan["recipe_implementation_identity"],
-            "executor_closure_identity": plan["executor_closure_identity"],
+            "implementation_closure": plan["implementation_closure"],
             "recovery_contract_identity": plan["recovery_contract_identity"],
             "r14_v2_contract_identity": plan["r14_v2_contract_identity"],
             "provenance_class": "VERIFIED_RECOVERED",
             "journal_path": journal_path,
-            "journal_digest": journal_digest,
+            "journal_sha256": journal_digest,
         }
         completion_path = root / base / "completion.json"
         self.write_control(root, completion_path.relative_to(root).as_posix(), completion)
@@ -216,7 +236,7 @@ class StorageVerificationR14Tests(unittest.TestCase):
 
     def test_recovered_completion_digest_mismatch_fails_closed(self):
         root = self.root(); _, _, completion_path = self.install_recovered_state(root)
-        completion = json.loads(completion_path.read_text()); completion["root_approval_digest"] = "sha256:" + "0" * 64
+        completion = json.loads(completion_path.read_text()); completion["root_approval_sha256"] = "0" * 64
         completion_path.write_bytes(self.control_bytes(completion))
         self.assertEqual(verify_storage(root, ROOT)["outcome"], "RECOVERY_PROVENANCE_MISMATCH")
 
