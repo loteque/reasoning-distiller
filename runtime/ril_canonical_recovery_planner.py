@@ -18,13 +18,13 @@ from ril_canonical_recovery_recipe import (
     build_missing_top_level_semantic_pems2,
     git_blob_sha1,
 )
+from ril_canonical_store import BARRIER_CONTRACT, COVE_RELATIVE_PATH, PEMS_RELATIVE_PATH
 from ril_mutation import ContractError
 
 PLAN_CONTRACT = "reasoning-distiller-canonical-recovery-plan/1"
-BARRIER_CONTRACT = "reasoning-distiller-canonical-recovery-barrier/1"
 TERMINAL_PROVENANCE_CLASS = "VERIFIED_RECOVERED"
-CANONICAL_PEMS_PATH = "project-knowledge/canonical/pems2.jcs.json"
-CANONICAL_COVE_PATH = "project-knowledge/canonical/cove1.jcs.json"
+CANONICAL_PEMS_PATH = PEMS_RELATIVE_PATH.as_posix()
+CANONICAL_COVE_PATH = COVE_RELATIVE_PATH.as_posix()
 RECOVERY_CONTRACT_PATH = "docs/operations/RIL_CANONICAL_PEMS_COVE_RECOVERY_CONTRACT.md"
 R14_CONTRACT_PATH = "docs/operations/RIL_STORAGE_VERIFICATION_CONTRACT.md"
 PACKAGE_BUILD_PATH = "packaging/package-build.json"
