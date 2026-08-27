@@ -9,6 +9,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from ril_admission import COVE, PROFILE, RECEIPT_CONTRACT, SERIALIZER, _decode, encode_cove, jcs, normalize_pems, sha256_bytes
+from ril_canonical_store import shared_canonical_store
 from ril_mutation import ContractError, load_json
 
 RESULT_CONTRACT = "reasoning-distiller-storage-verification-result/1"
@@ -47,11 +48,9 @@ def _load_package_validator(package_root: Path):
     return module, Draft202012Validator(schema)
 
 
-def _parse_json_bytes(path: Path, invalid_code: str) -> tuple[Any, bytes]:
-    _ordinary_file(path, "CANONICAL_PATH_CONFLICT")
-    data = path.read_bytes()
+def _parse_json_bytes(data: bytes, invalid_code: str) -> Any:
     try:
-        return json.loads(data.decode("utf-8")), data
+        return json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ContractError(invalid_code, str(exc)) from exc
 
@@ -60,19 +59,17 @@ def verify_storage(project_root: Path, package_root: Path | None = None) -> dict
     try:
         root = project_root.resolve()
         package = (package_root or Path(__file__).resolve().parents[1]).resolve()
-        canonical = root / "project-knowledge" / "canonical"
-        pems_path = canonical / "pems2.jcs.json"
-        cove_path = canonical / "cove1.jcs.json"
-
-        _ordinary_dir(canonical, "CANONICAL_PATH_CONFLICT")
-        pems_exists = pems_path.exists() or pems_path.is_symlink()
-        cove_exists = cove_path.exists() or cove_path.is_symlink()
-        if not pems_exists and not cove_exists:
+        with shared_canonical_store(root) as store:
+            snapshot = store.snapshot()
+        if snapshot.state == "ABSENT":
             return _result("FAIL", "NO_ADMITTED_STATE")
-        if pems_exists != cove_exists:
+        if snapshot.state == "INCOMPLETE":
             return _result("FAIL", "INCOMPLETE_CANONICAL_PAIR")
+        assert snapshot.pems_bytes is not None and snapshot.cove_bytes is not None
+        pems_bytes = snapshot.pems_bytes
+        cove_bytes = snapshot.cove_bytes
 
-        pems, pems_bytes = _parse_json_bytes(pems_path, "INVALID_PEMS_JSON")
+        pems = _parse_json_bytes(pems_bytes, "INVALID_PEMS_JSON")
         try:
             normalized = normalize_pems(pems)
         except ContractError as exc:
@@ -90,7 +87,7 @@ def verify_storage(project_root: Path, package_root: Path | None = None) -> dict
         except Exception as exc:
             return _result("FAIL", "PEMS_INTEGRITY_INVALID", str(exc))
 
-        cove, cove_bytes = _parse_json_bytes(cove_path, "INVALID_COVE_JSON")
+        cove = _parse_json_bytes(cove_bytes, "INVALID_COVE_JSON")
         if cove_bytes != jcs(cove):
             return _result("FAIL", "NONCANONICAL_COVE_BYTES")
         expected_cove = encode_cove(normalized)
@@ -105,8 +102,8 @@ def verify_storage(project_root: Path, package_root: Path | None = None) -> dict
         if decoded != normalized:
             return _result("FAIL", "COVE_ROUNDTRIP_FAILED")
 
-        pems_sha = sha256_bytes(pems_bytes)
-        cove_sha = sha256_bytes(cove_bytes)
+        pems_sha = snapshot.pems_sha256 or sha256_bytes(pems_bytes)
+        cove_sha = snapshot.cove_sha256 or sha256_bytes(cove_bytes)
         receipts_dir = root / "project-knowledge" / "admission" / "receipts"
         if not receipts_dir.exists():
             return _result("FAIL", "ADMISSION_RECEIPT_MISSING")
