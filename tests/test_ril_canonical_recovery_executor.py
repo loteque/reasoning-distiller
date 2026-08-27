@@ -35,6 +35,7 @@ class CanonicalRecoveryExecutorG6Tests(unittest.TestCase):
         "runtime/ril_operators.py",
         "runtime/ril_storage_verification.py",
     )
+    EVIDENCE_PATH = "project-knowledge/recovery-test-evidence/historical.json"
 
     def valid_pems(self) -> dict:
         return {
@@ -71,9 +72,9 @@ class CanonicalRecoveryExecutorG6Tests(unittest.TestCase):
         pems, cove = self.prestate()
         (canonical / "pems2.jcs.json").write_bytes(pems)
         (canonical / "cove1.jcs.json").write_bytes(cove)
-        evidence = root / "project-knowledge" / "admission" / "receipts"
-        evidence.mkdir(parents=True)
-        (evidence / "historical.json").write_bytes(b'{"historical":true}')
+        evidence = root / self.EVIDENCE_PATH
+        evidence.parent.mkdir(parents=True)
+        evidence.write_bytes(b'{"historical":true}')
         return td, root
 
     def planned(self, root: Path, generation: str = "g6-fixture-0001"):
@@ -88,7 +89,7 @@ class CanonicalRecoveryExecutorG6Tests(unittest.TestCase):
             expected_prestate_cove_sha256=sha256_bytes(cove),
             expected_prestate_pems_git_blob=git_blob_sha1(pems),
             expected_prestate_cove_git_blob=git_blob_sha1(cove),
-            selected_evidence_paths=("project-knowledge/admission/receipts/historical.json",),
+            selected_evidence_paths=(self.EVIDENCE_PATH,),
             behavior_dependency_paths=self.BEHAVIOR_DEPENDENCIES,
             package_root=ROOT,
         )
@@ -143,8 +144,8 @@ class CanonicalRecoveryExecutorG6Tests(unittest.TestCase):
             self.assertEqual((generation / "inventory.json").read_bytes(), plan.preserved_evidence_inventory_bytes)
             self.assertEqual((generation / "equivalence-proof.json").read_bytes(), plan.recipe_candidate.equivalence_proof_bytes)
             self.assertTrue((generation / "completion.json").is_file())
-            self.assertTrue((generation / "evidence/project-knowledge/admission/receipts/historical.json").is_file())
-            self.assertFalse((root / "project-knowledge/admission/receipts").joinpath("recovery.json").exists())
+            self.assertTrue((generation / "evidence" / self.EVIDENCE_PATH).is_file())
+            self.assertFalse((root / "project-knowledge/admission/receipts").exists())
             verified = verify_storage(root, ROOT)
             self.assertEqual((verified["status"], verified["outcome"]), ("PASS", "VERIFIED_RECOVERED"))
 
@@ -204,6 +205,22 @@ class CanonicalRecoveryExecutorG6Tests(unittest.TestCase):
             canonical = root / "project-knowledge/canonical"
             canonical.joinpath("pems2.jcs.json").write_bytes(plan.recipe_candidate.candidate_pems_bytes)
             canonical.joinpath("cove1.jcs.json").write_bytes(plan.recipe_candidate.candidate_cove_bytes)
+            receipts = root / "project-knowledge/admission/receipts"
+            receipts.mkdir(parents=True)
+            receipt = {
+                "contract": "reasoning-distiller-admission-receipt/1",
+                "candidate_digest": "sha256:" + "1" * 64,
+                "disposition_digest": "sha256:" + "2" * 64,
+                "activation_digest": "sha256:" + "3" * 64,
+                "plan_digest": "sha256:" + "4" * 64,
+                "role_id": "steward:default",
+                "invocation_id": "invocation:g6-valid",
+                "base_pems_sha256": "0" * 64,
+                "admitted_pems_sha256": plan.recipe_candidate.candidate_pems_sha256,
+                "admitted_cove_sha256": plan.recipe_candidate.candidate_cove_sha256,
+            }
+            from ril_mutation import canonical_json_bytes
+            receipts.joinpath("valid.json").write_bytes(canonical_json_bytes(receipt))
             result = self.apply(root, plan)
             self.assertEqual((result["status"], result["outcome"]), ("FAIL", "RECOVERY_NOT_REQUIRED"))
             self.assertFalse((root / "project-knowledge/recovery").exists())
