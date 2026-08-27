@@ -22,6 +22,7 @@ RECOVERY_NAMESPACE = PurePosixPath("project-knowledge/recovery/canonical-pems-co
 RECOVERY_RECIPE = "missing_top_level_semantic_pems2/1"
 RECOVERED_CLASS = "VERIFIED_RECOVERED"
 ADMITTED_CLASS = "VERIFIED_ADMITTED"
+RECOVERY_CONFIRMATION = "AUTHORIZE_CANONICAL_PEMS_COVE_RECOVERY"
 
 
 def _result(status: str, outcome: str, detail: str | None = None, **extra: Any) -> dict[str, Any]:
@@ -92,8 +93,12 @@ def _control_bytes(value: Any) -> bytes:
         raise ContractError("RECOVERY_PROVENANCE_INVALID", str(exc)) from exc
 
 
+def _artifact_sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 def _artifact_digest(data: bytes) -> str:
-    return "sha256:" + hashlib.sha256(data).hexdigest()
+    return "sha256:" + _artifact_sha256(data)
 
 
 def _relative_recovery_file(root: Path, relative: Any, code: str) -> Path:
@@ -124,7 +129,7 @@ def _load_control_artifact(root: Path, relative: Any, contract: str | None, code
         raise ContractError(code, f"recovery artifact is not canonical JSON: {relative}")
     if contract is not None and value.get("contract") != contract:
         raise ContractError(code, f"unexpected recovery artifact contract: {relative}")
-    return value, raw, _artifact_digest(raw)
+    return value, raw, _artifact_sha256(raw)
 
 
 def _scan_receipts(root: Path, pems_sha: str, cove_sha: str) -> tuple[list[str], dict[str, str], str | None]:
@@ -171,58 +176,41 @@ def _generation_dirs(root: Path) -> list[Path]:
 def _completion_candidates(root: Path, pems_sha: str, cove_sha: str) -> list[tuple[Path, dict[str, Any], bytes]]:
     matches: list[tuple[Path, dict[str, Any], bytes]] = []
     for generation in _generation_dirs(root):
-        for path in sorted(generation.glob("*.json"), key=lambda p: p.name):
-            if path.is_symlink() or not path.is_file():
-                raise ContractError("RECOVERY_PROVENANCE_INVALID", str(path))
-            raw = path.read_bytes()
-            try:
-                value = _strict_json_object(raw, "RECOVERY_PROVENANCE_INVALID")
-            except ContractError:
-                continue
-            if value.get("contract") != RECOVERY_COMPLETION_CONTRACT:
-                continue
-            if _control_bytes(value) != raw:
-                raise ContractError("RECOVERY_PROVENANCE_INVALID", f"completion is not canonical JSON: {path}")
-            if value.get("poststate_pems_sha256") == pems_sha and value.get("poststate_cove_sha256") == cove_sha:
-                matches.append((path, value, raw))
-    return matches
-
-
-def _find_plan(root: Path, generation_dir: Path, expected_digest: Any) -> tuple[str, dict[str, Any], str]:
-    if not isinstance(expected_digest, str) or not expected_digest.startswith("sha256:"):
-        raise ContractError("RECOVERY_PROVENANCE_INVALID", "completion recovery_plan_digest is invalid")
-    matches: list[tuple[str, dict[str, Any], str]] = []
-    for path in sorted(generation_dir.glob("*.json"), key=lambda p: p.name):
+        path = generation / "completion.json"
+        if not os.path.lexists(path):
+            continue
         if path.is_symlink() or not path.is_file():
             raise ContractError("RECOVERY_PROVENANCE_INVALID", str(path))
         raw = path.read_bytes()
-        try:
-            value = _strict_json_object(raw, "RECOVERY_PROVENANCE_INVALID")
-        except ContractError:
-            continue
-        if value.get("contract") != RECOVERY_PLAN_CONTRACT:
-            continue
+        value = _strict_json_object(raw, "RECOVERY_PROVENANCE_INVALID")
+        if value.get("contract") != RECOVERY_COMPLETION_CONTRACT:
+            raise ContractError("RECOVERY_PROVENANCE_INVALID", f"unexpected completion contract: {path}")
         if _control_bytes(value) != raw:
-            raise ContractError("RECOVERY_PROVENANCE_INVALID", f"recovery plan is not canonical JSON: {path}")
-        digest = _artifact_digest(raw)
-        if digest == expected_digest:
-            matches.append((path.relative_to(root).as_posix(), value, digest))
-    if not matches:
-        raise ContractError("RECOVERY_PROVENANCE_MISSING", "matching immutable recovery plan is absent")
-    if len(matches) != 1:
-        raise ContractError("RECOVERY_PROVENANCE_CONFLICT", "multiple recovery plans match completion digest")
-    return matches[0]
+            raise ContractError("RECOVERY_PROVENANCE_INVALID", f"completion is not canonical JSON: {path}")
+        poststate = value.get("poststate")
+        if isinstance(poststate, dict) and poststate.get("pems_sha256") == pems_sha and poststate.get("cove_sha256") == cove_sha:
+            matches.append((path, value, raw))
+    return matches
 
 
-def _required_equal(left: dict[str, Any], right: dict[str, Any], fields: tuple[str, ...]) -> None:
-    for field in fields:
-        if field not in left or field not in right or left[field] != right[field]:
-            raise ContractError("RECOVERY_PROVENANCE_MISMATCH", f"recovery artifact binding mismatch: {field}")
+def _find_plan(root: Path, generation_dir: Path, expected_sha256: Any) -> tuple[str, dict[str, Any], bytes, str]:
+    if not isinstance(expected_sha256, str) or len(expected_sha256) != 64:
+        raise ContractError("RECOVERY_PROVENANCE_INVALID", "completion recovery_plan_sha256 is invalid")
+    path = generation_dir / "plan.json"
+    if path.is_symlink() or not path.is_file():
+        raise ContractError("RECOVERY_PROVENANCE_MISSING", "immutable recovery plan is absent")
+    raw = path.read_bytes()
+    plan = _strict_json_object(raw, "RECOVERY_PROVENANCE_INVALID")
+    if _control_bytes(plan) != raw or plan.get("contract") != RECOVERY_PLAN_CONTRACT:
+        raise ContractError("RECOVERY_PROVENANCE_INVALID", "recovery plan artifact is invalid")
+    actual = _artifact_sha256(raw)
+    if actual != expected_sha256:
+        raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "recovery plan digest differs from completion")
+    return path.relative_to(root).as_posix(), plan, raw, actual
 
 
 def _verify_recovered_provenance(root: Path, pems_sha: str, cove_sha: str) -> tuple[list[str], dict[str, str]]:
-    generations = _generation_dirs(root)
-    if not generations:
+    if not _generation_dirs(root):
         raise ContractError("RECOVERY_PROVENANCE_MISSING", "no recovery generation evidence is present")
     matches = _completion_candidates(root, pems_sha, cove_sha)
     if not matches:
@@ -233,81 +221,92 @@ def _verify_recovered_provenance(root: Path, pems_sha: str, cove_sha: str) -> tu
     completion_path, completion, completion_raw = matches[0]
     generation_dir = completion_path.parent
     generation = generation_dir.name
-    required = {
-        "contract", "project", "generation", "recovery_plan_digest",
-        "root_approval_path", "root_approval_digest",
-        "preserved_evidence_inventory_path", "preserved_evidence_inventory_digest",
-        "equivalence_proof_path", "equivalence_proof_digest",
-        "prestate_pems_sha256", "prestate_cove_sha256",
-        "poststate_pems_sha256", "poststate_cove_sha256",
-        "recipe_id", "recipe_implementation_identity", "executor_closure_identity",
-        "recovery_contract_identity", "r14_v2_contract_identity",
-        "provenance_class", "journal_path", "journal_digest",
+    completion_fields = {
+        "contract", "project_id", "generation", "recovery_plan_sha256",
+        "root_approval_path", "root_approval_sha256",
+        "preserved_evidence_inventory_path", "preserved_evidence_inventory_sha256",
+        "equivalence_proof_path", "equivalence_proof_sha256",
+        "prestate", "poststate", "recipe_id", "recipe_implementation_identity",
+        "implementation_closure", "recovery_contract_identity", "r14_v2_contract_identity",
+        "provenance_class", "journal_path", "journal_sha256",
     }
-    missing = sorted(required.difference(completion))
-    if missing:
-        raise ContractError("RECOVERY_PROVENANCE_INVALID", f"completion fields missing: {missing}")
+    if set(completion) != completion_fields:
+        raise ContractError("RECOVERY_PROVENANCE_INVALID", "completion fields do not match G6 contract realization")
     if completion["generation"] != generation or completion["provenance_class"] != RECOVERED_CLASS:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "completion generation/provenance class mismatch")
     if completion["recipe_id"] != RECOVERY_RECIPE:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "completion recipe is outside V1")
+    poststate = completion.get("poststate")
+    if not isinstance(poststate, dict) or poststate != {"pems_sha256": pems_sha, "cove_sha256": cove_sha}:
+        raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "completion poststate does not match current pair")
 
-    plan_path, plan, plan_digest = _find_plan(root, generation_dir, completion["recovery_plan_digest"])
+    plan_path, plan, plan_raw, plan_sha = _find_plan(root, generation_dir, completion["recovery_plan_sha256"])
     plan_required = {
-        "contract", "project", "generation", "mode", "recipe_id",
-        "recipe_implementation_identity", "candidate_pems_sha256", "candidate_cove_sha256",
-        "preserved_evidence_inventory_digest", "equivalence_proof_digest",
-        "executor_closure_identity", "recovery_contract_identity", "r14_v2_contract_identity",
-        "expected_terminal_provenance_class",
+        "contract", "project_id", "generation", "canonical_paths", "prestate",
+        "preserved_evidence_inventory_sha256", "mode", "recipe_id",
+        "recipe_implementation_identity", "candidate", "equivalence_proof_sha256",
+        "implementation_closure", "runtime_identity", "recovery_contract_identity",
+        "r14_v2_contract_identity", "expected_barrier_identity", "expected_terminal_provenance_class",
     }
-    missing_plan = sorted(plan_required.difference(plan))
-    if missing_plan:
-        raise ContractError("RECOVERY_PROVENANCE_INVALID", f"recovery plan fields missing: {missing_plan}")
+    if set(plan) != plan_required:
+        raise ContractError("RECOVERY_PROVENANCE_INVALID", "recovery plan fields do not match G4 contract realization")
     if plan["generation"] != generation or plan["mode"] != "A" or plan["recipe_id"] != RECOVERY_RECIPE:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "recovery plan generation/mode/recipe mismatch")
-    if plan["candidate_pems_sha256"] != pems_sha or plan["candidate_cove_sha256"] != cove_sha:
+    if plan["project_id"] != completion["project_id"]:
+        raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "recovery plan project identity mismatch")
+    if plan.get("candidate") != poststate:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "recovery plan candidate hashes do not match current pair")
+    if plan.get("prestate") != completion.get("prestate"):
+        raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "completion prestate differs from plan")
     if plan["expected_terminal_provenance_class"] != RECOVERED_CLASS:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "recovery plan terminal provenance class mismatch")
-    _required_equal(completion, plan, (
-        "project", "generation", "recipe_id", "recipe_implementation_identity",
-        "executor_closure_identity", "recovery_contract_identity", "r14_v2_contract_identity",
-    ))
-    if completion["preserved_evidence_inventory_digest"] != plan["preserved_evidence_inventory_digest"]:
+    for field in (
+        "recipe_id", "recipe_implementation_identity", "implementation_closure",
+        "recovery_contract_identity", "r14_v2_contract_identity",
+    ):
+        if completion[field] != plan[field]:
+            raise ContractError("RECOVERY_PROVENANCE_MISMATCH", f"completion/plan binding mismatch: {field}")
+    if completion["preserved_evidence_inventory_sha256"] != plan["preserved_evidence_inventory_sha256"]:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "preserved inventory digest differs from plan")
-    if completion["equivalence_proof_digest"] != plan["equivalence_proof_digest"]:
+    if completion["equivalence_proof_sha256"] != plan["equivalence_proof_sha256"]:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "equivalence proof digest differs from plan")
 
-    approval, _, approval_digest = _load_control_artifact(root, completion["root_approval_path"], RECOVERY_APPROVAL_CONTRACT, "RECOVERY_PROVENANCE_INVALID")
-    if approval_digest != completion["root_approval_digest"]:
+    approval, approval_raw, approval_sha = _load_control_artifact(
+        root, completion["root_approval_path"], RECOVERY_APPROVAL_CONTRACT, "RECOVERY_PROVENANCE_INVALID"
+    )
+    if approval_sha != completion["root_approval_sha256"]:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "root approval digest mismatch")
-    approval_required = {"contract", "project", "generation", "recovery_plan_digest", "authentication_method", "confirmation"}
-    missing_approval = sorted(approval_required.difference(approval))
-    if missing_approval:
-        raise ContractError("RECOVERY_PROVENANCE_INVALID", f"root approval fields missing: {missing_approval}")
-    if approval["authentication_method"] != "human_confirmation" or approval["confirmation"] != "AUTHORIZE_CANONICAL_PEMS_COVE_RECOVERY":
+    approval_fields = {"contract", "project_id", "generation", "recovery_plan_sha256", "protected_root_id", "authentication"}
+    if set(approval) != approval_fields:
+        raise ContractError("RECOVERY_PROVENANCE_INVALID", "root approval fields do not match G5 contract realization")
+    authentication = approval.get("authentication")
+    if not isinstance(authentication, dict) or not {"method", "confirmation"}.issubset(authentication):
+        raise ContractError("RECOVERY_PROVENANCE_INVALID", "root approval authentication is invalid")
+    if set(authentication) - {"method", "confirmation", "evidence"}:
+        raise ContractError("RECOVERY_PROVENANCE_INVALID", "root approval authentication contains unsupported fields")
+    if authentication.get("method") != "human_confirmation" or authentication.get("confirmation") != RECOVERY_CONFIRMATION:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "root approval confirmation mismatch")
-    if approval["project"] != completion["project"] or approval["generation"] != generation or approval["recovery_plan_digest"] != plan_digest:
+    if approval["project_id"] != completion["project_id"] or approval["generation"] != generation or approval["recovery_plan_sha256"] != plan_sha:
         raise ContractError("RECOVERY_PROVENANCE_MISMATCH", "root approval is not bound to completion plan")
 
     paths = [completion_path.relative_to(root).as_posix(), plan_path]
     digests = {
         paths[0]: _artifact_digest(completion_raw),
-        plan_path: plan_digest,
+        plan_path: _artifact_digest(plan_raw),
     }
     for path_field, digest_field in (
-        ("root_approval_path", "root_approval_digest"),
-        ("preserved_evidence_inventory_path", "preserved_evidence_inventory_digest"),
-        ("equivalence_proof_path", "equivalence_proof_digest"),
-        ("journal_path", "journal_digest"),
+        ("root_approval_path", "root_approval_sha256"),
+        ("preserved_evidence_inventory_path", "preserved_evidence_inventory_sha256"),
+        ("equivalence_proof_path", "equivalence_proof_sha256"),
+        ("journal_path", "journal_sha256"),
     ):
         rel = completion[path_field]
-        _, _, actual_digest = _load_control_artifact(root, rel, None, "RECOVERY_PROVENANCE_INVALID")
-        if actual_digest != completion[digest_field]:
+        _, raw, actual_sha = _load_control_artifact(root, rel, None, "RECOVERY_PROVENANCE_INVALID")
+        if actual_sha != completion[digest_field]:
             raise ContractError("RECOVERY_PROVENANCE_MISMATCH", f"recovery artifact digest mismatch: {rel}")
         if rel not in paths:
             paths.append(rel)
-        digests[rel] = actual_digest
+        digests[rel] = _artifact_digest(raw)
     return paths, digests
 
 
