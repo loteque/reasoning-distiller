@@ -163,6 +163,10 @@ def admit(project_root:Path,disposition_path:Path,activation:dict[str,Any],plan:
                 return _result("PASS","NO_CHANGE",receipt_path=receipt_path.relative_to(project_root).as_posix(),admitted_pems_sha256=rec["admitted_pems_sha256"])
             if snapshot.state=="INCOMPLETE":raise ContractError("INCOMPLETE_CANONICAL_PAIR","ordinary admission requires an absent or complete canonical pair")
             if snapshot.state=="PRESENT":
+                from ril_storage_verification import verify_storage_snapshot
+                standing=verify_storage_snapshot(project_root,Path(__file__).resolve().parents[1],snapshot)
+                if standing.get("status")!="PASS" or standing.get("outcome") not in {"VERIFIED_ADMITTED","VERIFIED_RECOVERED"}:
+                    raise ContractError(str(standing.get("outcome","CANONICAL_STATE_CONFLICT")),str(standing.get("detail","current canonical base lacks valid R14 V2 standing")))
                 assert snapshot.pems_bytes is not None
                 base=normalize_pems(json.loads(snapshot.pems_bytes.decode("utf-8")))
             else:
