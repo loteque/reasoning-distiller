@@ -394,8 +394,8 @@ def _preserve_generation(
         "approval": generation_root / "root-approval.json",
         "proof": generation_root / "equivalence-proof.json",
         "closure": generation_root / "executor-closure.json",
-        "candidate_pems": candidate_dir / "pems2.jcs.json",
-        "candidate_cove": candidate_dir / "cove1.jcs.json",
+        "candidate_pems": candidate_dir / "pems2.candidate",
+        "candidate_cove": candidate_dir / "cove1.candidate",
         "journal": generation_root / "journal.json",
         "completion": generation_root / "completion.json",
     }
@@ -559,8 +559,8 @@ def _paths_for_existing(root: Path, generation: str) -> dict[str, Path]:
         "approval": generation_root / "root-approval.json",
         "proof": generation_root / "equivalence-proof.json",
         "closure": generation_root / "executor-closure.json",
-        "candidate_pems": generation_root / "candidate" / "pems2.jcs.json",
-        "candidate_cove": generation_root / "candidate" / "cove1.jcs.json",
+        "candidate_pems": generation_root / "candidate" / "pems2.candidate",
+        "candidate_cove": generation_root / "candidate" / "cove1.candidate",
         "journal": generation_root / "journal.json",
         "completion": generation_root / "completion.json",
     }
