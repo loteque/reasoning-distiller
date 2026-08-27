@@ -308,6 +308,28 @@ def _verify_inventory_sources(root: Path, inventory: dict[str, Any]) -> dict[str
     return selected
 
 
+def _validate_preserved_evidence_copies(paths: dict[str, Path], inventory: dict[str, Any]) -> None:
+    evidence_root = paths["generation"] / "evidence"
+    for entry in inventory["entries"]:
+        if entry["kind"] != "immutable_project_evidence":
+            continue
+        relative = _safe_relative(entry["path"], "RECOVERY_CONFLICT")
+        current = evidence_root
+        for part in relative.parts:
+            current = current / part
+            if current.is_symlink():
+                raise ContractError("RECOVERY_CONFLICT", f"preserved evidence path is a symlink: {entry['path']}")
+        if not current.is_file():
+            raise ContractError("RECOVERY_CONFLICT", f"preserved evidence copy is missing: {entry['path']}")
+        raw = current.read_bytes()
+        if (
+            len(raw) != entry["byte_length"]
+            or sha256_bytes(raw) != entry["sha256"]
+            or git_blob_sha1(raw) != entry["git_blob"]
+        ):
+            raise ContractError("RECOVERY_CONFLICT", f"preserved evidence copy drift: {entry['path']}")
+
+
 def _generation_root(root: Path, generation: str) -> Path:
     return root / RECOVERY_NAMESPACE / "generations" / generation
 
@@ -419,6 +441,7 @@ def _preserve_generation(
             _ensure_dir(destination, parent)
         _write_immutable(destination / parts[-1], raw)
 
+    _validate_preserved_evidence_copies(paths, inventory)
     _fsync_dir(generation_root)
     return paths
 
@@ -520,6 +543,10 @@ def _validate_generation_artifact(path: Path, expected: bytes) -> None:
 
 
 def _load_preserved_prestate(paths: dict[str, Path], plan: dict[str, Any], package_root: Path):
+    if paths["prestate_pems"].is_symlink() or paths["prestate_cove"].is_symlink():
+        raise ContractError("RECOVERY_CONFLICT", "preserved prestate path is a symlink")
+    if not paths["prestate_pems"].is_file() or not paths["prestate_cove"].is_file():
+        raise ContractError("RECOVERY_CONFLICT", "preserved prestate pair is incomplete")
     pems = paths["prestate_pems"].read_bytes()
     cove = paths["prestate_cove"].read_bytes()
     return build_missing_top_level_semantic_pems2(
@@ -566,6 +593,21 @@ def _paths_for_existing(root: Path, generation: str) -> dict[str, Path]:
     }
 
 
+def _validate_preserved_generation(
+    paths: dict[str, Path],
+    plan: dict[str, Any],
+    inventory: dict[str, Any],
+    package_root: Path,
+):
+    recipe_candidate = _load_preserved_prestate(paths, plan, package_root)
+    _validate_generation_artifact(paths["proof"], recipe_candidate.equivalence_proof_bytes)
+    _validate_generation_artifact(paths["closure"], jcs(plan["implementation_closure"]))
+    _validate_generation_artifact(paths["candidate_pems"], recipe_candidate.candidate_pems_bytes)
+    _validate_generation_artifact(paths["candidate_cove"], recipe_candidate.candidate_cove_bytes)
+    _validate_preserved_evidence_copies(paths, inventory)
+    return recipe_candidate
+
+
 def _completed_retry(
     root: Path,
     package_root: Path,
@@ -575,6 +617,7 @@ def _completed_retry(
     plan_sha: str,
     approval_bytes: bytes,
     inventory_bytes: bytes,
+    inventory: dict[str, Any],
 ) -> dict[str, Any] | None:
     paths = _paths_for_existing(root, plan["generation"])
     if not os.path.lexists(paths["generation"]) or not os.path.lexists(paths["completion"]):
@@ -584,6 +627,7 @@ def _completed_retry(
     _validate_generation_artifact(paths["plan"], plan_bytes)
     _validate_generation_artifact(paths["approval"], approval_bytes)
     _validate_generation_artifact(paths["inventory"], inventory_bytes)
+    _validate_preserved_generation(paths, plan, inventory, package_root)
     snapshot = store.recovery_pair_snapshot()
     if _snapshot_class(snapshot, plan) != "POSTSTATE":
         raise ContractError("RECOVERY_CONFLICT", "completed generation does not match current pair")
@@ -652,6 +696,7 @@ def apply_mode_a_recovery(
                     plan_sha,
                     root_approval_bytes,
                     preserved_evidence_inventory_bytes,
+                    inventory,
                 )
                 if completed is not None:
                     return completed
@@ -659,8 +704,7 @@ def apply_mode_a_recovery(
                 latest_snapshot = store.recovery_pair_snapshot()
                 if latest_snapshot.state != "PRESENT" or latest_snapshot.pems_bytes is None or latest_snapshot.cove_bytes is None:
                     raise ContractError("CANONICAL_PRESTATE_MISMATCH", "canonical pair is not complete")
-                ordinary = verify_storage_snapshot(root, package, latest_snapshot)
-                if ordinary.get("status") == "PASS":
+                if _postpublication_content_verified(root, package, latest_snapshot):
                     return _result(
                         "FAIL", "RECOVERY_NOT_REQUIRED", plan=plan, plan_sha256=plan_sha, snapshot=latest_snapshot
                     )
@@ -716,10 +760,7 @@ def apply_mode_a_recovery(
                 _validate_generation_artifact(paths["plan"], recovery_plan_bytes)
                 _validate_generation_artifact(paths["approval"], root_approval_bytes)
                 _validate_generation_artifact(paths["inventory"], preserved_evidence_inventory_bytes)
-                recipe_candidate = _load_preserved_prestate(paths, plan, package)
-                _validate_generation_artifact(paths["proof"], recipe_candidate.equivalence_proof_bytes)
-                _validate_generation_artifact(paths["candidate_pems"], recipe_candidate.candidate_pems_bytes)
-                _validate_generation_artifact(paths["candidate_cove"], recipe_candidate.candidate_cove_bytes)
+                recipe_candidate = _validate_preserved_generation(paths, plan, inventory, package)
                 journal_bytes = paths["journal"].read_bytes()
                 journal = _strict_canonical_object(journal_bytes, "CANONICAL_RECOVERY_INDETERMINATE")
                 journal_sha = sha256_bytes(journal_bytes)
@@ -780,6 +821,8 @@ def apply_mode_a_recovery(
 
             if _snapshot_class(latest_snapshot, plan) != "POSTSTATE":
                 raise ContractError("CANONICAL_RECOVERY_INDETERMINATE", "publication did not reach exact approved poststate")
+            _validate_preserved_evidence_copies(paths, inventory)
+            _validate_generation_artifact(paths["closure"], jcs(plan["implementation_closure"]))
             if not _postpublication_content_verified(root, package, latest_snapshot):
                 raise ContractError("CANONICAL_RECOVERY_INDETERMINATE", "poststate content verification failed")
 
