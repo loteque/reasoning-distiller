@@ -140,6 +140,14 @@ PEMS is the semantic source of the repaired pair. Prestate COVE is only a consis
 - transaction state from the closed implementation state machine;
 - exact generation-journal path and digest binding required for the current state.
 
+### Closed V1 barrier transaction-state vocabulary
+
+For `reasoning-distiller-canonical-recovery-barrier/1`, the complete V1 `transaction_state` vocabulary is exactly `ACTIVE`.
+
+Presence of an otherwise well-formed barrier with any other `transaction_state` is invalid and MUST yield `CANONICAL_RECOVERY_BARRIER_INVALID`. Absence of `project-knowledge/recovery/canonical-pems-cove/active.json` is the only normal no-active-recovery condition.
+
+Fine-grained transaction progress is represented only in the generation journal and immutable completion evidence, not by additional V1 barrier states.
+
 Any existence of `active.json` blocks normal canonical consumption and ordinary canonical mutation. A symlink, non-regular file, malformed object, unknown contract, unexpected transaction state, or digest inconsistency at the barrier path is `CANONICAL_RECOVERY_BARRIER_INVALID`, never equivalent to no barrier.
 
 A crash may release the process lock but does not clear the durable barrier.
