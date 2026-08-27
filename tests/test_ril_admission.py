@@ -12,8 +12,8 @@ sys.path.insert(0, str(ROOT / "runtime"))
 from rd_bootstrap import build_project_config, canonical_json  # noqa: E402
 from ril_activation import make_explicit_activation  # noqa: E402
 from ril_admission import (  # noqa: E402
-    EMPTY_PEMS, PLAN_CONTRACT, _decode, admit, encode_cove,
-    first_admission_base, jcs, sha256_bytes,
+    EMPTY_PEMS, PLAN_CONTRACT, RECEIPT_CONTRACT, _decode, admit, encode_cove,
+    first_admission_base, jcs, normalize_pems, sha256_bytes,
 )
 from ril_mutation import canonical_json_bytes  # noqa: E402
 from ril_operators import apply_initial_operator, approve_initial_operator, plan_initial_operator  # noqa: E402
@@ -54,9 +54,19 @@ class AdmissionR13Tests(unittest.TestCase):
     def activation(self):
         return make_explicit_activation("steward:default","invocation:admit","test")
 
-    def install_pair(self,root:Path,base:dict)->None:
+    def base_with_record(self,root:Path,record_id:str="record:1",statement:str="old")->dict:
+        base=first_admission_base(root)
+        base["records"].append({"id":record_id,"kind":"proposition","lifecycle":"current","data":{"statement":statement,"proposition_kind":"claim","epistemic_role":"asserted"}})
+        return normalize_pems(base)
+
+    def install_pair(self,root:Path,base:dict,with_receipt:bool=True)->None:
         canonical=root/"project-knowledge/canonical"; canonical.mkdir(parents=True,exist_ok=True)
-        (canonical/"pems2.jcs.json").write_bytes(jcs(base)); (canonical/"cove1.jcs.json").write_bytes(jcs(encode_cove(base)))
+        pb=jcs(base); cb=jcs(encode_cove(base))
+        (canonical/"pems2.jcs.json").write_bytes(pb); (canonical/"cove1.jcs.json").write_bytes(cb)
+        if with_receipt:
+            receipts=root/"project-knowledge/admission/receipts"; receipts.mkdir(parents=True,exist_ok=True)
+            receipt={"contract":RECEIPT_CONTRACT,"candidate_digest":"sha256:"+"1"*64,"disposition_digest":"sha256:"+"2"*64,"activation_digest":"sha256:"+"3"*64,"plan_digest":"sha256:"+"4"*64,"role_id":"steward:default","invocation_id":"invocation:fixture","base_pems_sha256":"0"*64,"admitted_pems_sha256":sha256_bytes(pb),"admitted_cove_sha256":sha256_bytes(cb)}
+            (receipts/"fixture.json").write_bytes(canonical_json_bytes(receipt))
 
     def test_independent_admission_authority_required(self):
         root,_,disposition=self.ready(); result=admit(root,disposition,self.activation(),self.plan(root))
@@ -77,10 +87,8 @@ class AdmissionR13Tests(unittest.TestCase):
         self.assertEqual((result["status"],result["outcome"]),("PASS","ADMITTED"))
         pems=json.loads((root/result["pems_path"]).read_text()); cove=json.loads((root/result["cove_path"]).read_text())
         self.assertEqual(_decode(cove["x"],cove["d"],cove["h"]),pems); self.assertEqual(pems["project_id"],self.identity()["id"])
-        project_record=next(record for record in pems["records"] if record["id"]==pems["project_id"])
-        self.assertEqual(project_record["kind"],"project"); self.assertEqual(project_record["data"]["repository"],self.identity()["repository"])
-        self.assertEqual(len(list((root/"project-knowledge/admission/receipts").glob("*.json"))),1); self.assertEqual(len(list((root/"project-knowledge/admission/plans").glob("*.json"))),1)
-        verification=verify_storage(root,ROOT); self.assertEqual((verification["status"],verification["outcome"]),("PASS","VERIFIED"))
+        self.assertEqual(len(list((root/"project-knowledge/admission/receipts").glob("*.json"))),1)
+        verification=verify_storage(root,ROOT); self.assertEqual((verification["status"],verification["outcome"]),("PASS","VERIFIED_ADMITTED"))
 
     def test_exact_retry_is_no_change(self):
         root,_,disposition=self.ready(); self.auth(root,"admission"); plan=self.plan(root); activation=self.activation()
@@ -91,17 +99,23 @@ class AdmissionR13Tests(unittest.TestCase):
         result=admit(root,disposition,self.activation(),self.plan(root)); self.assertEqual((result["status"],result["outcome"]),("FAIL","CANDIDATE_CHANGED"))
 
     def test_stale_plan_is_rejected(self):
-        root,_,disposition=self.ready(); self.auth(root,"admission"); base={"semantic":"pems/2","records":[{"id":"existing","kind":"observation","data":{}}],"relations":[]}
+        root,_,disposition=self.ready(); self.auth(root,"admission"); base=self.base_with_record(root,"existing")
         self.install_pair(root,base); result=admit(root,disposition,self.activation(),self.plan(root)); self.assertEqual((result["status"],result["outcome"]),("FAIL","BASE_MISMATCH"))
 
     def test_record_collision_is_rejected(self):
-        root,_,disposition=self.ready(); self.auth(root,"admission"); base={"semantic":"pems/2","records":[{"id":"record:1","kind":"observation","data":{}}],"relations":[]}
+        root,_,disposition=self.ready(); self.auth(root,"admission"); base=self.base_with_record(root,"record:1")
         self.install_pair(root,base); result=admit(root,disposition,self.activation(),self.plan(root,base,"record:1")); self.assertEqual((result["status"],result["outcome"]),("FAIL","RECORD_ID_COLLISION"))
 
     def test_guarded_update_checks_before_state_and_kind(self):
-        root,_,disposition=self.ready(); self.auth(root,"admission"); base={"semantic":"pems/2","records":[{"id":"record:1","kind":"observation","data":{"value":"old"}}],"relations":[]}; self.install_pair(root,base)
-        plan={"contract":PLAN_CONTRACT,"expected_base_sha256":sha256_bytes(jcs(base)),"reuse_record_ids":["record:1"],"record_updates":[{"record_id":"record:1","expected_before_sha256":"0"*64,"replacement":{"id":"record:1","kind":"observation","data":{"value":"new"}}}],"new_records":[],"new_relations":[]}
+        root,_,disposition=self.ready(); self.auth(root,"admission"); base=self.base_with_record(root,"record:1","old"); self.install_pair(root,base)
+        replacement={"id":"record:1","kind":"proposition","lifecycle":"current","data":{"statement":"new","proposition_kind":"claim","epistemic_role":"asserted"}}
+        plan={"contract":PLAN_CONTRACT,"expected_base_sha256":sha256_bytes(jcs(base)),"reuse_record_ids":["record:1"],"record_updates":[{"record_id":"record:1","expected_before_sha256":"0"*64,"replacement":replacement}],"new_records":[],"new_relations":[]}
         result=admit(root,disposition,self.activation(),plan); self.assertEqual(result["outcome"],"RECORD_BEFORE_MISMATCH")
+
+    def test_unverified_existing_base_is_rejected(self):
+        root,_,disposition=self.ready(); self.auth(root,"admission"); base=self.base_with_record(root,"existing")
+        self.install_pair(root,base,with_receipt=False); result=admit(root,disposition,self.activation(),self.plan(root,base,"new"))
+        self.assertEqual((result["status"],result["outcome"]),("FAIL","ADMISSION_RECEIPT_MISSING"))
 
     def test_incomplete_canonical_pair_is_rejected_before_admission(self):
         root,_,disposition=self.ready(); self.auth(root,"admission"); canonical=root/"project-knowledge/canonical"; canonical.mkdir(parents=True)
