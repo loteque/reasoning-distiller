@@ -104,6 +104,123 @@ class CanonicalStoreSession(AbstractContextManager["CanonicalStoreSession"]):
             raise ContractError("CANONICAL_RECOVERY_BARRIER_INVALID", "active recovery barrier is absent")
         return self._read_pair_unchecked()
 
+    def recovery_barrier(self) -> dict[str, Any] | None:
+        """Return the reader-valid active barrier while holding the exclusive lock."""
+        self._require_exclusive()
+        return self._validated_barrier()
+
+    def recovery_pair_snapshot(self) -> CanonicalPairSnapshot:
+        """Read the pair under the exclusive lock regardless of an active barrier.
+
+        Only the recovery executor may use this seam. It does not bypass barrier
+        validation: any present malformed barrier still fails closed.
+        """
+        self._require_exclusive()
+        self._validated_barrier()
+        return self._read_pair_unchecked()
+
+    def stage_recovery_pair(self, pems_bytes: bytes, cove_bytes: bytes, generation: str) -> tuple[Path, Path]:
+        """Durably stage one candidate pair in the canonical filesystem.
+
+        Staging is not publication. The paths are ordinary temporary files in
+        the canonical directory so later atomic replacements stay on the same
+        filesystem. Exact staged leftovers from an interrupted retry are reused;
+        conflicting leftovers fail closed.
+        """
+        self._require_exclusive()
+        if not isinstance(pems_bytes, bytes) or not isinstance(cove_bytes, bytes):
+            raise ContractError("RECOVERY_PLAN_MISMATCH", "recovery staging requires bytes")
+        if not isinstance(generation, str) or not generation or "/" in generation or "\\" in generation:
+            raise ContractError("RECOVERY_PLAN_MISMATCH", "unsafe recovery generation")
+        knowledge = self.root / "project-knowledge"
+        canonical = knowledge / "canonical"
+        for directory in (knowledge, canonical):
+            if directory.is_symlink() or not directory.is_dir():
+                raise ContractError("CANONICAL_PATH_CONFLICT", str(directory))
+        pems_stage = canonical / f".{self.pems_path.name}.recovery.{generation}.tmp"
+        cove_stage = canonical / f".{self.cove_path.name}.recovery.{generation}.tmp"
+        self._durable_stage(pems_stage, pems_bytes)
+        self._durable_stage(cove_stage, cove_bytes)
+        return pems_stage, cove_stage
+
+    def publish_staged_recovery_pair(self, pems_stage: Path, cove_stage: Path) -> CanonicalPairSnapshot:
+        """Publish a staged pair while an ACTIVE recovery barrier is present."""
+        self._require_exclusive()
+        if self._validated_barrier() is None:
+            raise ContractError("CANONICAL_RECOVERY_BARRIER_INVALID", "active recovery barrier is absent")
+        canonical = self.pems_path.parent
+        expected = {pems_stage.parent.resolve(), cove_stage.parent.resolve()}
+        if expected != {canonical.resolve()}:
+            raise ContractError("CANONICAL_PATH_CONFLICT", "recovery stage is outside canonical directory")
+        _read_regular(pems_stage, "CANONICAL_PATH_CONFLICT")
+        _read_regular(cove_stage, "CANONICAL_PATH_CONFLICT")
+        os.replace(pems_stage, self.pems_path)
+        _fsync_directory(canonical)
+        os.replace(cove_stage, self.cove_path)
+        _fsync_directory(canonical)
+        return self._read_pair_unchecked()
+
+    def rollback_recovery_pair(self, pems_bytes: bytes, cove_bytes: bytes) -> CanonicalPairSnapshot:
+        """Durably restore exact prestate bytes while the recovery barrier remains active."""
+        self._require_exclusive()
+        if self._validated_barrier() is None:
+            raise ContractError("CANONICAL_RECOVERY_BARRIER_INVALID", "active recovery barrier is absent")
+        self._durable_replace(self.pems_path, pems_bytes)
+        self._durable_replace(self.cove_path, cove_bytes)
+        snapshot = self._read_pair_unchecked()
+        if snapshot.state != "PRESENT" or snapshot.pems_bytes != pems_bytes or snapshot.cove_bytes != cove_bytes:
+            raise ContractError("CANONICAL_RECOVERY_INDETERMINATE", "exact recovery rollback did not restore prestate")
+        return snapshot
+
+    def install_recovery_barrier(self, barrier_bytes: bytes) -> dict[str, Any]:
+        """Durably create exactly one active recovery barrier."""
+        self._require_exclusive()
+        if not isinstance(barrier_bytes, bytes):
+            raise ContractError("CANONICAL_RECOVERY_BARRIER_INVALID", "barrier must be bytes")
+        if _lexists(self.barrier_path):
+            raise ContractError("CANONICAL_RECOVERY_ACTIVE", str(self.barrier_path))
+        knowledge = self.root / "project-knowledge"
+        recovery = knowledge / "recovery"
+        namespace = recovery / "canonical-pems-cove"
+        self._ensure_directory(knowledge, self.root)
+        self._ensure_directory(recovery, knowledge)
+        self._ensure_directory(namespace, recovery)
+        self._durable_create(self.barrier_path, barrier_bytes)
+        value = self._validated_barrier()
+        if value is None or _canonical_json(value) != barrier_bytes:
+            raise ContractError("CANONICAL_RECOVERY_BARRIER_INVALID", "created barrier does not validate exactly")
+        return value
+
+    def clear_recovery_barrier(self, expected_barrier_bytes: bytes) -> None:
+        """Clear only the exact active barrier the executor previously validated."""
+        self._require_exclusive()
+        value = self._validated_barrier()
+        if value is None:
+            raise ContractError("CANONICAL_RECOVERY_BARRIER_INVALID", "active recovery barrier is absent")
+        raw = _read_regular(self.barrier_path, "CANONICAL_RECOVERY_BARRIER_INVALID")
+        if raw != expected_barrier_bytes or _canonical_json(value) != expected_barrier_bytes:
+            raise ContractError("CANONICAL_RECOVERY_INDETERMINATE", "active recovery barrier changed")
+        self.barrier_path.unlink()
+        _fsync_directory(self.barrier_path.parent)
+
+    def cleanup_recovery_stage(self, *paths: Path) -> None:
+        self._require_exclusive()
+        canonical = self.pems_path.parent.resolve()
+        changed = False
+        for path in paths:
+            try:
+                if path.parent.resolve() != canonical:
+                    raise ContractError("CANONICAL_PATH_CONFLICT", "recovery stage is outside canonical directory")
+            except OSError as exc:
+                raise ContractError("CANONICAL_PATH_CONFLICT", str(path)) from exc
+            if _lexists(path):
+                if path.is_symlink() or not path.is_file():
+                    raise ContractError("CANONICAL_PATH_CONFLICT", str(path))
+                path.unlink()
+                changed = True
+        if changed:
+            _fsync_directory(self.pems_path.parent)
+
     def publish_pair(self, pems_bytes: bytes, cove_bytes: bytes) -> CanonicalPairSnapshot:
         """Durably replace the ordinary canonical pair under an exclusive lock."""
         self._require_exclusive()
@@ -136,8 +253,8 @@ class CanonicalStoreSession(AbstractContextManager["CanonicalStoreSession"]):
 
         Normal consumers need only one safe classification: absent, valid and
         active, or invalid. Full plan/journal/provenance binding remains the
-        recovery executor's later apply-time responsibility, but no present
-        barrier can ever be treated as absent here.
+        recovery executor's apply-time responsibility, but no present barrier
+        can ever be treated as absent here.
         """
         knowledge = self.root / "project-knowledge"
         recovery = knowledge / "recovery"
@@ -203,6 +320,34 @@ class CanonicalStoreSession(AbstractContextManager["CanonicalStoreSession"]):
             if path.is_symlink() or not path.is_dir():
                 raise ContractError("CANONICAL_PATH_CONFLICT", str(path))
         _fsync_directory(parent)
+
+    def _durable_stage(self, path: Path, data: bytes) -> None:
+        if _lexists(path):
+            if _read_regular(path, "RECOVERY_CONFLICT") != data:
+                raise ContractError("RECOVERY_CONFLICT", f"conflicting recovery stage: {path}")
+            return
+        self._durable_create(path, data)
+
+    def _durable_create(self, path: Path, data: bytes) -> None:
+        if _lexists(path):
+            raise ContractError("RECOVERY_CONFLICT", str(path))
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        fd: int | None = None
+        try:
+            fd = os.open(path, flags, 0o600)
+            view = memoryview(data)
+            while view:
+                written = os.write(fd, view)
+                if written <= 0:
+                    raise OSError("short durable-file write")
+                view = view[written:]
+            os.fsync(fd)
+            os.close(fd)
+            fd = None
+            _fsync_directory(path.parent)
+        finally:
+            if fd is not None:
+                os.close(fd)
 
     def _durable_replace(self, path: Path, data: bytes) -> None:
         if _lexists(path) and (path.is_symlink() or not path.is_file()):
