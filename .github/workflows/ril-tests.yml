@@ -31,7 +31,16 @@ jobs:
           set -euo pipefail
           python -m pytest -q tests \
             --deselect=tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly \
-            --deselect=tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment
+            --deselect=tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment \
+            2>&1 | tee ril-test-output.txt
+
+      - name: Upload regression diagnostic output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ril-test-output
+          path: ril-test-output.txt
+          if-no-files-found: error
 
       - name: Witness superseded historical context assertions
         shell: bash
