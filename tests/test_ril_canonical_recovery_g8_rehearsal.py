@@ -81,7 +81,7 @@ class CanonicalRecoveryG8IncidentRehearsal(unittest.TestCase):
                     "candidate_count": 0,
                     "failed_predicate": 2,
                     "outcome": "UNSUPPORTED_CANONICAL_DAMAGE",
-                    "detail": "source already has a top-level semantic",
+                    "detail": "prestate must be an object with no top-level semantic key",
                 },
                 "CR6": {"status": "NOT_REACHED"},
                 "CR7": {"status": "NOT_REACHED"},
@@ -181,7 +181,7 @@ class CanonicalRecoveryG8IncidentRehearsal(unittest.TestCase):
                 package_root=ROOT,
             )
         self.assertEqual(caught.exception.code, "UNSUPPORTED_CANONICAL_DAMAGE")
-        self.assertIn("source already has a top-level semantic", caught.exception.detail)
+        self.assertEqual(caught.exception.detail, "prestate must be an object with no top-level semantic key")
 
         # Freeze only the observed fail-closed result. There is no candidate pair or plan digest to approve.
         stored = json.loads((ROOT / self.REHEARSAL_PATH).read_text(encoding="utf-8"))
