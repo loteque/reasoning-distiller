@@ -91,10 +91,11 @@ class CanonicalRecoveryG8IncidentRehearsal(unittest.TestCase):
         self.assertEqual(receipt["admitted_pems_sha256"], self.PEMS_SHA256)
         self.assertEqual(receipt["admitted_cove_sha256"], self.COVE_SHA256)
 
-        # CR3 is terminal for this incident. R14 PASS means valid Canon, so the
-        # recovery contract requires RECOVERY_NOT_REQUIRED and forbids entering
-        # CR4-CR9 recovery construction for these bytes.
+        # Diagnostic evidence: emit the exact live R14 result before applying any
+        # recovery-entry expectation. This commit intentionally remains failing
+        # until the result is classified against the accepted recovery contract.
         current_verification = verify_storage(ROOT, ROOT)
+        print("G8_R14=" + json.dumps(current_verification, sort_keys=True, separators=(",", ":")), flush=True)
         self.assertEqual(current_verification["status"], "PASS")
         self.assertEqual(current_verification["outcome"], "VERIFIED_ADMITTED")
         self.assertEqual(current_verification["provenance_class"], "VERIFIED_ADMITTED")
