@@ -95,7 +95,16 @@ class ModeBB0ProtocolFreezeTests(unittest.TestCase):
             "outcome": "DEFER_REPAIR",
             "rationale": "No incident value is selected by this structural example.",
             "uncertainty_treatment": "Unresolved values remain blocked.",
-            "values": [],
+            "values": [{
+                "relation_id": "pems:relation:example",
+                "from": "pems:proposition:a",
+                "to": "pems:proposition:b",
+                "kind": "supports",
+                "lifecycle": "current",
+                "data": {},
+                "evidence": [REF],
+                "rationale": "Every outcome records a complete per-relation judgment.",
+            }],
         }
         repair_proof = {
             "contract": "reasoning-distiller-canonical-recovery-repair-proof/1",
@@ -121,7 +130,7 @@ class ModeBB0ProtocolFreezeTests(unittest.TestCase):
             "repair_proof": REF,
             "recipe_id": "reasoning-distiller-project-a0-missing-relation-fields/1",
             "executable_closure_sha256": SHA,
-            "expected_provenance_class": "VERIFIED_RECOVERED",
+            "expected_provenance_class": "MODE_B_RECOVERY",
         }
         approval = {
             "contract": "reasoning-distiller-canonical-recovery-root-approval/2",
@@ -137,7 +146,7 @@ class ModeBB0ProtocolFreezeTests(unittest.TestCase):
         }
         journal = {"contract": "reasoning-distiller-canonical-recovery-journal/2", "protocol_generation": 2, "mode": "B", "generation": "example-generation", "plan_sha256": SHA, "step": "PREPARED", "observed_pair": PAIR}
         barrier = {"contract": "reasoning-distiller-canonical-recovery-barrier/2", "protocol_generation": 2, "mode": "B", "project": PROJECT, "generation": "example-generation", "plan_sha256": SHA, "prestate": PAIR, "poststate": PAIR, "transaction_state": "ACTIVE", "journal": REF}
-        completion = {"contract": "reasoning-distiller-canonical-recovery-completion/2", "protocol_generation": 2, "mode": "B", "project": PROJECT, "generation": "example-generation", "plan_sha256": SHA, "prestate": PAIR, "poststate": PAIR, "approval": REF, "damage_analysis": REF, "disposition": REF, "repair_proof": REF, "completion_journal": REF, "provenance_class": "VERIFIED_RECOVERED"}
+        completion = {"contract": "reasoning-distiller-canonical-recovery-completion/2", "protocol_generation": 2, "mode": "B", "project": PROJECT, "generation": "example-generation", "plan_sha256": SHA, "prestate": PAIR, "poststate": PAIR, "approval": REF, "damage_analysis": REF, "disposition": REF, "repair_proof": REF, "completion_journal": REF, "provenance_class": "MODE_B_RECOVERY"}
         result = {"contract": "reasoning-distiller-canonical-recovery-result/2", "protocol_generation": 2, "mode": "B", "status": "PASS", "outcome": "RECOVERED", "project": PROJECT, "generation": "example-generation", "plan_sha256": SHA, "pair": PAIR, "completion": REF}
         verification = {"contract": "reasoning-distiller-storage-verification-result/3", "status": "PASS", "outcome": "VERIFIED_RECOVERED", "project": PROJECT, "current_pair": PAIR, "protocol_generation": 2, "provenance_class": "MODE_B_RECOVERY", "completion": REF, "semantic_disposition": REF, "repair_proof": REF}
         disposition_result = {"contract": "reasoning-distiller-canonical-recovery-semantic-disposition-result/1", "status": "FAIL", "outcome": "SEMANTIC_DISPOSITION_DEFERRED", "project": PROJECT, "disposition": REF, "candidate_count": 0}
@@ -221,6 +230,84 @@ class ModeBB0ProtocolFreezeTests(unittest.TestCase):
         hostile = copy.deepcopy(accepted)
         hostile["values"][0]["kind"] = "supports"
         self.reject("canonical-recovery-semantic-disposition.schema.json", hostile)
+
+    def test_every_disposition_outcome_requires_a_complete_nonempty_value_table(self):
+        disposition = self.examples()["canonical-recovery-semantic-disposition.schema.json"]
+        for outcome in ("ACCEPT_REPAIR", "REJECT_REPAIR", "DEFER_REPAIR"):
+            hostile = copy.deepcopy(disposition)
+            hostile["outcome"] = outcome
+            hostile["values"] = []
+            with self.subTest(outcome=outcome):
+                self.reject("canonical-recovery-semantic-disposition.schema.json", hostile)
+
+    def test_provenance_class_is_distinct_from_verification_outcome(self):
+        examples = self.examples()
+        plan = copy.deepcopy(examples["canonical-recovery-plan-v2.schema.json"])
+        plan["expected_provenance_class"] = "VERIFIED_RECOVERED"
+        self.reject("canonical-recovery-plan-v2.schema.json", plan)
+        completion = copy.deepcopy(examples["canonical-recovery-completion-v2.schema.json"])
+        completion["provenance_class"] = "VERIFIED_RECOVERED"
+        self.reject("canonical-recovery-completion-v2.schema.json", completion)
+
+    def test_result_status_outcome_and_required_references_are_coherent(self):
+        examples = self.examples()
+        disposition_result = examples["canonical-recovery-semantic-disposition-result.schema.json"]
+        hostile = copy.deepcopy(disposition_result)
+        hostile["status"] = "PASS"
+        self.reject("canonical-recovery-semantic-disposition-result.schema.json", hostile)
+        hostile = copy.deepcopy(disposition_result)
+        hostile["outcome"] = "ACCEPT_REPAIR"
+        self.reject("canonical-recovery-semantic-disposition-result.schema.json", hostile)
+
+        recovery_result = examples["canonical-recovery-result-v2.schema.json"]
+        hostile = copy.deepcopy(recovery_result)
+        hostile["status"] = "FAIL"
+        self.reject("canonical-recovery-result-v2.schema.json", hostile)
+        hostile = copy.deepcopy(recovery_result)
+        del hostile["completion"]
+        self.reject("canonical-recovery-result-v2.schema.json", hostile)
+        hostile = copy.deepcopy(recovery_result)
+        hostile["status"] = "FAIL"
+        hostile["outcome"] = "MODE_B_CANDIDATE_INVALID"
+        self.reject("canonical-recovery-result-v2.schema.json", hostile)
+
+    def test_storage_verification_combinations_are_exact(self):
+        verification = self.examples()["storage-verification-result-v3.schema.json"]
+        admitted = copy.deepcopy(verification)
+        admitted.update({"outcome": "VERIFIED_ADMITTED", "protocol_generation": 1, "provenance_class": "ADMISSION"})
+        for field in ("completion", "semantic_disposition", "repair_proof"):
+            del admitted[field]
+        self.validate("storage-verification-result-v3.schema.json", admitted)
+        mode_a = copy.deepcopy(verification)
+        mode_a.update({"protocol_generation": 1, "provenance_class": "MODE_A_RECOVERY"})
+        del mode_a["semantic_disposition"]
+        del mode_a["repair_proof"]
+        self.validate("storage-verification-result-v3.schema.json", mode_a)
+
+        attacks = []
+        hostile = copy.deepcopy(verification)
+        hostile["status"] = "FAIL"
+        attacks.append(hostile)
+        hostile = copy.deepcopy(verification)
+        hostile["provenance_class"] = "ADMISSION"
+        hostile["protocol_generation"] = 1
+        attacks.append(hostile)
+        hostile = copy.deepcopy(verification)
+        hostile["provenance_class"] = "MODE_A_RECOVERY"
+        hostile["protocol_generation"] = 1
+        attacks.append(hostile)
+        hostile = copy.deepcopy(verification)
+        del hostile["semantic_disposition"]
+        attacks.append(hostile)
+        hostile = copy.deepcopy(admitted)
+        hostile["completion"] = REF
+        attacks.append(hostile)
+        hostile = copy.deepcopy(mode_a)
+        hostile["semantic_disposition"] = REF
+        attacks.append(hostile)
+        for index, hostile in enumerate(attacks):
+            with self.subTest(index=index):
+                self.reject("storage-verification-result-v3.schema.json", hostile)
 
     def test_mode_a_runtime_and_contract_are_not_modified_by_b0(self):
         mode_a_contract = (ROOT / "docs/operations/RIL_CANONICAL_PEMS_COVE_RECOVERY_CONTRACT.md").read_text(encoding="utf-8")

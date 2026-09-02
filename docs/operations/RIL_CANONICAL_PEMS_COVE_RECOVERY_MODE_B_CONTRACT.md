@@ -41,7 +41,7 @@ All Mode B control artifacts are strict UTF-8 JSON objects represented by determ
 | Future Mode B disposition primitive | disposition `/1` plus current R8 `semantic_reconciliation` activation | R12 substitution, missing/stale activation, or recovery authorization |
 | Future Mode B planner/executor | exact V2 matrix in this contract | V1 coercion, Mode A artifacts, unknown majors, and mixed-generation chains |
 | R14 V3 | existing admitted/Mode A recovered chains plus exact Mode B completion `/2` chain | admission reconstruction or implicit downstream opt-in |
-| Downstream consumers | only provenance classes explicitly added by their own contract | inherited acceptance of Mode B `VERIFIED_RECOVERED` |
+| Downstream consumers | only provenance classes explicitly added by their own contract | inherited acceptance of `MODE_B_RECOVERY` provenance or the `VERIFIED_RECOVERED` verification outcome |
 
 No automatic conversion exists between `/1` and `/2`. Every V2 artifact binds `protocol_generation:2`; every plan-dependent artifact binds the exact plan-v2 digest. Cross-mode, cross-version, cross-generation, cross-candidate, or mixed-family replay fails before publication.
 
@@ -74,7 +74,7 @@ Semantic disposition `/1` records one project-scoped semantic judgment. It binds
 
 Only `ACCEPT_REPAIR` may be consumed by a later recipe. Reject, defer, insufficiency, absence, structural invalidity, mismatch, or conflicting retry yields zero candidates. The semantic-disposition operation cannot construct a candidate or plan and cannot authorize recovery. R12 contracts and storage remain unchanged.
 
-The value table contains exactly one row per affected relation. Every row binds relation ID, endpoints, kind, lifecycle, complete kind-specific data, evidence references, and rationale. No schema default exists. B0 intentionally contains no incident row and selects no lifecycle or `dependency_kind` value.
+For every outcome, including `REJECT_REPAIR` and `DEFER_REPAIR`, the value table contains exactly one row per affected relation and cannot be empty. Reject and defer are per-relation semantic judgments, not permission to omit unresolved rows. Every row binds relation ID, endpoints, kind, lifecycle, complete kind-specific data, evidence references, and rationale. Exact once-only coverage against the damage analysis is a later validator check because the disposition schema binds that analysis by digest rather than embedding its relation set. No schema default exists. B0 intentionally contains no incident row and selects no incident lifecycle or `dependency_kind` value.
 
 ## Plan, approval, execution, and provenance boundary
 
@@ -82,7 +82,9 @@ Repair proof `/1` proves only exact closed insertion from a disposition-accepted
 
 Root approval `/2` is a separate protected-root act over one exact plan-v2 digest. Its invocation and confirmation are distinct from semantic disposition. Approval cannot add or modify semantic values. Same-principal use may be recorded, but V2 does not enforce a different-human rule.
 
-Barrier, journal, completion, result, and R14 V3 preserve the Mode A lock, preservation, fsync, atomic publication, rollback, retry, and indeterminate-state guarantees. Completion `/2` is recovery-native provenance and never admission provenance. R14 V3 identifies protocol generation, provenance class, completion, disposition, and repair-proof paths/digests.
+Barrier, journal, completion, result, and R14 V3 preserve the Mode A lock, preservation, fsync, atomic publication, rollback, retry, and indeterminate-state guarantees. Plan `/2` expects and completion `/2` records the recovery-native provenance class `MODE_B_RECOVERY`; completion is never admission provenance. `VERIFIED_RECOVERED` is an R14 verification outcome, not a provenance class. R14 V3 identifies protocol generation, provenance class, completion, disposition, and repair-proof paths/digests.
+
+Result combinations are exact. A disposition result is `PASS/ACCEPT_REPAIR` or `FAIL` with one of its frozen semantic failure outcomes. A recovery result is `PASS` only for `RECOVERED` or `NO_CHANGE`, with generation, plan, pair, and completion references required; every other frozen recovery outcome is `FAIL` and cannot carry a completion reference. Storage verification `/3` accepts only these successful combinations: `PASS/VERIFIED_ADMITTED/ADMISSION/1` without recovery-only references, `PASS/VERIFIED_RECOVERED/MODE_A_RECOVERY/1` with completion only, or `PASS/VERIFIED_RECOVERED/MODE_B_RECOVERY/2` with completion, semantic-disposition, and repair-proof references. `FAIL/INVALID` remains provenance- and generation-consistent and cannot attach Mode B-only references to admission or Mode A provenance.
 
 ## Stable Mode B outcomes
 
