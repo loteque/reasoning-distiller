@@ -25,13 +25,54 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install --upgrade pip pytest jsonschema==4.25.1 referencing PyYAML==6.0.2
 
+      - name: Record G8 checkout prestate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' | tee g8-prestate-output.txt
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path('project-knowledge/canonical/pems2.jcs.json')
+          raw = path.read_bytes()
+          parsed = json.loads(raw.decode('utf-8'))
+          print('path=' + path.as_posix())
+          print('sha256=' + hashlib.sha256(raw).hexdigest())
+          print('top_level_keys=' + json.dumps(list(parsed), separators=(',', ':')))
+          print('semantic_present=' + ('true' if 'semantic' in parsed else 'false'))
+          if 'semantic' in parsed:
+              print('semantic=' + json.dumps(parsed['semantic'], separators=(',', ':')))
+          PY
+          printf 'git_blob=%s\n' "$(git hash-object project-knowledge/canonical/pems2.jcs.json)" | tee -a g8-prestate-output.txt
+
+      - name: Diagnose G8 rehearsal in isolation
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q tests/test_ril_canonical_recovery_g8_rehearsal.py \
+            2>&1 | tee g8-isolated-output.txt
+
       - name: Run current regression suite
         shell: bash
         run: |
           set -euo pipefail
           python -m pytest -q tests \
             --deselect=tests/test_context_packaging_protocol_schemas_p1b.py::P1b::test_negative_fixtures_reject_and_classify_exactly \
-            --deselect=tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment
+            --deselect=tests/test_context_packaging_v2_reconciled_conformance.py::ContextPackagingV2ReconciledConformance::test_p5_runtime_implementation_is_unchanged_by_amendment \
+            2>&1 | tee ril-test-output.txt
+
+      - name: Upload regression diagnostic output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ril-test-output
+          path: |
+            g8-prestate-output.txt
+            g8-isolated-output.txt
+            ril-test-output.txt
+          if-no-files-found: error
 
       - name: Witness superseded historical context assertions
         shell: bash

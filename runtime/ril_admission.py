@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from rd_bootstrap import validate_project_config
 from ril_activation import validate_activation
+from ril_canonical_store import exclusive_canonical_store
 from ril_mutation import ContractError, canonical_json_bytes, digest, load_json
 from ril_reconciliation import DISPOSITION_CONTRACT
 
@@ -122,19 +123,6 @@ def apply_plan(base:dict[str,Any],plan:dict[str,Any])->dict[str,Any]:
     out=copy.deepcopy(base);out["records"]=[copy.deepcopy(repl.get(r["id"],r)) for r in base["records"]]+newr;out["relations"]=copy.deepcopy(base["relations"])+newl
     out=normalize_pems(out);_validate_graph(out);return out
 
-def _safe(path:Path)->None:
-    if path.exists() and (path.is_symlink() or not path.is_file()):raise ContractError("CANONICAL_PATH_CONFLICT",str(path))
-    if path.parent.exists() and (path.parent.is_symlink() or not path.parent.is_dir()):raise ContractError("CANONICAL_PATH_CONFLICT",str(path.parent))
-
-def _replace(path:Path,data:bytes)->None:
-    path.parent.mkdir(parents=True,exist_ok=True);_safe(path);tmp=path.with_name(path.name+".admit.tmp")
-    if tmp.exists() or tmp.is_symlink():raise ContractError("CANONICAL_PATH_CONFLICT",str(tmp))
-    try:
-        with open(tmp,"xb") as h:h.write(data);h.flush();os.fsync(h.fileno())
-        os.replace(tmp,path)
-    finally:
-        if tmp.exists() and not tmp.is_symlink():tmp.unlink()
-
 def _persist(path:Path,v:dict[str,Any],code:str)->None:
     data=canonical_json_bytes(v)
     if path.exists():
@@ -164,21 +152,34 @@ def admit(project_root:Path,disposition_path:Path,activation:dict[str,Any],plan:
         disposition=_load_disposition(project_root,disposition_path); ar=validate_activation(project_root,SCOPE,activation)
         if ar.get("status")!="PASS":return _result("FAIL",ar.get("outcome","ACTIVATION_REJECTED"),ar.get("detail"))
         validate_plan(plan); activation_digest=digest(activation); plan_digest=digest(plan); candidate_hex=disposition["candidate_digest"].split(":",1)[1]
-        admission=project_root/"project-knowledge/admission"; receipt_path=admission/"receipts"/f"{candidate_hex}.json"; canonical=project_root/"project-knowledge/canonical"; pems_path=canonical/"pems2.jcs.json"; cove_path=canonical/"cove1.jcs.json"
-        _safe(pems_path);_safe(cove_path)
-        # Idempotent retry is recognized from immutable evidence before stale-base evaluation.
-        if receipt_path.exists():
-            rec=load_json(receipt_path)
-            if rec.get("contract")!=RECEIPT_CONTRACT or rec.get("candidate_digest")!=disposition["candidate_digest"] or rec.get("disposition_digest")!=digest(disposition) or rec.get("activation_digest")!=activation_digest or rec.get("plan_digest")!=plan_digest:raise ContractError("ADMISSION_CONFLICT","candidate already admitted under different evidence")
-            if not pems_path.exists() or not cove_path.exists() or sha256_bytes(pems_path.read_bytes())!=rec.get("admitted_pems_sha256") or sha256_bytes(cove_path.read_bytes())!=rec.get("admitted_cove_sha256"):raise ContractError("CANONICAL_STATE_CONFLICT","receipt does not match canonical bytes")
-            return _result("PASS","NO_CHANGE",receipt_path=receipt_path.relative_to(project_root).as_posix(),admitted_pems_sha256=rec["admitted_pems_sha256"])
-        base=normalize_pems(json.loads(pems_path.read_text("utf-8"))) if pems_path.exists() else first_admission_base(project_root); candidate=apply_plan(base,plan); pb=jcs(candidate); cove=encode_cove(candidate); cb=jcs(cove)
-        if _decode(cove["x"],cove["d"],cove["h"])!=candidate:raise ContractError("COVE_ROUNDTRIP_FAILED","COVE does not decode to PEMS")
-        receipt={"contract":RECEIPT_CONTRACT,"candidate_digest":disposition["candidate_digest"],"disposition_digest":digest(disposition),"activation_digest":activation_digest,"plan_digest":plan_digest,"role_id":ar["role_id"],"invocation_id":ar["invocation_id"],"base_pems_sha256":sha256_bytes(jcs(base)),"admitted_pems_sha256":sha256_bytes(pb),"admitted_cove_sha256":sha256_bytes(cb)}
-        _persist(admission/"activation-evidence"/f"{activation_digest.split(':',1)[1]}.json",activation,"ACTIVATION_EVIDENCE_CONFLICT");_persist(admission/"plans"/f"{plan_digest.split(':',1)[1]}.json",plan,"ADMISSION_PLAN_CONFLICT")
-        _replace(pems_path,pb);_replace(cove_path,cb);_persist(receipt_path,receipt,"ADMISSION_CONFLICT")
-        return _result("PASS","ADMITTED",receipt_path=receipt_path.relative_to(project_root).as_posix(),pems_path=pems_path.relative_to(project_root).as_posix(),cove_path=cove_path.relative_to(project_root).as_posix(),admitted_pems_sha256=receipt["admitted_pems_sha256"],admitted_cove_sha256=receipt["admitted_cove_sha256"])
-    except (ContractError,json.JSONDecodeError,OSError) as e:
+        admission=project_root/"project-knowledge/admission"; receipt_path=admission/"receipts"/f"{candidate_hex}.json"
+        with exclusive_canonical_store(project_root) as store:
+            snapshot=store.snapshot()
+            # Idempotent retry is recognized from immutable evidence before stale-base evaluation.
+            if receipt_path.exists():
+                rec=load_json(receipt_path)
+                if rec.get("contract")!=RECEIPT_CONTRACT or rec.get("candidate_digest")!=disposition["candidate_digest"] or rec.get("disposition_digest")!=digest(disposition) or rec.get("activation_digest")!=activation_digest or rec.get("plan_digest")!=plan_digest:raise ContractError("ADMISSION_CONFLICT","candidate already admitted under different evidence")
+                if snapshot.state!="PRESENT" or snapshot.pems_sha256!=rec.get("admitted_pems_sha256") or snapshot.cove_sha256!=rec.get("admitted_cove_sha256"):raise ContractError("CANONICAL_STATE_CONFLICT","receipt does not match canonical bytes")
+                return _result("PASS","NO_CHANGE",receipt_path=receipt_path.relative_to(project_root).as_posix(),admitted_pems_sha256=rec["admitted_pems_sha256"])
+            if snapshot.state=="INCOMPLETE":raise ContractError("INCOMPLETE_CANONICAL_PAIR","ordinary admission requires an absent or complete canonical pair")
+            if snapshot.state=="PRESENT":
+                from ril_storage_verification import verify_storage_snapshot
+                standing=verify_storage_snapshot(project_root,Path(__file__).resolve().parents[1],snapshot)
+                if standing.get("status")!="PASS" or standing.get("outcome") not in {"VERIFIED_ADMITTED","VERIFIED_RECOVERED"}:
+                    raise ContractError(str(standing.get("outcome","CANONICAL_STATE_CONFLICT")),str(standing.get("detail","current canonical base lacks valid R14 V2 standing")))
+                assert snapshot.pems_bytes is not None
+                base=normalize_pems(json.loads(snapshot.pems_bytes.decode("utf-8")))
+            else:
+                base=first_admission_base(project_root)
+            candidate=apply_plan(base,plan); pb=jcs(candidate); cove=encode_cove(candidate); cb=jcs(cove)
+            if _decode(cove["x"],cove["d"],cove["h"])!=candidate:raise ContractError("COVE_ROUNDTRIP_FAILED","COVE does not decode to PEMS")
+            receipt={"contract":RECEIPT_CONTRACT,"candidate_digest":disposition["candidate_digest"],"disposition_digest":digest(disposition),"activation_digest":activation_digest,"plan_digest":plan_digest,"role_id":ar["role_id"],"invocation_id":ar["invocation_id"],"base_pems_sha256":sha256_bytes(jcs(base)),"admitted_pems_sha256":sha256_bytes(pb),"admitted_cove_sha256":sha256_bytes(cb)}
+            _persist(admission/"activation-evidence"/f"{activation_digest.split(':',1)[1]}.json",activation,"ACTIVATION_EVIDENCE_CONFLICT");_persist(admission/"plans"/f"{plan_digest.split(':',1)[1]}.json",plan,"ADMISSION_PLAN_CONFLICT")
+            published=store.publish_pair(pb,cb)
+            if published.pems_sha256!=receipt["admitted_pems_sha256"] or published.cove_sha256!=receipt["admitted_cove_sha256"]:raise ContractError("CANONICAL_STATE_CONFLICT","published canonical pair digest mismatch")
+            _persist(receipt_path,receipt,"ADMISSION_CONFLICT")
+            return _result("PASS","ADMITTED",receipt_path=receipt_path.relative_to(project_root).as_posix(),pems_path=store.pems_path.relative_to(project_root).as_posix(),cove_path=store.cove_path.relative_to(project_root).as_posix(),admitted_pems_sha256=receipt["admitted_pems_sha256"],admitted_cove_sha256=receipt["admitted_cove_sha256"])
+    except (ContractError,json.JSONDecodeError,UnicodeDecodeError,OSError) as e:
         return _result("FAIL",e.code,e.detail) if isinstance(e,ContractError) else _result("FAIL","ADMISSION_IO_ERROR",str(e))
 
 if __name__=="__main__":print(json.dumps(_result("FAIL","LIBRARY_PRIMITIVE","R13 is exposed as deterministic functions; public ril UX is not implemented yet"),sort_keys=True,separators=(",",":")))
