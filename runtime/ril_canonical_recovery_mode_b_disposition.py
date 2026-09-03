@@ -61,12 +61,17 @@ def _safe_path(root: Path, relative: Any) -> Path:
     return path
 
 
-def _load_ref(root: Path, ref: Any) -> tuple[Any, bytes]:
+def _verify_ref(root: Path, ref: Any) -> bytes:
     if not isinstance(ref, dict) or set(ref) != {"path", "sha256"}:
         raise ContractError("SEMANTIC_DISPOSITION_INVALID", "artifact reference shape is invalid")
     raw = _safe_path(root, ref["path"]).read_bytes()
     if _sha(raw) != ref["sha256"]:
         raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", f"artifact digest mismatch: {ref['path']}")
+    return raw
+
+
+def _load_ref(root: Path, ref: Any) -> tuple[Any, bytes]:
+    raw = _verify_ref(root, ref)
     try:
         value = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -144,7 +149,7 @@ def _validate_rows(root: Path, disposition: dict[str, Any], expected: list[dict[
         elif "dependency_kind" in data:
             raise ContractError("SEMANTIC_DISPOSITION_INVALID", f"dependency_kind is invalid for row {index}")
         for ref in row["evidence"]:
-            _load_ref(root, ref)
+            _verify_ref(root, ref)
 
 
 def _validate_r8(root: Path, disposition: dict[str, Any]) -> None:
@@ -244,5 +249,4 @@ def apply_semantic_disposition(project_root: Path, disposition: dict[str, Any]) 
             "project": disposition.get("project", {"project_id": "unknown"}) if isinstance(disposition, dict) else {"project_id": "unknown"},
             "disposition": {"path": "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-dispositions/unpublished.json", "sha256": "0" * 64},
             "candidate_count": 0,
-            "detail": exc.detail,
         }
