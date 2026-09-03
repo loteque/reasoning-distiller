@@ -163,6 +163,36 @@ class ModeBB3Tests(unittest.TestCase):
         self.assertEqual(("FAIL", "SEMANTIC_DISPOSITION_MISMATCH", 0), (result["status"], result["outcome"], result["candidate_count"]))
         self.assertEqual([], list((self.root / "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-disposition-results").glob("*.json")))
 
+    def test_every_malformed_stored_disposition_fails_closed_before_identity_comparison(self):
+        valid_raw = compact(self.disposition)
+        attacks = {
+            "invalid-field-type": compact({**self.disposition, "project": None}),
+            "incomplete": compact({"project": self.disposition["project"]}),
+            "schema-invalid": compact({**self.disposition, "unexpected": True}),
+            "noncanonical": valid_raw + b"\n",
+            "duplicate-key": b'{"project":null,"project":null,"prestate":null,"damage_analysis":null}',
+        }
+        for label, raw in attacks.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                import shutil
+                shutil.copytree(self.root, root, dirs_exist_ok=True)
+                directory = root / "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-dispositions"
+                directory.mkdir(parents=True, exist_ok=True)
+                (directory / (hashlib.sha256(raw).hexdigest() + ".json")).write_bytes(raw)
+                result = apply_semantic_disposition(root, self.disposition)
+                self.assertEqual(("FAIL", "SEMANTIC_DISPOSITION_MISMATCH", 0), (result["status"], result["outcome"], result["candidate_count"]))
+                self.assertEqual([], list((root / "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-disposition-results").glob("*.json")))
+
+    def test_stored_disposition_filename_must_match_content_digest(self):
+        raw = compact(self.disposition)
+        directory = self.root / "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-dispositions"
+        directory.mkdir(parents=True)
+        (directory / ("0" * 64 + ".json")).write_bytes(raw)
+        result = self.apply()
+        self.assertEqual(("FAIL", "SEMANTIC_DISPOSITION_MISMATCH", 0), (result["status"], result["outcome"], result["candidate_count"]))
+        self.assertEqual([], list((self.root / "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-disposition-results").glob("*.json")))
+
     def test_relation_coverage_order_identity_and_kind_are_exact(self):
         attacks = []
         for mutate in (

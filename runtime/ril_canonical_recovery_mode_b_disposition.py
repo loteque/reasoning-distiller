@@ -177,6 +177,38 @@ def _identity_key(disposition: dict[str, Any]) -> tuple[Any, Any, Any]:
     return disposition["project"], disposition["prestate"], disposition["damage_analysis"]
 
 
+def _stored_disposition(root: Path, path: Path) -> tuple[dict[str, Any], bytes]:
+    """Fail closed unless a store entry is an exact content-addressed artifact."""
+    if path.is_symlink() or not path.is_file():
+        raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "disposition store contains a non-ordinary entry")
+    raw = path.read_bytes()
+    if path.name != f"{_sha(raw)}.json":
+        raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "stored disposition filename/content digest differs")
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"duplicate JSON key: {key}")
+            value[key] = item
+        return value
+
+    try:
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_object)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "stored disposition JSON is invalid") from exc
+    if not isinstance(value, dict):
+        raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "stored disposition is not an object")
+    try:
+        _validate_schema(root, value)
+        canonical = _bytes(value)
+    except ContractError as exc:
+        raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "stored disposition schema is invalid") from exc
+    if raw != canonical:
+        raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "stored disposition encoding is noncanonical")
+    return value, raw
+
+
 @contextmanager
 def _disposition_store_lock(root: Path):
     """Serialize identity checks and both immutable publications."""
@@ -205,13 +237,7 @@ def _check_conflicts(root: Path, disposition: dict[str, Any], raw: bytes) -> Non
     if not directory.exists():
         return
     for path in directory.glob("*.json"):
-        if path.is_symlink() or not path.is_file():
-            raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "disposition store contains a non-ordinary entry")
-        other_raw = path.read_bytes()
-        try:
-            other = json.loads(other_raw.decode("utf-8"))
-        except Exception as exc:
-            raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "stored disposition is invalid") from exc
+        other, other_raw = _stored_disposition(root, path)
         if _identity_key(other) == _identity_key(disposition) and other_raw != raw:
             raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "conflicting disposition already exists for damage/prestate")
 
