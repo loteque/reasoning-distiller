@@ -108,18 +108,14 @@ def _tracked_blob(root: Path, data: bytes) -> str | None:
 
 
 def _verify_source_defect(root: Path, commit: str, paths: tuple[str, ...]) -> None:
+    if commit != _INCIDENT_SOURCE_COMMIT:
+        raise ContractError("MODE_B_EVIDENCE_INVALID", "source defect commit is not the selected incident source")
     if not paths or len(paths) != len(set(paths)):
         raise ContractError("MODE_B_EVIDENCE_INVALID", "source defect paths must be nonempty and unique")
-    for object_name in (f"{commit}^{{commit}}", *(f"{commit}:{path}" for path in paths)):
-        completed = subprocess.run(
-            ["git", "cat-file", "-e", object_name],
-            cwd=root,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-        if completed.returncode != 0:
-            raise ContractError("MODE_B_EVIDENCE_INVALID", f"unavailable source-defect identity: {object_name}")
+    for path in paths:
+        raw = _ordinary_bytes(root, path)
+        if _tracked_blob(root, raw) is None:
+            raise ContractError("MODE_B_EVIDENCE_INVALID", f"source-defect evidence lacks an available Git blob: {path}")
 
 
 def _identity(root: Path, relative: str, data: bytes) -> dict[str, str]:
