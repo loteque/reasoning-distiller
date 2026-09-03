@@ -33,6 +33,20 @@ _INCIDENT_PROJECT_ID = "reasoning-distiller"
 _INCIDENT_RECORD_COUNT = 802
 _INCIDENT_RELATION_KINDS = {"supports": 661, "depends_on": 7}
 _INCIDENT_SOURCE_COMMIT = "95a65e2e036879ce1c7aadc22b19dd5da07106a3"
+_INCIDENT_SOURCE_PATH_BLOBS = (
+    (
+        "3516c8bd4c27c38b6eedd800ec125760d2df0306a02d0522db867436e1e12fc6",
+        "bb7c474e935243b45ff02a5778a94bbcdc654d72",
+    ),
+    (
+        "5cded72584ab98f7eb1d560c9160bf393fa3a29e57337e1fb08248f5ac1eb41b",
+        "7ff52fb925a667c4cc1782da9b475dff831e45ef",
+    ),
+    (
+        "5ee8f71a289b134c0064db792253da9ff5002f7d2dd1eed33fa397be70e4ddcd",
+        "a760dba6e9daf4f7f6262ff5992cfb6bbdb178e2",
+    ),
+)
 _BLOCKED_CHECKS = (
     "relation lifecycle vocabulary and lifecycle-dependent semantics",
     "relation data schema and kind-specific semantic values",
@@ -112,10 +126,19 @@ def _verify_source_defect(root: Path, commit: str, paths: tuple[str, ...]) -> No
         raise ContractError("MODE_B_EVIDENCE_INVALID", "source defect commit is not the selected incident source")
     if not paths or len(paths) != len(set(paths)):
         raise ContractError("MODE_B_EVIDENCE_INVALID", "source defect paths must be nonempty and unique")
-    for path in paths:
+    path_digests = tuple(_sha256(path.encode("utf-8")) for path in paths)
+    if path_digests != tuple(binding[0] for binding in _INCIDENT_SOURCE_PATH_BLOBS):
+        raise ContractError(
+            "MODE_B_EVIDENCE_INVALID",
+            "source defect paths do not match the selected incident source",
+        )
+    for path, (_path_digest, expected_blob) in zip(paths, _INCIDENT_SOURCE_PATH_BLOBS, strict=True):
         raw = _ordinary_bytes(root, path)
-        if _tracked_blob(root, raw) is None:
-            raise ContractError("MODE_B_EVIDENCE_INVALID", f"source-defect evidence lacks an available Git blob: {path}")
+        if _git_blob(raw) != expected_blob or _tracked_blob(root, raw) != expected_blob:
+            raise ContractError(
+                "MODE_B_EVIDENCE_INVALID",
+                f"source-defect path/blob does not match the selected incident source: {path}",
+            )
 
 
 def _identity(root: Path, relative: str, data: bytes) -> dict[str, str]:

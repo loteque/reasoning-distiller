@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
@@ -195,6 +196,53 @@ class ModeBB2DamageAnalyzerTests(unittest.TestCase):
                 source_defect_commit="0" * 40,
                 source_defect_paths=SOURCE_PATHS,
             )
+        self.assertEqual(caught.exception.code, "MODE_B_EVIDENCE_INVALID")
+
+    def test_unrelated_tracked_source_path_fails_closed(self):
+        with self.assertRaises(ContractError) as caught:
+            build_damage_artifacts(
+                ROOT,
+                pems_path=PEMS_PATH,
+                cove_path=COVE_PATH,
+                pems_schema_path=SCHEMA_PATH,
+                semantic_validator_path="backends/pems-cove/validate_pems2_contract.py",
+                normalizer_path="runtime/ril_admission.py",
+                cove_codec_path="runtime/ril_admission.py",
+                historical_evidence=EVIDENCE,
+                source_defect_commit=SOURCE_COMMIT,
+                source_defect_paths=("README.md",),
+            )
+        self.assertEqual(caught.exception.code, "MODE_B_EVIDENCE_INVALID")
+
+    def test_incomplete_source_path_set_fails_closed(self):
+        with self.assertRaises(ContractError) as caught:
+            build_damage_artifacts(
+                ROOT,
+                pems_path=PEMS_PATH,
+                cove_path=COVE_PATH,
+                pems_schema_path=SCHEMA_PATH,
+                semantic_validator_path="backends/pems-cove/validate_pems2_contract.py",
+                normalizer_path="runtime/ril_admission.py",
+                cove_codec_path="runtime/ril_admission.py",
+                historical_evidence=EVIDENCE,
+                source_defect_commit=SOURCE_COMMIT,
+                source_defect_paths=SOURCE_PATHS[:-1],
+            )
+        self.assertEqual(caught.exception.code, "MODE_B_EVIDENCE_INVALID")
+
+    def test_mismatched_source_path_blob_fails_closed(self):
+        from ril_canonical_recovery_mode_b_analyzer import _ordinary_bytes
+
+        original = _ordinary_bytes
+
+        def mismatched(root: Path, relative: str) -> bytes:
+            if relative == PEMS_PATH:
+                return (root / "README.md").read_bytes()
+            return original(root, relative)
+
+        with mock.patch("ril_canonical_recovery_mode_b_analyzer._ordinary_bytes", side_effect=mismatched):
+            with self.assertRaises(ContractError) as caught:
+                self.build()
         self.assertEqual(caught.exception.code, "MODE_B_EVIDENCE_INVALID")
 
 

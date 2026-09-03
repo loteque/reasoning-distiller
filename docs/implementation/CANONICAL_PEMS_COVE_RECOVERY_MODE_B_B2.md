@@ -16,6 +16,20 @@ The analyzer has no persistence, candidate, disposition, repair-proof, plan, app
 
 The evidence-inventory artifact contract is `reasoning-distiller-canonical-recovery-evidence-inventory/1`, schema `schemas/canonical-recovery-evidence-inventory.schema.json`.
 
+Source-defect provenance is a closed binding over source commit
+`95a65e2e036879ce1c7aadc22b19dd5da07106a3` and these exact ordered
+path/blob pairs:
+
+- `project-knowledge/canonical/pems2.jcs.json` / `bb7c474e935243b45ff02a5778a94bbcdc654d72`
+- `project-knowledge/canonical/cove1.jcs.json` / `7ff52fb925a667c4cc1782da9b475dff831e45ef`
+- `evaluation/relationship-discovery/benchmark-v1/baseline/A0-exhaustive/admission-manifest.json` / `a760dba6e9daf4f7f6262ff5992cfb6bbdb178e2`
+
+The analyzer recomputes each Git blob from the supplied worktree bytes and
+requires the corresponding blob object to be available. It does not require
+the historical commit or tree objects, so the same verification works in a
+depth-1 checkout. Unrelated paths, incomplete or reordered path sets, and
+mismatched path bytes fail closed.
+
 ## Exact incident artifacts
 
 - Damage analysis `/1`: `project-knowledge/recovery/canonical-pems-cove-mode-b/damage-analyses/286d18515e88fc013a6a41ed0bf8769fc2a143cce962abd8a359298532b99499.json`
