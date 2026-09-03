@@ -244,4 +244,5 @@ def apply_semantic_disposition(project_root: Path, disposition: dict[str, Any]) 
             "project": disposition.get("project", {"project_id": "unknown"}) if isinstance(disposition, dict) else {"project_id": "unknown"},
             "disposition": {"path": "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-dispositions/unpublished.json", "sha256": "0" * 64},
             "candidate_count": 0,
+            "detail": exc.detail,
         }

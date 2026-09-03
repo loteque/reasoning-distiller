@@ -96,7 +96,7 @@ class ModeBB3Tests(unittest.TestCase):
 
     def test_accept_is_recorded_and_identical_retry_is_no_change(self):
         first = self.apply()
-        self.assertEqual(("PASS", "ACCEPT_REPAIR", 0), (first["status"], first["outcome"], first["candidate_count"]))
+        self.assertEqual(("PASS", "ACCEPT_REPAIR", 0), (first["status"], first["outcome"], first["candidate_count"]), first)
         path = self.root / first["disposition"]["path"]
         before = path.stat().st_mtime_ns
         second = self.apply()
