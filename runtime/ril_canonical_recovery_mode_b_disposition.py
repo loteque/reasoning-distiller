@@ -244,7 +244,7 @@ def apply_semantic_disposition(project_root: Path, disposition: dict[str, Any]) 
             "status": "FAIL",
             "outcome": exc.code if exc.code in {
                 "SEMANTIC_EVIDENCE_INSUFFICIENT", "SEMANTIC_DISPOSITION_MISMATCH",
-                "SEMANTIC_ACTIVATION_INVALID"
+                "SEMANTIC_ACTIVATION_INVALID", "MODE_B_DAMAGE_SET_MISMATCH"
             } else "SEMANTIC_DISPOSITION_INVALID",
             "project": disposition.get("project", {"project_id": "unknown"}) if isinstance(disposition, dict) else {"project_id": "unknown"},
             "disposition": {"path": "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-dispositions/unpublished.json", "sha256": "0" * 64},
