@@ -3,6 +3,7 @@ import hashlib
 import json
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -122,6 +123,45 @@ class ModeBB3Tests(unittest.TestCase):
         other["rationale"] = "Conflicting judgment."
         result = self.apply(other)
         self.assertEqual(("FAIL", "SEMANTIC_DISPOSITION_MISMATCH", 0), (result["status"], result["outcome"], result["candidate_count"]))
+
+    def test_synchronized_conflicting_dispositions_are_atomically_exclusive(self):
+        other = copy.deepcopy(self.disposition)
+        other["rationale"] = "Concurrent conflicting judgment."
+        barrier = threading.Barrier(2)
+        original = self.validate.side_effect
+
+        def synchronized_validation(*args, **kwargs):
+            barrier.wait(timeout=5)
+            if original is not None:
+                return original(*args, **kwargs)
+            return self.validate.return_value
+
+        self.validate.side_effect = synchronized_validation
+        results = []
+
+        def submit(value):
+            results.append(self.apply(value))
+
+        threads = [threading.Thread(target=submit, args=(value,)) for value in (self.disposition, other)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertEqual(["FAIL", "PASS"], sorted(result["status"] for result in results))
+        self.assertEqual(
+            ["ACCEPT_REPAIR", "SEMANTIC_DISPOSITION_MISMATCH"],
+            sorted(result["outcome"] for result in results),
+        )
+        self.assertEqual(1, len(list((self.root / "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-dispositions").glob("*.json"))))
+
+    def test_malformed_stored_disposition_identity_fails_closed(self):
+        directory = self.root / "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-dispositions"
+        directory.mkdir(parents=True)
+        (directory / ("0" * 64 + ".json")).write_text("{}", encoding="utf-8")
+        result = self.apply()
+        self.assertEqual(("FAIL", "SEMANTIC_DISPOSITION_MISMATCH", 0), (result["status"], result["outcome"], result["candidate_count"]))
+        self.assertEqual([], list((self.root / "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-disposition-results").glob("*.json")))
 
     def test_relation_coverage_order_identity_and_kind_are_exact(self):
         attacks = []

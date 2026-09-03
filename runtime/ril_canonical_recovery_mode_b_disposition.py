@@ -7,10 +7,13 @@ mutation capability.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
+import stat
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -167,7 +170,34 @@ def _validate_r8(root: Path, disposition: dict[str, Any]) -> None:
 
 
 def _identity_key(disposition: dict[str, Any]) -> tuple[Any, Any, Any]:
+    if not isinstance(disposition, dict) or not all(
+        field in disposition for field in ("project", "prestate", "damage_analysis")
+    ):
+        raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "stored disposition identity is invalid")
     return disposition["project"], disposition["prestate"], disposition["damage_analysis"]
+
+
+@contextmanager
+def _disposition_store_lock(root: Path):
+    """Serialize identity checks and both immutable publications."""
+    directory = root / BASE / "semantic-dispositions"
+    directory.mkdir(parents=True, exist_ok=True)
+    lock_path = directory / ".identity.lock"
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(lock_path, flags, 0o600)
+    except OSError as exc:
+        raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "disposition store lock is unavailable") from exc
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "disposition store lock is not an ordinary file")
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError as exc:
+            raise ContractError("SEMANTIC_DISPOSITION_MISMATCH", "disposition store lock cannot be acquired") from exc
+        yield
+    finally:
+        os.close(fd)
 
 
 def _check_conflicts(root: Path, disposition: dict[str, Any], raw: bytes) -> None:
@@ -215,7 +245,6 @@ def apply_semantic_disposition(project_root: Path, disposition: dict[str, Any]) 
 
         raw = _bytes(disposition)
         digest = _sha(raw)
-        _check_conflicts(project_root, disposition, raw)
         disposition_path = project_root / BASE / "semantic-dispositions" / f"{digest}.json"
         disposition_ref = {"path": disposition_path.relative_to(project_root).as_posix(), "sha256": digest}
         status, outcome = RESULTS[disposition["outcome"]]
@@ -230,13 +259,15 @@ def apply_semantic_disposition(project_root: Path, disposition: dict[str, Any]) 
         result_raw = _bytes(result)
         result_path = project_root / BASE / "semantic-disposition-results" / f"{digest}.json"
 
-        wrote_disposition = _publish(disposition_path, raw)
-        try:
-            wrote_result = _publish(result_path, result_raw)
-        except Exception:
-            if wrote_disposition:
-                disposition_path.unlink()
-            raise
+        with _disposition_store_lock(project_root):
+            _check_conflicts(project_root, disposition, raw)
+            wrote_disposition = _publish(disposition_path, raw)
+            try:
+                _publish(result_path, result_raw)
+            except Exception:
+                if wrote_disposition:
+                    disposition_path.unlink()
+                raise
         return result
     except ContractError as exc:
         return {

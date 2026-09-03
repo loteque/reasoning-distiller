@@ -25,6 +25,11 @@ prestate, and damage-analysis identity fails closed. Accept is
 `FAIL/SEMANTIC_DISPOSITION_DEFERRED`. Every result has
 `candidate_count: 0`.
 
+The identity conflict check and both immutable publications execute under one
+store lock, so concurrent conflicting submissions cannot both persist. A
+malformed stored disposition identity fails closed as
+`SEMANTIC_DISPOSITION_MISMATCH`.
+
 The module cannot construct a candidate, repair proof, recovery plan, root
 approval, or recovery transaction. It does not modify R12, Mode A runtime,
 Canon, admission, recovery standing, role registry, Steward authorization, or
