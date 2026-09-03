@@ -115,15 +115,17 @@ def _expected_relations(root: Path, damage: dict[str, Any]) -> list[dict[str, An
     expected = [{"relation_id": r.get("id"), "from": r.get("from"), "to": r.get("to"), "kind": r.get("kind")} for r in relations]
     if len(expected) != damage["damage_set"]["relation_count"]:
         raise ContractError("MODE_B_DAMAGE_SET_MISMATCH", "inventory relation count differs from damage analysis")
-    encoded = _bytes(expected)
-    if _sha(encoded) != damage["damage_set"]["ordered_relation_set_sha256"]:
+    relation_inventory_bytes = json.dumps(relations, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8") + b"\n"
+    if _sha(relation_inventory_bytes) != damage["damage_set"]["ordered_relation_set_sha256"]:
         raise ContractError("MODE_B_DAMAGE_SET_MISMATCH", "inventory relation-set digest differs from damage analysis")
     return expected
 
 
 def _validate_rows(root: Path, disposition: dict[str, Any], expected: list[dict[str, Any]]) -> None:
-    if disposition["ordered_relation_set_sha256"] != _sha(_bytes(expected)):
-        raise ContractError("MODE_B_DAMAGE_SET_MISMATCH", "disposition relation-set digest differs")
+    # The digest names the complete ordered B2 inventory rows (including index
+    # and key_set); row equality below binds the disposition projection.
+    if not isinstance(disposition["ordered_relation_set_sha256"], str):
+        raise ContractError("MODE_B_DAMAGE_SET_MISMATCH", "disposition relation-set digest is invalid")
     rows = disposition["values"]
     if len(rows) != len(expected):
         raise ContractError("MODE_B_DAMAGE_SET_MISMATCH", "value table must contain exactly one row per relation")
@@ -201,6 +203,8 @@ def apply_semantic_disposition(project_root: Path, disposition: dict[str, Any]) 
         damage, _ = _load_ref(project_root, disposition["damage_analysis"])
         _validate_prestate(project_root, damage, disposition)
         expected = _expected_relations(project_root, damage)
+        if disposition["ordered_relation_set_sha256"] != damage["damage_set"]["ordered_relation_set_sha256"]:
+            raise ContractError("MODE_B_DAMAGE_SET_MISMATCH", "disposition relation-set digest differs")
         _validate_rows(project_root, disposition, expected)
         _validate_r8(project_root, disposition)
 
@@ -228,7 +232,6 @@ def apply_semantic_disposition(project_root: Path, disposition: dict[str, Any]) 
             if wrote_disposition:
                 disposition_path.unlink()
             raise
-        result["publication"] = "RECORDED" if wrote_disposition or wrote_result else "NO_CHANGE"
         return result
     except ContractError as exc:
         return {
@@ -241,5 +244,4 @@ def apply_semantic_disposition(project_root: Path, disposition: dict[str, Any]) 
             "project": disposition.get("project", {"project_id": "unknown"}) if isinstance(disposition, dict) else {"project_id": "unknown"},
             "disposition": {"path": "project-knowledge/recovery/canonical-pems-cove-mode-b/semantic-dispositions/unpublished.json", "sha256": "0" * 64},
             "candidate_count": 0,
-            "detail": exc.detail,
         }

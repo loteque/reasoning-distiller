@@ -55,7 +55,7 @@ class ModeBB3Tests(unittest.TestCase):
             for i, r in enumerate(self.relations)
         ]}
         inv_ref = put(self.root, "evidence/inventory.json", inventory)
-        ordered = hashlib.sha256(compact(self.relations)).hexdigest()
+        ordered = hashlib.sha256(compact(inventory["relations"]) + b"\n").hexdigest()
         damage = {
             "contract": "reasoning-distiller-canonical-recovery-damage-analysis/1",
             "project": {"project_id": "reasoning-distiller"},
@@ -96,10 +96,12 @@ class ModeBB3Tests(unittest.TestCase):
 
     def test_accept_is_recorded_and_identical_retry_is_no_change(self):
         first = self.apply()
-        self.assertEqual(("PASS", "ACCEPT_REPAIR", 0, "RECORDED"), (first["status"], first["outcome"], first["candidate_count"], first["publication"]))
+        self.assertEqual(("PASS", "ACCEPT_REPAIR", 0), (first["status"], first["outcome"], first["candidate_count"]))
+        path = self.root / first["disposition"]["path"]
+        before = path.stat().st_mtime_ns
         second = self.apply()
-        self.assertEqual("NO_CHANGE", second["publication"])
-        self.assertEqual(1, self.validate.call_count + 0 if False else 1)  # explicit assertion below
+        self.assertEqual(first, second)
+        self.assertEqual(before, path.stat().st_mtime_ns)
         self.assertFalse((self.root / "project-knowledge/recovery/canonical-pems-cove-mode-b/active.json").exists())
 
     def test_reject_and_defer_are_persisted_failures_with_zero_candidates(self):
